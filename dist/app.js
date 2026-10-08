@@ -1,29 +1,49 @@
-import {parameterDefaults,parameterRanges} from './parameters.js?v=7';
+import {parameterDefaults,parameterRanges} from './parameters.js?v=8';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets } from './anime.js?v=7';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets } from './anime.js?v=8';
 
-import {hairPresets,outfitPresets} from './presets.js?v=7';
+import {hairDefaults,hairChoices,hairRanges} from './hair.js?v=8';
+import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=8';
 const $ = s => document.querySelector(s);
-const defaults = {...parameterDefaults,name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jaw:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'source',clothes:'source',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',shirt:'#778f87',pants:'#343b50'};
-const choices = {gender:[['female','女性'],['male','男性']],hair:[...hairPresets.female,...hairPresets.male],clothes:[...outfitPresets.female,...outfitPresets.male],expression:[['neutral','自然'],['fun','微笑'],['joy','开心'],['angry','认真'],['sorrow','忧伤'],['blink','闭眼']]};
+const defaults = {...parameterDefaults,...hairDefaults,...wardrobeDefaults,name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jaw:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',shirt:'#778f87',pants:'#343b50'};
+const choices = {gender:[['female','女性'],['male','男性']],...hairChoices,hair:[['modular','分区发型']],clothes:[['shirtPants','衬衫 · 长裤']],expression:[['neutral','自然'],['fun','微笑'],['joy','开心'],['angry','认真'],['sorrow','忧伤'],['blink','闭眼']]};
 const palettes = {skin:['#f1cbb2','#d6a17e','#b87c55','#86543c','#51372c'],hairColor:['#201d20','#332821','#815137','#c5a15e','#b7b9c4','#854d67'],shirt:['#778f87','#d7c8b0','#a24d54','#537892','#373c49','#bca0c2'],pants:['#343b50','#292c31','#a09380','#655850']};
-const ranges = {...parameterRanges,height:['身高','较矮','较高'],weight:['体型','纤细','丰满'],shoulders:['肩宽','窄','宽'],legs:['腿长比例','短','长'],faceWidth:['脸部宽度','窄','宽'],jaw:['下颌轮廓','收窄','方正'],eyeSize:['眼睛大小','小','大'],eyeSpace:['眼间距','近','远'],nose:['鼻子大小','小','大'],mouth:['嘴部宽度','窄','宽']};
-const tabs = {body:['01 / FOUNDATION','创造独一无二的你','保留日漫基础结构，用参数调整身体比例。',['name','gender','height','weight','shoulders','legs','headSize','neckWidth','chest','waist','hips','legThickness','skin']],face:['02 / FEATURES','每一面，都有个性','旋转角色，查看五官与轮廓的变化。',['faceWidth','jaw','eyeSize','eyeSpace','nose','noseProjection','mouth','mouthHeight','forehead','chinLength','expression']],hair:['03 / HAIRSTYLE','从头开始的风格','选择现成发型，搭配发色。新预设首次选择时载入。',['hair','hairColor']],clothes:['04 / WARDROBE','穿出你的日常','选择整套穿搭，上装、下装与鞋履一起切换。',['clothes','shirt','pants']]};
+const ranges = {...parameterRanges,...hairRanges,...wardrobeRanges,height:['身高','较矮','较高'],weight:['体型','纤细','丰满'],shoulders:['肩宽','窄','宽'],legs:['腿长比例','短','长'],faceWidth:['脸部宽度','窄','宽'],jaw:['下颌轮廓','收窄','方正'],eyeSize:['眼睛大小','小','大'],eyeSpace:['眼间距','近','远'],nose:['鼻子大小','小','大'],mouth:['嘴部宽度','窄','宽']};
+const tabs = {body:['01 / FOUNDATION','创造独一无二的你','保留日漫基础结构，用参数调整身体比例。',['name','gender','height','weight','shoulders','legs','headSize','neckWidth','chest','waist','hips','legThickness','skin']],face:['02 / FEATURES','每一面，都有个性','旋转角色，查看五官与轮廓的变化。',['faceWidth','jaw','eyeSize','eyeSpace','nose','noseProjection','mouth','mouthHeight','forehead','chinLength','expression']],hair:['03 / HAIRSTYLE','从头开始的风格','分别搭配前发、后发、侧发与发辫。',['frontHair','frontLength','backHair','backLength','sideHair','sideLength','braid','braidLength','hairVolume','hairColor']],clothes:['04 / WARDROBE','穿出你的日常','衬衫与长裤，调整剪裁和宽松度。',['shirtLength','sleeveLength','shirtEase','pantsWidth','shirt','pants']]};
 const facePresets=[
   {label:'柔和日漫',values:{faceWidth:45,jaw:22,eyeSize:88,eyeSpace:54,nose:15,mouth:30}},
   {label:'清爽青年',values:{faceWidth:42,jaw:38,eyeSize:73,eyeSpace:50,nose:27,mouth:36}},
   {label:'原版日漫',values:{faceWidth:50,jaw:50,eyeSize:50,eyeSpace:50,nose:50,mouth:50,forehead:50,chinLength:50,noseProjection:50,mouthHeight:50}}
 ];
-const labels={expression:'表情',gender:'性别',hair:'发型',clothes:'服饰',skin:'肤色',hairColor:'发色',shirt:'上装颜色',pants:'下装 / 鞋履颜色'};
+const labels={frontHair:'前发',backHair:'后发',sideHair:'侧发',braid:'发辫',expression:'表情',gender:'性别',hair:'发型',clothes:'服饰',skin:'肤色',hairColor:'发色',shirt:'上装颜色',pants:'下装 / 鞋履颜色'};
 let state={...defaults}, activeTab='body', currentView='full', model, renderer, scene, camera, orbit;
 const stage=$('#stage');
 let humanReady=false,buildRequest=0;
-const presetLoading=element('div','model-loading','正在载入预设…');
-function choicesFor(key,gender=state.gender){return key==='hair'?hairPresets[gender]:key==='clothes'?outfitPresets[gender]:choices[key];}
+const presetLoading=element('div','model-loading','正在生成角色…');
+function choicesFor(key){return choices[key];}
 let toastTimer;
 function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),2400);}
-function normalize(value){if(!value || typeof value!=='object' || Array.isArray(value))throw Error('无效角色');const out={...defaults};for(const key of Object.keys(defaults)){let v=value[key];if(key==='hair' && ['short','bob','long','bun'].includes(v))v=v==='bob'?'trim':'source';if(key==='clothes' && ['casual','formal','sport','dress'].includes(v))v='source';if(key==='name' && typeof v==='string')out[key]=v.trim().slice(0,32)||'新角色';else if(ranges[key] && typeof v==='number' && Number.isFinite(v))out[key]=Math.max(0,Math.min(100,v));else if(choices[key] && choices[key].some(c=>c[0]===v))out[key]=v;else if(palettes[key] && typeof v==='string' && /^#[0-9a-f]{6}$/i.test(v))out[key]=v;}for(const key of ['hair','clothes'])if(!choicesFor(key,out.gender).some(c=>c[0]===out[key]))out[key]='source';return out;}
+function normalize(value){
+ if(!value||typeof value!=='object'||Array.isArray(value))throw Error('无效角色');
+ const out={...defaults};
+ for(const key of Object.keys(defaults)){
+  const v=value[key];
+  if(key==='name'&&typeof v==='string')out[key]=v.trim().slice(0,32)||'新角色';
+  else if(ranges[key]&&typeof v==='number'&&Number.isFinite(v))out[key]=Math.max(0,Math.min(100,v));
+  else if(choices[key]&&choices[key].some(c=>c[0]===v))out[key]=v;
+  else if(palettes[key]&&typeof v==='string'&&/^#[0-9a-f]{6}$/i.test(v))out[key]=v;
+ }
+ // Old complete hairstyles migrate to editable sections; clothing becomes shirt + pants.
+ if(!Object.hasOwn(value,'frontHair')){
+  if(value.hair==='bald')Object.assign(out,{frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});
+  else if(value.hair==='longPreset'||value.hair==='long')Object.assign(out,{frontHair:'straight',backHair:'long',sideHair:'long'});
+  else if(value.hair==='bobPreset'||value.hair==='bob')Object.assign(out,{frontHair:'straight',backHair:'bob',sideHair:'short'});
+  else if(value.hair==='wavePreset')Object.assign(out,{frontHair:'swept',backHair:'bob',braid:'single'});
+  else if(value.gender==='female'&&value.hair==='source')Object.assign(out,{frontHair:'parted',backHair:'short',braid:'double'});
+ }
+ return out;
+}
 function element(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;}
 function update(){ $('#display-name').textContent=state.name; buildCharacter(); }
 function renderControls(){const [num,title,desc,fields]=tabs[activeTab];$('#section-number').textContent=num;$('#section-title').textContent=title;$('#section-desc').textContent=desc;$('#controls').replaceChildren();if(activeTab==='face'){const wrap=element('div','field'),box=element('div','options');wrap.append(element('div','field-title','脸型预设'));for(const preset of facePresets){const button=element('button','option',preset.label);button.classList.toggle('selected',Object.entries(preset.values).every(([k,v])=>state[k]===v));button.onclick=()=>{Object.assign(state,preset.values);update();renderControls();setView('face');};box.append(button);}wrap.append(box);$('#controls').append(wrap);}for(const key of fields){const wrap=element('div','field');const label=element('label','field-title',ranges[key]?.[0]||labels[key]||'角色名称');label.htmlFor='control-'+key;wrap.append(label);if(key==='name'){const input=element('input','name-input');input.id='control-'+key;input.maxLength=32;input.value=state.name;input.oninput=()=>{state.name=input.value;$('#display-name').textContent=state.name||'新角色';};wrap.append(input);}else if(ranges[key]){const output=element('output',null,state[key]);label.append(output);const input=element('input');input.id='control-'+key;input.type='range';input.min=0;input.max=100;input.value=state[key];input.oninput=()=>{state[key]=Number(input.value);output.textContent=input.value;update();};wrap.append(input);const ends=element('div','range-labels');ends.append(element('span',null,ranges[key][1]),element('span',null,ranges[key][2]));wrap.append(ends);}else {const box=element('div',palettes[key]?'swatches':key==='gender'?'segmented':'options');const values=palettes[key]?.map(c=>[c,c])||choicesFor(key);for(const [value,text] of values){const button=element('button',palettes[key]?'swatch':'option',palettes[key]?undefined:text);button.classList.toggle('selected',state[key]===value);button.setAttribute('aria-label',labels[key]+' '+text);button.setAttribute('aria-pressed',String(state[key]===value));if(palettes[key])button.style.setProperty('--color',value);button.onclick=()=>{state[key]=value;if(key==='gender')state=normalize(state);update();renderControls();};box.append(button);}wrap.append(box);}$('#controls').append(wrap);}}
@@ -31,7 +51,7 @@ function material(color){return new THREE.MeshStandardMaterial({color,roughness:
 async function buildCharacter(){
   if(!scene || !humanReady)return;
   const request=++buildRequest,snapshot={...state};let succeeded=false;
-  presetLoading.textContent='正在载入预设…';presetLoading.classList.remove('failed');presetLoading.onclick=null;
+  presetLoading.textContent='正在生成角色…';presetLoading.classList.remove('failed');presetLoading.onclick=null;
   const timer=setTimeout(()=>{if(request===buildRequest)stage.append(presetLoading);},150);
   try {
     await ensureHumanPresets(snapshot);
@@ -57,7 +77,7 @@ $('#save').onclick=()=>{try{state=normalize(state);const rows=readArchive();rows
 $('#load').onclick=showArchive;$('#close').onclick=()=>$('#archive').close();
 $('#export').onclick=()=>{const data={format:'charabuilder',version:1,character:normalize(state)};const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=element('a');a.href=url;a.download=(state.name||'character').replace(/[\\/:*?"<>|]/g,'_')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 $('#import').onclick=()=>$('#file').click();$('#file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>100000)throw Error('过大');const data=JSON.parse(await file.text());if(data.format!=='charabuilder'||data.version!==1||!data.character)throw Error('格式');state=normalize(data.character);update();renderControls();setView(currentView);$('#archive').close();toast('角色文件已导入，可继续编辑');}catch{toast('导入失败：请选择有效的 CharaBuilder JSON 文件');}finally{e.target.value='';}};
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{activeTab=b.dataset.tab;document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));renderControls();setView(activeTab==='face'||activeTab==='hair'?'face':'full');});document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>setView(b.dataset.view));$('#reset-view').onclick=()=>setView(currentView);$('#rotate').onclick=()=>{if(!orbit)return;orbit.autoRotate=!orbit.autoRotate;$('#rotate').setAttribute('aria-pressed',String(orbit.autoRotate));$('#rotate').classList.toggle('selected',orbit.autoRotate);};$('#reset').onclick=()=>{if(!confirm('重置当前未保存的调整？'))return;state={...defaults};update();renderControls();setView('full');};$('#random').onclick=()=>{for(const key of Object.keys(ranges))state[key]=Math.round(20+Math.random()*60);for(const key of Object.keys(choices)){const values=choicesFor(key);state[key]=values[Math.floor(Math.random()*values.length)][0];}for(const [key,values] of Object.entries(palettes))state[key]=values[Math.floor(Math.random()*values.length)];update();renderControls();setView(currentView);};
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{activeTab=b.dataset.tab;document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));renderControls();setView(activeTab==='face'?'face':'full');});document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>setView(b.dataset.view));$('#reset-view').onclick=()=>setView(currentView);$('#rotate').onclick=()=>{if(!orbit)return;orbit.autoRotate=!orbit.autoRotate;$('#rotate').setAttribute('aria-pressed',String(orbit.autoRotate));$('#rotate').classList.toggle('selected',orbit.autoRotate);};$('#reset').onclick=()=>{if(!confirm('重置当前未保存的调整？'))return;state={...defaults};update();renderControls();setView('full');};$('#random').onclick=()=>{for(const key of Object.keys(ranges))state[key]=Math.round(20+Math.random()*60);for(const key of Object.keys(choices)){const values=choicesFor(key);state[key]=values[Math.floor(Math.random()*values.length)][0];}for(const [key,values] of Object.entries(palettes))state[key]=values[Math.floor(Math.random()*values.length)];update();renderControls();setView(currentView);};
 update();renderControls();
 
 const loading=element('div','model-loading','正在载入日漫角色…');stage.append(loading);

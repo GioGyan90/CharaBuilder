@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import {createDeformer,deformNormal} from './parameters.js?v=7';
-import { hairAsset, outfitAsset } from './presets.js?v=7';
+import {createDeformer,deformNormal} from './parameters.js?v=8';
+import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=8';
+import {createHair} from './hair.js?v=8';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -27,7 +28,7 @@ async function loadAsset(id, textures = true) {
     const data = JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
     const used = new Set(data.meshes.flatMap(m=>m.groups.map(g=>g.material)));
     data.maps = textures ? await Promise.all(data.materials.map(async (m,i) => {
-      if (!m.texture || !used.has(i)) return null;
+      if (!m.texture || !used.has(i) || /_CLOTH|_HAIR/.test(m.name) || (m.name.includes('Body') && m.name.includes('_SKIN'))) return null;
       const map = await new THREE.TextureLoader().loadAsync(new URL(m.texture, root).href);
       map.flipY = false; map.colorSpace = THREE.SRGBColorSpace;map.anisotropy = 4;
       return map;
@@ -42,30 +43,39 @@ export async function loadHumanAssets({textures = true} = {}) {
   await Promise.all(['female','male'].map(id=>loadAsset(id,textures)));
 }
 export async function ensureHumanPresets(state, {textures = true} = {}) {
-  await Promise.all([...new Set([hairAsset[state.hair],outfitAsset(state)].filter(Boolean))].map(id=>loadAsset(id,textures)));
+  await Promise.all((state.gender==='female'?['long','uniform']:['uniform']).map(id=>loadAsset(id,textures)));
 }
 function compose(state) {
-  const base=assets[state.gender],body=assets[outfitAsset(state)]||base,hair=assets[hairAsset[state.hair]]||base;
-  if (!base) throw Error('日漫模型未载入');
+  const base=assets[state.gender],shirt=assets[state.gender==='female'?'long':'uniform'],pants=assets.uniform;
+  if(!base||!shirt||!pants)throw Error('服装基础网格未载入');
   const data={...base,materials:[],maps:[],meshes:[]};
-  function fitted(mesh){
-    const fit=mesh.fits?.[outfitAsset(state)||state.gender];if(!fit)return mesh;
-    const positions=[...mesh.positions];for(let k=0;k<fit.indices.length;k++)for(let j=0;j<3;j++)positions[fit.indices[k]*3+j]=fit.positions[k*3+j];
-    return {...mesh,positions};
-  }
-  for(const [owner,name] of [[base,'Face'],[body,'Body'],[hair,'Hair001']]) {
+  function add(owner,source,groups) {
     const offset=data.materials.length;data.materials.push(...owner.materials);data.maps.push(...owner.materials.map((_,i)=>owner.maps[i]||null));
-    let source=owner.meshes.find(m=>m.name===name);
-    if(name==='Hair001')source=fitted(source);
-    const groups=source.groups.filter(g=>name!=='Body'||!owner.materials[g.material].name.includes('_HAIR'));
     data.meshes.push({...source,groups:groups.map(g=>({...g,material:g.material+offset}))});
-    if(name==='Hair001' && state.hair!=='bald') {
-      const originalCap=owner.meshes.find(m=>m.name==='Body');
-      const cap=originalCap?fitted(originalCap):null;
-      const capGroups=cap?.groups.filter(g=>owner.materials[g.material].name.includes('_HAIR'))||[];
-      if(capGroups.length)data.meshes.push({...cap,name:'HairCap',groups:capGroups.map(g=>({...g,material:g.material+offset}))});
-    }
   }
+  const face=base.meshes.find(m=>m.name==='Face');add(base,face,face.groups);
+  const body=base.meshes.find(m=>m.name==='Body');
+  const neck=base.landmarks.neck[1],hip=base.landmarks.hips[1],sleeve=.124+Math.max(0,Math.min(100,state.sleeveLength??50))*(state.gender==='female'?.00276:.00316);
+  const skinGroups=body.groups.filter(g=>base.materials[g.material].name.includes('_SKIN')||base.materials[g.material].name.includes('Shoes'));
+  const filtered=skinGroups.map(g=>{
+    if(!base.materials[g.material].name.includes('_SKIN'))return g;
+    const indices=[];
+    for(let i=0;i<g.indices.length;i+=3){
+      const ids=g.indices.slice(i,i+3);let covered=0;
+      for(const id of ids){const x=Math.abs(body.positions[id*3]/100000),y=body.positions[id*3+1]/100000;
+        const axial=(x-.12)*.4695+(y-(neck-.065))*(-.8829);
+        if((x<.19&&y>.13&&y<hip+.08)||(x<.13&&y>hip&&y<neck-.085)||(x>.13&&y<neck-.045&&axial<sleeve-.025))covered++;
+      }
+      if(covered!==3)indices.push(...ids);
+    }
+    return {...g,indices};
+  });add(base,body,filtered);
+  const shirtBody=shirt.meshes.find(m=>m.name==='Body');
+  const shirtGroups=shirtBody.groups.filter(g=>shirt.materials[g.material].name.includes('Tops'));
+  add(shirt,clothingMesh(shirtBody,'shirt',state,shirt.landmarks,base.landmarks,shirtGroups),shirtGroups);
+  const pantsBody=pants.meshes.find(m=>m.name==='Body');
+  const pantsGroups=pantsBody.groups.filter(g=>pants.materials[g.material].name.includes('Bottoms'));
+  add(pants,clothingMesh(pantsBody,'pants',state,pants.landmarks,base.landmarks),pantsGroups);
   return data;
 }
 export function createHuman(state) {
@@ -74,8 +84,9 @@ export function createHuman(state) {
   if (!data) throw Error('日漫模型未载入');
   const group = new THREE.Group();
   const eyeY = (data.landmarks.leftEye[1] + data.landmarks.rightEye[1])/2;
-  const hairSource=base.meshes.find(m=>m.name==='Hair001');
-  const top=Math.max(...hairSource.groups.flatMap(g=>g.indices.map(i=>hairSource.positions[i*3+1])))/100000;
+  const bodyBase=base.meshes.find(m=>m.name==='Body');
+  const skinGroups=bodyBase.groups.filter(g=>base.materials[g.material].name.includes('_SKIN'));
+  const top=Math.max(...skinGroups.flatMap(g=>g.indices.map(i=>bodyBase.positions[i*3+1])))/100000+.012;
   const scale = 2.22/top * (.92 + state.height*.0016);
   const materials = data.materials.map((m,i) => {
     const name = m.name;
@@ -87,7 +98,7 @@ export function createHuman(state) {
     if (clothes) color.set(name.includes('Bottoms') || name.includes('Shoes') || name.includes('AccessoryNeck') ? state.pants : state.shirt);
     const overlay = /Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(name);
     const material = new THREE.MeshToonMaterial({
-      color, map:clothes && state.clothes==='solid' ? null : data.maps[i] || null,
+      color, map:clothes || (skin && name.includes('Body')) ? null : data.maps[i] || null,
       side: m.double || hair || overlay ? THREE.DoubleSide : THREE.FrontSide,
       alphaTest: m.blend ? .35 : 0,
       transparent: overlay, depthWrite: !overlay,
@@ -102,14 +113,17 @@ export function createHuman(state) {
   });
   const deform=createDeformer(state,data.landmarks,scale);
   for (const source of data.meshes) {
-    if (source.name==='Hair001' && state.hair==='bald') continue;
     const p=new Float32Array(source.positions.length);
     const expression=source.expressions[state.expression];
     const normals=new Float32Array(p.length);
+    let sourceNormals=source.normals;
+    if(source.name==='Shirt'||source.name==='Pants'){
+      const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(source.positions.map(v=>v/100000),3));g.setIndex(source.groups.flatMap(g=>g.indices));g.computeVertexNormals();sourceNormals=Array.from(g.attributes.normal.array,v=>v*32767);g.dispose();
+    }
     for(let i=0;i<p.length;i+=3) {
       const q=deform((source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,source.name);
       p.set(q,i);
-      normals.set(deformNormal(deform,(source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,...source.normals.slice(i,i+3).map(v=>v/32767),source.name),i);
+      normals.set(deformNormal(deform,(source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,...sourceNormals.slice(i,i+3).map(v=>v/32767),source.name),i);
     }
     for(const part of source.groups) {
       const description=data.materials[part.material].name;
@@ -129,6 +143,19 @@ export function createHuman(state) {
     }
   }
   // Materials with no visible primitive still belong to this instance and must be disposed.
+  const buttonMaterial=new THREE.MeshToonMaterial({color:new THREE.Color(state.shirt).multiplyScalar(.73)});
+  buttonMaterial.gradientMap=materials[0].gradientMap;materials.push(buttonMaterial);
+  const shirtMesh=data.meshes.find(m=>m.name==='Shirt');
+  for(const point of shirtButtonPoints(shirtMesh,data.landmarks)){
+    const geometry=new THREE.SphereGeometry(.003,8,6);geometry.translate(...point);
+    const p=geometry.attributes.position;
+    for(let i=0;i<p.count;i++)p.setXYZ(i,...deform(p.getX(i),p.getY(i),p.getZ(i),'Shirt'));
+    geometry.computeVertexNormals();const button=new THREE.Mesh(geometry,buttonMaterial);button.name='ShirtButton';button.userData.part='ShirtDetail';group.add(button);
+  }
+  const hairMaterial=new THREE.MeshToonMaterial({color:state.hairColor,side:THREE.DoubleSide});
+  hairMaterial.gradientMap=materials[0].gradientMap;
+  materials.push(hairMaterial);
+  group.add(createHair(base,state,deform,hairMaterial));
   group.userData.materials=materials;
   const bodySource=data.meshes.find(m=>m.name==='Body');
   let floorY=Infinity;for(const part of bodySource.groups)for(const id of part.indices)floorY=Math.min(floorY,bodySource.positions[id*3+1]/100000);
