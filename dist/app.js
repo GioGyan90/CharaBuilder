@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman } from './human.js?v=2';
+import { loadHumanAssets, createHuman } from './human.js?v=3';
 
 const $ = s => document.querySelector(s);
 const defaults = {name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jaw:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'bob',clothes:'casual',skin:'#d6a17e',hairColor:'#332821',shirt:'#778f87',pants:'#343b50'};

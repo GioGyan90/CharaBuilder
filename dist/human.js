@@ -69,29 +69,45 @@ export function createHuman(state) {
 
   // Clip garments at exact hems. Keep the continuous body beneath, including hands and feet.
   function garmentSurface(indices,material,field,inflate=.055){
-    const g=geometry(p,indices),normal=g.attributes.normal.array,positions=[],normals=[];
+    const g=geometry(p,indices),normal=g.attributes.normal.array,positions=[],normals=[],rims=[];
     for(let i=0;i<indices.length;i+=3){
       let polygon=indices.slice(i,i+3).map(id=>({v:[p[id*3]+normal[id*3]*inflate,p[id*3+1]+normal[id*3+1]*inflate,p[id*3+2]+normal[id*3+2]*inflate],n:[normal[id*3],normal[id*3+1],normal[id*3+2]],d:field(p[id*3],p[id*3+1],p[id*3+2])}));
-      const clipped=[];
+      const clipped=[],cuts=[];
       for(let j=0;j<polygon.length;j++){
         const a=polygon[j],b=polygon[(j+1)%polygon.length];
         if(a.d>=0)clipped.push(a);
-        if((a.d>=0)!==(b.d>=0)){const t=a.d/(a.d-b.d);clipped.push({v:a.v.map((v,k)=>THREE.MathUtils.lerp(v,b.v[k],t)),n:a.n.map((v,k)=>THREE.MathUtils.lerp(v,b.n[k],t))});}
+        if((a.d>=0)!==(b.d>=0)){const t=a.d/(a.d-b.d);const cut={v:a.v.map((v,k)=>THREE.MathUtils.lerp(v,b.v[k],t)),n:a.n.map((v,k)=>THREE.MathUtils.lerp(v,b.n[k],t))};clipped.push(cut);cuts.push(cut);}
       }
+      if(inflate>0&&cuts.length===2){const [a,b]=cuts;const inner=v=>v.v.map((x,k)=>x-v.n[k]*inflate*.95);rims.push(...a.v,...b.v,...inner(b),...a.v,...inner(b),...inner(a));}
       for(let j=1;j<clipped.length-1;j++)for(const v of [clipped[0],clipped[j],clipped[j+1]]){positions.push(...v.v);normals.push(...v.n);}
     }
     g.dispose();const out=new THREE.BufferGeometry();out.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));out.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));out.normalizeNormals();const m=new THREE.Mesh(out,material);m.castShadow=true;m.receiveShadow=true;group.add(m);
+    if(rims.length){const rg=new THREE.BufferGeometry();rg.setAttribute('position',new THREE.Float32BufferAttribute(rims,3));rg.computeVertexNormals();const rim=new THREE.Mesh(rg,material);rim.castShadow=true;group.add(rim);}
   }
-  const tights=topology.groups['helper-tights'];
+  const tights=bodyIndices; // Shared topology prevents mismatched boundaries during body morphs.
+  shirt.side=pants.side=shoe.side=hair.side=THREE.DoubleSide;
   const shirtField=(x,y)=>Math.min(y-waist,neck.y-.13-y,state.clothes==='sport'?shoulder.x*.94-Math.abs(x):Math.max(shoulder.x+.15-Math.abs(x),Math.min(y-elbow.y-.7,shoulder.x+1-Math.abs(x))));
-  const pantsField=(x,y)=>Math.min(waist+.045-y,y-ankle,shoulder.x+1-Math.abs(x));
+  const pantsField=(x,y)=>Math.min(waist+.06-y,y-ankle,shoulder.x+1-Math.abs(x));
   const shoeField=(x,y)=>Math.min(ankle+.025-y,shoulder.x+1-Math.abs(x));
   // Hide only skin safely inside clothing; retain a skin overlap beneath every hem.
-  garmentSurface(bodyIndices,skin,(x,y)=>.14-Math.max(shirtField(x,y),pantsField(x,y),shoeField(x,y)),0);
-  garmentSurface(tights,shirt,shirtField);
-  garmentSurface(tights,pants,pantsField);
-  garmentSurface(tights,shoe,shoeField,.075);
-  if(state.clothes==='dress')garmentSurface(topology.groups['helper-skirt'],shirt,(x,y)=>Math.min(waist+.12-y,y-pelvis.y+3.45),.035);
+  garmentSurface(bodyIndices,skin,(x,y)=>.045-Math.max(shirtField(x,y),pantsField(x,y),shoeField(x,y)),0);
+  garmentSurface(tights,shirt,shirtField,.11);
+  garmentSurface(tights,pants,pantsField,.075);
+  garmentSurface(tights,shoe,shoeField,.12);
+  if(state.clothes==='dress'){
+    // Conservative elliptical skirt rings enclose both thighs, including the heavy presets.
+    const points=[],faces=[],segments=64,rows=20,bottom=pelvis.y-3.45;
+    for(let r=0;r<=rows;r++){
+      const t=r/rows,y=THREE.MathUtils.lerp(waist+.10,bottom,t);let rx=0,minZ=Infinity,maxZ=-Infinity;
+      for(const id of bodyIds){if(Math.abs(p[id*3+1]-y)<.22&&Math.abs(p[id*3])<shoulder.x+1){rx=Math.max(rx,Math.abs(p[id*3]));minZ=Math.min(minZ,p[id*3+2]);maxZ=Math.max(maxZ,p[id*3+2]);}}
+      const cz=(minZ+maxZ)/2;let rz=(maxZ-minZ)/2;
+      // Scale the ellipse until every sampled body point is contained, then add fabric ease.
+      let fit=1;for(const id of bodyIds){if(Math.abs(p[id*3+1]-y)<.22&&Math.abs(p[id*3])<shoulder.x+1)fit=Math.max(fit,Math.hypot(p[id*3]/Math.max(rx,.1),(p[id*3+2]-cz)/Math.max(rz,.1)));}
+      rx=rx*fit+.15+t*.16;rz=rz*fit+.15+t*.14;
+      for(let j=0;j<=segments;j++){const a=j/segments*Math.PI*2;points.push(Math.sin(a)*rx,y,cz+Math.cos(a)*rz);if(r<rows&&j<segments){const n=r*(segments+1)+j,m=n+segments+1;faces.push(n,m,n+1,n+1,m,m+1);}}
+    }
+    mesh(new Float32Array(points),faces,shirt);
+  }
   // Eye helper topology and eye-joint centers are supplied by MakeHuman and follow facial morphs.
   function ell(material,center,radius){const m=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),material);m.position.copy(center);m.scale.copy(radius);m.castShadow=true;group.add(m);return m;}
   for(const [side,center] of [['l',eyeL],['r',eyeR]]){
@@ -108,29 +124,56 @@ export function createHuman(state) {
     if(points.length>2){const m=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),20,.019,6,false),hair);group.add(m);}
   }
   if(state.hair!=='bald'){
-    const eyeY=(eyeL.y+eyeR.y)/2;const skullY=top-.76;let skullX=.1,minZ=Infinity,maxZ=-Infinity;
-    for(const id of bodyIds){const x=p[id*3],y=p[id*3+1],z=p[id*3+2];if(y>eyeY+.13){skullX=Math.max(skullX,Math.abs(x));minZ=Math.min(minZ,z);maxZ=Math.max(maxZ,z);}}
-    const cz=(minZ+maxZ)/2,rx=skullX+.10,rz=(maxZ-minZ)/2+.13,ry=top-skullY+.08;
-    const hp=[],hi=[],segments=64,rings=20;
-    for(let r=0;r<=rings;r++)for(let j=0;j<=segments;j++){
-      const phi=j/segments*Math.PI*2,front=Math.cos(phi),t=r/rings;
-      const end=front>.25?1.08+(1-front)*.4:1.85+.15*(-front);
-      const theta=t*end;let x=Math.sin(theta)*Math.sin(phi)*rx,z=cz+Math.sin(theta)*Math.cos(phi)*rz,y=skullY+Math.cos(theta)*ry;
-      if(state.hair==='bob'||state.hair==='long'){
-        const fall=smooth(.60,1,t)*(1-smooth(.15,.55,front));
-        y-=fall*(state.hair==='long'?2.3:.78);x*=1+fall*.09;z-=fall*.07;
-      }
-      const wave=Math.sin(phi*9+.3)*.015*Math.sin(theta);hp.push(x*(1+wave),y,z+wave);
-      if(r<rings&&j<segments){const a=r*(segments+1)+j,b=a+segments+1;hi.push(a,b,a+1,a+1,b,b+1);}
+    const eyeY=(eyeL.y+eyeR.y)/2,skullY=top-.80;
+    let minZ=Infinity,maxZ=-Infinity;
+    for(const id of bodyIds)if(p[id*3+1]>eyeY+.10){minZ=Math.min(minZ,p[id*3+2]);maxZ=Math.max(maxZ,p[id*3+2]);}
+    const cz=(minZ+maxZ)/2,center=new THREE.Vector3(0,skullY,cz);
+    // Project the cap onto the current sculpted skull; never stretch the cap down to make long hair.
+    const upper=[];for(let i=0;i<bodyIndices.length;i+=3){const face=bodyIndices.slice(i,i+3);if(face.some(id=>p[id*3+1]>neck.y-2.1))upper.push(...face);}
+    const collisionMaterial=new THREE.MeshBasicMaterial({side:THREE.DoubleSide});
+    const collider=new THREE.Mesh(geometry(p,upper),collisionMaterial);collider.updateMatrixWorld(true);
+    const ray=new THREE.Raycaster(),direction=new THREE.Vector3();
+    function outside(origin,dir,padding,fallback){ray.set(origin,dir);const hits=ray.intersectObject(collider,false);const distance=hits.length?hits[hits.length-1].distance:fallback;return origin.clone().addScaledVector(dir,distance+padding);}
+    const positions=[],indices=[],edge=[],segments=48,rows=18;
+    for(let r=0;r<=rows;r++)for(let j=0;j<=segments;j++){
+      const phi=j/segments*Math.PI*2,front=Math.cos(phi);
+      const end=THREE.MathUtils.lerp(1.13,2.03,1-smooth(-.25,.65,front));
+      const theta=r/rows*end;direction.set(Math.sin(theta)*Math.sin(phi),Math.cos(theta),Math.sin(theta)*Math.cos(phi));
+      const q=outside(center,direction,.085,.75);positions.push(q.x,q.y,q.z);if(r===rows)edge.push(q);
+      if(r<rows&&j<segments){const n=r*(segments+1)+j,m=n+segments+1;indices.push(n,m,n+1,n+1,m,m+1);}
     }
-    // Parametric cap winding faces outward.
-    const hg=geometry(new Float32Array(hp),hi);
-    const hm=new THREE.Mesh(hg,hair);hm.castShadow=true;group.add(hm);
-    if(state.hair==='bun')ell(hair,new THREE.Vector3(0,top+.08,cz-.4),new THREE.Vector3(.40,.37,.36));
+    const cap=mesh(new Float32Array(positions),indices,hair);cap.name='fitted-scalp';
+    if(state.hair==='bob'||state.hair==='long'){
+      const hp=[],hi=[],rings=16;
+      for(let r=0;r<=rings;r++)for(let j=0;j<=segments;j++){
+        const phi=j/segments*Math.PI*2,front=Math.cos(phi),t=r/rings,start=edge[j];
+        const back=1-smooth(-.35,.30,front);
+        const hem=state.hair==='long'?neck.y+.30-1.65*smooth(.0,.70,-front):eyeY-.88;
+        const y=THREE.MathUtils.lerp(start.y,Math.min(start.y,hem),t*back);
+        const origin=new THREE.Vector3(0,y,cz);direction.set(Math.sin(phi),0,Math.cos(phi));
+        const clear=outside(origin,direction,.34,.65);
+        const startRadius=Math.hypot(start.x,start.z-cz);let radius=Math.max(startRadius,Math.hypot(clear.x,clear.z-cz));
+        // A vertical/angular neighborhood protects the space between hair triangles at the shoulder.
+        for(const id of bodyIds){if(Math.abs(p[id*3+1]-y)>.28)continue;const vx=p[id*3],vz=p[id*3+2]-cz,length=Math.hypot(vx,vz);if(length>.01&&(vx*direction.x+vz*direction.z)/length>.977)radius=Math.max(radius,length+.34);}
+        const wanted=origin.clone().addScaledVector(direction,radius+.025*Math.sin(t*Math.PI));
+        const blend=smooth(0,.16,t);hp.push(THREE.MathUtils.lerp(start.x,wanted.x,blend),y,THREE.MathUtils.lerp(start.z,wanted.z,blend));
+        if(r<rings&&j<segments&&front<.30&&Math.cos((j+1)/segments*Math.PI*2)<.30){const n=r*(segments+1)+j,m=n+segments+1;hi.push(n,m,n+1,n+1,m,m+1);}
+      }
+      const drape=mesh(new Float32Array(hp),hi,hair);drape.name='collision-fitted-hair';
+    }
+    collider.geometry.dispose();collisionMaterial.dispose();
+    if(state.hair==='bun')ell(hair,new THREE.Vector3(0,top+.12,cz-.35),new THREE.Vector3(.38,.36,.35));
   }
   if(state.clothes==='formal'){
-    const knotY=neck.y-.65;let front=.4;for(const id of bodyIds)if(Math.abs(p[id*3])<.18&&Math.abs(p[id*3+1]-knotY)<.18)front=Math.max(front,p[id*3+2]);
-    const tie=new THREE.Mesh(new THREE.BoxGeometry(.16,.95,.05),dark);tie.position.set(0,knotY-.36,front+.14);group.add(tie);
+    const points=[],faces=[],rows=12;
+    for(let r=0;r<=rows;r++){
+      const y=neck.y-.43-r/rows*.97;let front=-Infinity;
+      for(const id of bodyIds)if(Math.abs(p[id*3])<.23&&Math.abs(p[id*3+1]-y)<.15)front=Math.max(front,p[id*3+2]);
+      if(!Number.isFinite(front))front=.7;
+      const width=r===rows?.012:.085;points.push(-width,y,front+.18,width,y,front+.18);
+      if(r<rows){const n=r*2;faces.push(n,n+2,n+1,n+1,n+2,n+3);}
+    }
+    dark.side=THREE.DoubleSide;mesh(new Float32Array(points),faces,dark);
   }
   const scale=2.22/(top-floor)*( .92+state.height*.0016 );
   group.scale.setScalar(scale);group.position.y=-floor*scale+.005;
