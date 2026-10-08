@@ -1,18 +1,19 @@
+import {parameterDefaults,parameterRanges} from './parameters.js?v=7';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets } from './anime.js?v=6';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets } from './anime.js?v=7';
 
-import {hairPresets,outfitPresets} from './presets.js?v=6';
+import {hairPresets,outfitPresets} from './presets.js?v=7';
 const $ = s => document.querySelector(s);
-const defaults = {name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jaw:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'source',clothes:'source',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',shirt:'#778f87',pants:'#343b50'};
+const defaults = {...parameterDefaults,name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jaw:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'source',clothes:'source',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',shirt:'#778f87',pants:'#343b50'};
 const choices = {gender:[['female','女性'],['male','男性']],hair:[...hairPresets.female,...hairPresets.male],clothes:[...outfitPresets.female,...outfitPresets.male],expression:[['neutral','自然'],['fun','微笑'],['joy','开心'],['angry','认真'],['sorrow','忧伤'],['blink','闭眼']]};
 const palettes = {skin:['#f1cbb2','#d6a17e','#b87c55','#86543c','#51372c'],hairColor:['#201d20','#332821','#815137','#c5a15e','#b7b9c4','#854d67'],shirt:['#778f87','#d7c8b0','#a24d54','#537892','#373c49','#bca0c2'],pants:['#343b50','#292c31','#a09380','#655850']};
-const ranges = {height:['身高','较矮','较高'],weight:['体型','纤细','丰满'],shoulders:['肩宽','窄','宽'],legs:['腿长比例','短','长'],faceWidth:['脸部宽度','窄','宽'],jaw:['下颌轮廓','收窄','方正'],eyeSize:['眼睛大小','小','大'],eyeSpace:['眼间距','近','远'],nose:['鼻子大小','小','大'],mouth:['嘴部宽度','窄','宽']};
-const tabs = {body:['01 / FOUNDATION','创造独一无二的你','日漫角色底模，调整身材和肤色。',['name','gender','height','weight','shoulders','legs','skin']],face:['02 / FEATURES','每一面，都有个性','旋转角色，查看五官与轮廓的变化。',['faceWidth','jaw','eyeSize','eyeSpace','nose','mouth','expression']],hair:['03 / HAIRSTYLE','从头开始的风格','选择现成发型，搭配发色。新预设首次选择时载入。',['hair','hairColor']],clothes:['04 / WARDROBE','穿出你的日常','选择整套穿搭，上装、下装与鞋履一起切换。',['clothes','shirt','pants']]};
+const ranges = {...parameterRanges,height:['身高','较矮','较高'],weight:['体型','纤细','丰满'],shoulders:['肩宽','窄','宽'],legs:['腿长比例','短','长'],faceWidth:['脸部宽度','窄','宽'],jaw:['下颌轮廓','收窄','方正'],eyeSize:['眼睛大小','小','大'],eyeSpace:['眼间距','近','远'],nose:['鼻子大小','小','大'],mouth:['嘴部宽度','窄','宽']};
+const tabs = {body:['01 / FOUNDATION','创造独一无二的你','保留日漫基础结构，用参数调整身体比例。',['name','gender','height','weight','shoulders','legs','headSize','neckWidth','chest','waist','hips','legThickness','skin']],face:['02 / FEATURES','每一面，都有个性','旋转角色，查看五官与轮廓的变化。',['faceWidth','jaw','eyeSize','eyeSpace','nose','noseProjection','mouth','mouthHeight','forehead','chinLength','expression']],hair:['03 / HAIRSTYLE','从头开始的风格','选择现成发型，搭配发色。新预设首次选择时载入。',['hair','hairColor']],clothes:['04 / WARDROBE','穿出你的日常','选择整套穿搭，上装、下装与鞋履一起切换。',['clothes','shirt','pants']]};
 const facePresets=[
   {label:'柔和日漫',values:{faceWidth:45,jaw:22,eyeSize:88,eyeSpace:54,nose:15,mouth:30}},
   {label:'清爽青年',values:{faceWidth:42,jaw:38,eyeSize:73,eyeSpace:50,nose:27,mouth:36}},
-  {label:'原版日漫',values:{faceWidth:50,jaw:50,eyeSize:50,eyeSpace:50,nose:50,mouth:50}}
+  {label:'原版日漫',values:{faceWidth:50,jaw:50,eyeSize:50,eyeSpace:50,nose:50,mouth:50,forehead:50,chinLength:50,noseProjection:50,mouthHeight:50}}
 ];
 const labels={expression:'表情',gender:'性别',hair:'发型',clothes:'服饰',skin:'肤色',hairColor:'发色',shirt:'上装颜色',pants:'下装 / 鞋履颜色'};
 let state={...defaults}, activeTab='body', currentView='full', model, renderer, scene, camera, orbit;
