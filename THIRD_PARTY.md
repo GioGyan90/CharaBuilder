@@ -25,3 +25,15 @@ Used as anatomical construction references, not copied artwork or mesh assets.
 ## Three.js
 
 Three.js r186 and OrbitControls: MIT. See `dist/vendor/THREE-LICENSE.txt`.
+
+## VRoid beta HairSample replacement (active model)
+
+- Models: `HairSample_Female.vrm`, `HairSample_Male.vrm`, created by pixiv's VRoid Project.
+- Source mirror: https://github.com/madjin/vrm-samples/tree/master/vroid/beta
+- Official license confirmation: https://vroid.pixiv.help/hc/en-us/articles/4402614652569
+- Both files embed VRM `licenseName: CC0`, commercial usage and modification allowed. The official FAQ explicitly lists HairSample_Female and HairSample_Male among the CC0 models.
+- These are **beta HairSample models**, not the newer VRoidPreset_A–Z models. Newer presets have separate restrictions and are not included here.
+- Changes: bake relaxed arm pose; remove female cat-ear accessory; remove unused expression targets and special EyeExtra graphics; retain five expressions; merge hair primitives by material; quantize/compress mesh data; resize main textures to 512 px; normalize hair, pants and shoe luminance for tinting. Runtime uses Three.js MeshToonMaterial, not a complete MToon implementation.
+- CC0 legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+- Prepared assets in `dist/assets/anime`; reproducible conversion in `scripts/prepare-vroid.py` (NumPy and Pillow).
+- MakeHuman assets remain in the repository as legacy source; the active app no longer loads them.
