@@ -27,9 +27,13 @@ py -m http.server 8000 --directory dist
 
 - `dist/index.html`：应用入口和界面。
 - `dist/style.css`：桌面 / 移动端响应式样式。
-- `dist/app.js`：人物生成、编辑和存档逻辑。
+- `dist/app.js`：编辑界面与存档逻辑。
+- `dist/human.js`：连续人体网格、变形与简易服装。
+- `dist/assets/`：MakeHuman 衍生模型与变形数据（gzip JSON）。
 - `dist/vendor/`：本地 Three.js 与 OrbitControls，无 CDN 运行依赖；许可证见 `THREE-LICENSE.txt`。
 
-这是程序化几何体构建的风格化功能原型，不是《模拟人生3》级别的人体模型。后续可替换为含 morph targets 的 GLB 模型，实现更自然的连续塑形。当前不含骨骼动画、模型导出或云端同步。
+人体已替换为 MakeHuman hm08 的 CC0 连续网格，使用现成男女体型与五官变形数据。肩宽和腿长使用有界连续变形，服装基于拟合辅助网格，发型仍为简化造型。当前保留 A 字站姿，不含骨骼动画、模型导出或云端同步。来源、许可证和加工说明见 THIRD_PARTY.md。
 
 可将 `dist` 目录直接部署到静态托管服务。
+
+浏览器需支持 WebGL、ES Modules 和 DecompressionStream。首次进入会载入约 900 KB 的压缩人体数据。GitHub Pages 从 main 根目录部署时，根目录 index.html 为应用入口。
