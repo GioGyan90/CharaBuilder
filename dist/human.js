@@ -118,11 +118,24 @@ export function createHuman(state) {
     ell(dark,new THREE.Vector3(center.x,center.y,front+.005),new THREE.Vector3(.025*s,.030*s,.008));
     ell(white,new THREE.Vector3(center.x-.018,center.y+.021,front+.013),new THREE.Vector3(.009,.009,.006));
   }
-  // Anatomical eyebrows use the actual face surface for depth instead of floating above a sphere.
+  // Surface-projected ribbons: every edge follows the exact face triangle, with sub-millimeter clearance.
+  const browGeometry=geometry(p,bodyIndices),browCollider=new THREE.Mesh(browGeometry,new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));
+  browCollider.updateMatrixWorld(true);const browRay=new THREE.Raycaster();
+  const browMaterial=mat(state.hairColor);browMaterial.side=THREE.DoubleSide;browMaterial.polygonOffset=true;browMaterial.polygonOffsetFactor=-1;browMaterial.polygonOffsetUnits=-1;
   for(const center of [eyeL,eyeR]){
-    const points=[];for(let i=0;i<7;i++){const x=center.x+(i-3)*.055,y=center.y+.20+.035*Math.sin(i/6*Math.PI);let z=-Infinity;for(const id of bodyIds){if(Math.abs(p[id*3]-x)<.1&&Math.abs(p[id*3+1]-y)<.09)z=Math.max(z,p[id*3+2]);}if(Number.isFinite(z))points.push(new THREE.Vector3(x,y,z+.022));}
-    if(points.length>2){const m=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),20,.019,6,false),hair);group.add(m);}
+    const positions=[],indices=[],segments=20;let complete=true;
+    for(let i=0;i<=segments;i++){
+      const t=i/segments,x=center.x+(t-.5)*.36,y=center.y+.20+.034*Math.sin(t*Math.PI),width=.016*(.35+.65*Math.sin(t*Math.PI));
+      for(const edge of [-1,1]){
+        browRay.set(new THREE.Vector3(x,y+edge*width,5),new THREE.Vector3(0,0,-1));const hit=browRay.intersectObject(browCollider,false)[0];
+        if(!hit){complete=false;break;}const q=hit.point.clone().addScaledVector(hit.face.normal,.004);positions.push(q.x,q.y,q.z);
+      }
+      if(!complete)break;
+      if(i<segments){const n=i*2;indices.push(n,n+2,n+1,n+1,n+2,n+3);}
+    }
+    if(complete){const brow=mesh(new Float32Array(positions),indices,browMaterial);brow.name='surface-eyebrow';brow.castShadow=false;}
   }
+  browGeometry.dispose();browCollider.material.dispose();
   if(state.hair!=='bald'){
     const eyeY=(eyeL.y+eyeR.y)/2,skullY=top-.80;
     let minZ=Infinity,maxZ=-Infinity;
