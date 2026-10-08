@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { hairAsset, outfitAsset } from './presets.js?v=6';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -9,9 +10,12 @@ async function json(url) {
   if (!response.ok) throw Error(`资源 ${response.status}: ${url}`);
   return response.json();
 }
-export async function loadHumanAssets({textures = true} = {}) {
-  await Promise.all(['female', 'male'].map(async sex => {
-    const manifest = await json(new URL(`${sex}-manifest.json`, root));
+const pending = new Map();
+async function loadAsset(id, textures = true) {
+  if (assets[id]) return assets[id];
+  if (pending.has(id)) return pending.get(id);
+  const promise = (async () => {
+    const manifest = await json(new URL(`${id}-manifest.json`, root));
     const parts = await Promise.all(manifest.parts.map(async path => {
       const response = await fetch(new URL(path, root));
       if (!response.ok) throw Error(`模型分片加载失败: ${path}`);
@@ -20,27 +24,61 @@ export async function loadHumanAssets({textures = true} = {}) {
     const bytes = Uint8Array.from(atob(parts.join('')), c => c.charCodeAt(0));
     if (bytes.length !== manifest.bytes) throw Error('模型数据不完整');
     const data = JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
-    data.maps = textures ? await Promise.all(data.materials.map(async m => {
-      if (!m.texture) return null;
+    const used = new Set(data.meshes.flatMap(m=>m.groups.map(g=>g.material)));
+    data.maps = textures ? await Promise.all(data.materials.map(async (m,i) => {
+      if (!m.texture || !used.has(i)) return null;
       const map = await new THREE.TextureLoader().loadAsync(new URL(m.texture, root).href);
-      map.flipY = false; map.colorSpace = THREE.SRGBColorSpace;
-      map.anisotropy = 4;
+      map.flipY = false; map.colorSpace = THREE.SRGBColorSpace;map.anisotropy = 4;
       return map;
     })) : [];
-    assets[sex] = data;
-  }));
+    assets[id] = data;
+    return data;
+  })();
+  pending.set(id,promise);
+  try {return await promise;} finally {pending.delete(id);}
+}
+export async function loadHumanAssets({textures = true} = {}) {
+  await Promise.all(['female','male'].map(id=>loadAsset(id,textures)));
+}
+export async function ensureHumanPresets(state, {textures = true} = {}) {
+  await Promise.all([...new Set([hairAsset[state.hair],outfitAsset(state)].filter(Boolean))].map(id=>loadAsset(id,textures)));
+}
+function compose(state) {
+  const base=assets[state.gender],body=assets[outfitAsset(state)]||base,hair=assets[hairAsset[state.hair]]||base;
+  if (!base) throw Error('日漫模型未载入');
+  const data={...base,materials:[],maps:[],meshes:[]};
+  function fitted(mesh){
+    const fit=mesh.fits?.[outfitAsset(state)||state.gender];if(!fit)return mesh;
+    const positions=[...mesh.positions];for(let k=0;k<fit.indices.length;k++)for(let j=0;j<3;j++)positions[fit.indices[k]*3+j]=fit.positions[k*3+j];
+    return {...mesh,positions};
+  }
+  for(const [owner,name] of [[base,'Face'],[body,'Body'],[hair,'Hair001']]) {
+    const offset=data.materials.length;data.materials.push(...owner.materials);data.maps.push(...owner.materials.map((_,i)=>owner.maps[i]||null));
+    let source=owner.meshes.find(m=>m.name===name);
+    if(name==='Hair001')source=fitted(source);
+    const groups=source.groups.filter(g=>name!=='Body'||!owner.materials[g.material].name.includes('_HAIR'));
+    data.meshes.push({...source,groups:groups.map(g=>({...g,material:g.material+offset}))});
+    if(name==='Hair001' && state.hair!=='bald') {
+      const originalCap=owner.meshes.find(m=>m.name==='Body');
+      const cap=originalCap?fitted(originalCap):null;
+      const capGroups=cap?.groups.filter(g=>owner.materials[g.material].name.includes('_HAIR'))||[];
+      if(capGroups.length)data.meshes.push({...cap,name:'HairCap',groups:capGroups.map(g=>({...g,material:g.material+offset}))});
+    }
+  }
+  return data;
 }
 const smooth = (a,b,x) => {const t=THREE.MathUtils.clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
 const gaussian = (v,c,s) => Math.exp(-(((v-c)/s)**2));
 export function createHuman(state) {
-  const data = assets[state.gender];
+  const data = compose(state);
+  const base=assets[state.gender];
   if (!data) throw Error('日漫模型未载入');
   const group = new THREE.Group();
   const head = data.landmarks.head, neck = data.landmarks.neck;
   const eyeY = (data.landmarks.leftEye[1] + data.landmarks.rightEye[1])/2;
   const eyes = [data.landmarks.leftEye[0], data.landmarks.rightEye[0]];
   const hip = data.landmarks.hips[1];
-  const hairSource=data.meshes.find(m=>m.name==='Hair001');
+  const hairSource=base.meshes.find(m=>m.name==='Hair001');
   const top=Math.max(...hairSource.groups.flatMap(g=>g.indices.map(i=>hairSource.positions[i*3+1])))/100000;
   const scale = 2.22/top * (.92 + state.height*.0016);
   const legDelta = (state.legs-50)*.0008;
@@ -51,7 +89,7 @@ export function createHuman(state) {
     let color = new THREE.Color().fromArray(m.color);
     if (skin) color.set(state.skin).multiplyScalar(1.07);
     if (hair || brow) color.set(state.hairColor);
-    if (clothes) color.set(name.includes('Bottoms') || name.includes('Shoes') ? state.pants : state.shirt);
+    if (clothes) color.set(name.includes('Bottoms') || name.includes('Shoes') || name.includes('AccessoryNeck') ? state.pants : state.shirt);
     const overlay = /Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(name);
     const material = new THREE.MeshToonMaterial({
       color, map:clothes && state.clothes==='solid' ? null : data.maps[i] || null,
@@ -123,7 +161,7 @@ export function createHuman(state) {
       // Retain the author's smooth normals across material boundaries.
       geometry.setAttribute('normal',new THREE.Float32BufferAttribute(source.normals.map(v=>v/32767),3));
       geometry.computeBoundingSphere();
-      const mesh=new THREE.Mesh(geometry,materials[part.material]);mesh.name=description;
+      const mesh=new THREE.Mesh(geometry,materials[part.material]);mesh.name=description;mesh.userData.texture=data.materials[part.material].texture;mesh.userData.part=source.name;
       mesh.castShadow=!/Face|Eye|Hair/.test(description);mesh.receiveShadow=false;
       mesh.renderOrder=/Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(description)?2:0;
       group.add(mesh);
@@ -131,8 +169,11 @@ export function createHuman(state) {
   }
   // Materials with no visible primitive still belong to this instance and must be disposed.
   group.userData.materials=materials;
-  group.userData.height=(top+legDelta)*scale;
-  group.userData.faceY=(eyeY+legDelta+.001)*scale;
+  const bodySource=data.meshes.find(m=>m.name==='Body');
+  let floorY=Infinity;for(const part of bodySource.groups)for(const id of part.indices)floorY=Math.min(floorY,bodySource.positions[id*3+1]/100000);
+  group.position.y=-(floorY+.001)*scale;
+  group.userData.height=(top+legDelta)*scale+group.position.y;
+  group.userData.faceY=(eyeY+legDelta+.001)*scale+group.position.y;
   group.userData.model='vroid-beta-hairsample';
   return group;
 }

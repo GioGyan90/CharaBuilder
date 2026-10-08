@@ -37,3 +37,18 @@ Three.js r186 and OrbitControls: MIT. See `dist/vendor/THREE-LICENSE.txt`.
 - CC0 legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
 - Prepared assets in `dist/assets/anime`; reproducible conversion in `scripts/prepare-vroid.py` (NumPy and Pillow).
 - MakeHuman assets remain in the repository as legacy source; the active app no longer loads them.
+
+## Modular hair and outfit presets (v6)
+
+All donors are original **beta** CC0 model versions from `madjin/vrm-samples/vroid/beta`, with embedded `licenseName: CC0`, modification and commercial use allowed:
+
+| Asset ID | Source | Extracted parts | Official terms |
+| --- | --- | --- | --- |
+| bob | Sendagaya_Shibu.vrm | Bob hair with scalp cap | https://vroid.pixiv.help/hc/en-us/articles/360012381793 |
+| long | Sendagaya_Shino.vrm | Straight long hair, blouse/bow/vest/skirt outfit | https://vroid.pixiv.help/hc/en-us/articles/360013482714 |
+| uniform | Sakurada_Fumiriya.vrm | Layered medium-short hair, shirt/tie/vest/trousers outfit | https://vroid.pixiv.help/hc/en-us/articles/360014788554 |
+| classic | Victoria_Rubin.vrm | Curled side ponytail, ornate classical dress outfit | https://vroid.pixiv.help/hc/en-us/articles/360014900233 |
+
+Changes: relaxed pose and shared anatomical bone translations; preserve donor hair auxiliary bones; transfer base head skin via UV correspondence so changing clothing preserves the face; retain source garment and covered-skin masks; fit scalp caps to skin and visible hair lengths to each outfit without moving intentionally embedded strand roots; compact used vertices; compress modular data; resize main textures; normalize hair/pants/shoes for tinting. Full model expressions are retained only by the base face.
+
+No new VRoidPreset_A–Z models, or BOOTH assets that forbid redistribution, are included. Source meshes/textures are public-domain assets under CC0; this does not claim that VRoid Studio itself is open source.

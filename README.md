@@ -16,7 +16,7 @@ py -m http.server 8000 --directory dist
 
 - 性别、身高、体型、肩宽、腿长、肤色调整。
 - 脸宽、下颌、眼睛大小与间距、鼻子、嘴唇调整。
-- 原版 / 短款 / 光头发型，原版 / 素色套装，颜色选择和 6 种表情。
+- 按性别提供现成发型和服装预设，支持颜色选择与 6 种表情。
 - 拖动旋转、缩放、自动旋转、全身 / 面部视角。
 - 随机角色、重置、本机多角色档案、删除与载入。
 - 导出 / 导入带版本号的 JSON 角色参数文件。
@@ -41,8 +41,19 @@ py -m http.server 8000 --directory dist
 
 ### 日漫角色版本
 
-当前预览已改为 CC0 VRoid beta HairSample 男、女模型，使用原有日漫脸部、贴图眉毛、发片与配套服装，以及 Three.js 卡通明暗。可调整身材、局部五官、表情、原版/短款发型和配色。旧角色 JSON 可继续载入，旧服装选择映射为原版套装。
+当前预览已改为 CC0 VRoid beta HairSample 男、女模型，使用原有日漫脸部、贴图眉毛、发片与配套服装，以及 Three.js 卡通明暗。可调整身材、局部五官、表情、现成发型、换装和配色。旧角色 JSON 可继续载入，旧服装选择映射为原版套装。
 
-这是网页中的静态角色编辑器，不包含 VRoid Studio 全部功能，也不提供 VRM 模型导出。服装现阶段为女性连衣裙、男性连帽上装与长裤的原版/素色版本；原有不匹配新底模的服装已从选择项收起。JSON 导出仍为参数档案。
+这是网页中的静态角色编辑器，不包含 VRoid Studio 全部功能，也不提供 VRM 模型导出。女性可选日常连衣裙、素色连衣裙、衬衫领结配短裙、古典洋装；男性可选连帽套装、素色套装、衬衫领带配长裤。新增发型为齐耳短发、直长发、侧卷马尾和男性层次中短发。预设按需加载，下载失败可点击预览提示重试。JSON 导出仍为参数档案。
 
 转换资源：下载 `HairSample_Female.vrm` / `HairSample_Male.vrm` 到同一目录并命名为 `female.vrm` / `male.vrm`，运行 `python scripts/prepare-vroid.py 该目录`。许可与来源见 THIRD_PARTY.md。
+
+### 扩展预设转换
+
+旧版 CC0 源文件位于 `madjin/vrm-samples/vroid/beta`。在上述基础模型目录下创建 `donors`，将 `Sendagaya_Shibu.vrm`、`Sendagaya_Shino.vrm`、`Sakurada_Fumiriya.vrm`、`Victoria_Rubin.vrm` 分别命名为 `bob.vrm`、`long.vrm`、`uniform.vrm`、`classic.vrm`。然后运行：
+
+```sh
+python scripts/prepare-vroid.py 该目录/donors bob long uniform classic
+python scripts/fit-vroid-presets.py
+```
+
+转换采用共享基础骨架，按皮肤 UV 对应保留当前头部，发型与服装可以独立选择。遮挡皮肤和衣物来自同一套源网格；头发保留嵌入头皮的根部，末端按各套装的表面修正间隙。服装仍以整套切换，不支持任意混搭上装与下装。
