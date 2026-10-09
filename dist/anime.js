@@ -116,6 +116,25 @@ export function createHuman(state) {
       alphaTest: m.blend ? .35 : 0,
       transparent: overlay, depthWrite: !overlay,
     });
+    // The source face map contains a peach skin base. Remove that base in linear
+    // space before multiplying by the selected skin color; keep local painted detail.
+    if (skin && name.includes('Face') && material.map) {
+      const reference = new THREE.Color(state.gender==='female'?'#f3cdb7':'#f3d1b7');
+      material.onBeforeCompile = shader => {
+        shader.uniforms.faceSkinReference = {value:reference};
+        shader.fragmentShader = 'uniform vec3 faceSkinReference;\n' + shader.fragmentShader;
+        shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+#ifdef USE_MAP
+  vec4 faceDetail = texture2D(map, vMapUv);
+  vec3 neutralDetail = clamp(faceDetail.rgb / max(faceSkinReference, vec3(0.001)), vec3(0.0), vec3(1.0));
+  diffuseColor.rgb *= mix(vec3(1.0), neutralDetail, 0.65);
+  diffuseColor.a *= faceDetail.a;
+#endif
+`);
+      };
+      material.customProgramCacheKey = () => 'neutral-face-skin-v11';
+      material.userData.faceSkinReference = reference;
+    }
     // A broad light band keeps the face soft, while painted iris/eyelash detail remains crisp.
     const gradient = new THREE.DataTexture(new Uint8Array([155,224,255]),3,1,THREE.RedFormat);
     gradient.minFilter=gradient.magFilter=THREE.NearestFilter;gradient.needsUpdate=true;
