@@ -31,3 +31,7 @@ if(normalizeState({hair:'bobPreset'}).backHair!=='bob')throw Error('legacy bob')
 const partial=normalizeState({frontHair:'swept',backHair:'long',braid:'double',gender:'female'});
 if(normalizeState({...partial,gender:'male'}).braid!=='double')throw Error('gender switch discarded hair sections');
 console.log('PASS all modular hairstyle archive roundtrips, parameter bounds, legacy migration and gender switch');
+
+for(const key of ['skin','hairColor','eyeColor','shirt','pants'])for(const color of ['#14a3ef','#7A225D','#ffffff','#000000'])if(normalizeState({[key]:color})[key]!==color)throw Error('custom color archive '+key);
+if(normalizeState({}).eyeColor!=='#806449')throw Error('legacy iris default');
+console.log('PASS all five custom color archive fields and legacy iris default');

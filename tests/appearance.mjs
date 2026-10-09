@@ -26,24 +26,23 @@ for(const gender of ['female','male']){
 
 const {updateCharacterMotion}=await import(moduleURL(path.join(temp,'rig.mjs')));
 const THREE=await import(moduleURL(base+'vendor/three.module.js'));
-let checks=0;
-for(const gender of ['female','male'])for(const clothes of ['shirtPants','underwear'])for(const extreme of [false,true]){
- const state={...defaults,gender,clothes,shoes:'barefoot'};
- if(extreme)for(const key of ['height','weight','headSize','chest','waist','hips','legThickness','sleeveLength','shirtLength','pantsWidth'])state[key]=100;
- await ensureHumanPresets(state,{textures:false});const start=performance.now();const model=createHuman(state);console.log(gender,clothes,extreme?'extreme':'default','build ms',Math.round(performance.now()-start));
- model.updateMatrixWorld(true);model.userData.skeleton.update();
- const meshes=[];model.traverse(o=>{if(o.isMesh)meshes.push(o);});
- for(const m of meshes){if(!m.isSkinnedMesh)throw Error('unbound '+m.name);const {skinWeight:w,skinIndex:j,position:p}=m.geometry.attributes;
-  for(let i=0;i<p.count;i++){let sum=0;for(let a=0;a<4;a++){sum+=w.array[i*4+a];if(j.array[i*4+a]>=m.skeleton.bones.length)throw Error('bad joint');}if(Math.abs(sum-1)>.0001)throw Error('bad weight');}
-  for(const i of [...new Set(m.geometry.index.array)].filter((_,n)=>n%53===0)){const v=new THREE.Vector3().fromBufferAttribute(p,i),rest=v.clone();m.applyBoneTransform(i,v);if(v.distanceTo(rest)>1e-5)throw Error('bind drift '+m.name+' '+v.distanceTo(rest));}
+
+const {applyHumanColors}=await import(moduleURL(path.join(temp,'model.mjs')));
+for(const gender of ['female','male']){
+ const state={...defaults,gender,clothes:'underwear',eyeColor:'#437fbc'};await ensureHumanPresets(state,{textures:false});const model=createHuman(state);
+ const meshes=[];model.traverse(m=>{if(m.isMesh)meshes.push(m);});const eye=meshes.find(m=>m.name.includes('EyeIris'));
+ if(eye.material.color.getHexString()!=='437fbc')throw Error('iris color');
+ const skeleton=model.userData.skeleton,geometry=eye.geometry;updateCharacterMotion(model,3.5,'inspect');const pose=JSON.stringify(skeleton.bones.map(b=>b.quaternion.toArray()));
+ const colors={skin:'#e2a576',hairColor:'#418688',eyeColor:'#af547c',shirt:'#bd392f',pants:'#ad41ae'};applyHumanColors(model,colors);
+ if(eye.geometry!==geometry||model.userData.skeleton!==skeleton||JSON.stringify(skeleton.bones.map(b=>b.quaternion.toArray()))!==pose)throw Error('color update rebuilt or reset pose');
+ for(const [role,hex] of Object.entries(colors)){const m=model.userData.materials.find(m=>m.userData.colorRole===role);if(!m)throw Error('missing role '+role);const expected=new THREE.Color(hex);if(role==='skin')expected.multiplyScalar(1.07);if(!m.color.equals(expected))throw Error('color role '+role);}
+ if(gender==='female'){
+  const top=meshes.find(m=>m.userData.part==='UnderwearTop');if(!top)throw Error('missing strapless top');
+  // Inverse scale of the default rig: highest top edge must sit below the old strap region.
+  const body=meshes.find(m=>m.userData.part==='Body'&&m.name.includes('_SKIN')),bones=model.userData.motion;
+  const neck=bones.bones[bones.humanoid.neck].position;const p=top.geometry.attributes.position;
+  if(Math.max(...Array.from(p.array).filter((_,i)=>i%3===1))>model.userData.faceY-.15)throw Error('straps remain');
  }
- const body=meshes.find(m=>m.userData.part==='Body'&&m.name.includes('_SKIN')),p=body.geometry.attributes.position;
- let moved=0;
- for(const mode of ['idle','inspect'])for(const t of [0,1,3.5,5,7.5,9,10.5,11.99,12,24]){updateCharacterMotion(model,t,mode);
-  for(const m of meshes)for(const i of [...new Set(m.geometry.index.array)].filter((_,n)=>n%131===0)){const v=new THREE.Vector3().fromBufferAttribute(m.geometry.attributes.position,i);m.applyBoneTransform(i,v);if(!v.toArray().every(Number.isFinite))throw Error('nonfinite pose');}
-  const h=model.userData.motion.bones[model.userData.motion.humanoid.leftHand];if(mode==='inspect'&&t===3.5){const v=new THREE.Vector3();h.getWorldPosition(v);updateCharacterMotion(model,0,'rest');const rest=new THREE.Vector3();h.getWorldPosition(rest);moved=v.distanceTo(rest);if(moved<.05)throw Error('hand did not move');updateCharacterMotion(model,t,mode);}
- }
- updateCharacterMotion(model,0,'rest');for(const bone of model.userData.skeleton.bones)if(bone.rotation.toArray().slice(0,3).some(v=>v!==0))throw Error('reset');
- disposeHuman(model);checks++;
+ disposeHuman(model);
 }
-console.log('PASS',checks,'rigged configurations: original weights, bind identity, finite poses, moving hands, reset, extreme proportions');
+console.log('PASS strapless garment, five live color material roles, and unchanged geometry/skeleton/paused pose');

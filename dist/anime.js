@@ -1,9 +1,9 @@
-import {bindCharacter} from './rig.js?v=10';
+import {bindCharacter} from './rig.js?v=12';
 import * as THREE from 'three';
-import {createDeformer,deformNormal} from './parameters.js?v=10';
-import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=10';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=10';
-import {createUnderwearData} from './underwear.js?v=10';
+import {createDeformer,deformNormal} from './parameters.js?v=12';
+import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=12';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=12';
+import {createUnderwearData} from './underwear.js?v=12';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -104,10 +104,11 @@ export function createHuman(state) {
   const materials = data.materials.map((m,i) => {
     const name = m.name;
     const skin = name.includes('_SKIN'), hair = name.includes('_HAIR'), brow = name.includes('FaceBrow');
-    const clothes = name.includes('_CLOTH');
+    const clothes = name.includes('_CLOTH'), iris=name.includes('EyeIris');
     let color = new THREE.Color().fromArray(m.color);
     if (skin) color.set(state.skin).multiplyScalar(1.07);
     if (hair || brow) color.set(state.hairColor);
+    if (iris) color.set(state.eyeColor||'#806449');
     if (clothes) color.set(name.includes('Bottoms') || name.includes('Shoes') || name.includes('AccessoryNeck') ? state.pants : state.shirt);
     const overlay = /Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(name);
     const material = new THREE.MeshToonMaterial({
@@ -116,6 +117,18 @@ export function createHuman(state) {
       alphaTest: m.blend ? .35 : 0,
       transparent: overlay, depthWrite: !overlay,
     });
+    material.userData.colorRole=skin?'skin':hair||brow?'hairColor':iris?'eyeColor':clothes?(name.includes('Bottoms')||name.includes('Shoes')||name.includes('AccessoryNeck')?'pants':'shirt'):null;
+    if(iris && material.map){
+      material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', `
+#ifdef USE_MAP
+  vec4 irisDetail = texture2D(map, vMapUv);
+  float irisTone = clamp((sqrt(max(0.0,dot(irisDetail.rgb, vec3(0.299,0.587,0.114))))-0.1)*2.5, 0.0, 1.0);
+  diffuseColor.rgb *= irisTone;
+  diffuseColor.a *= irisDetail.a;
+#endif
+`);};
+      material.customProgramCacheKey=()=> 'editable-iris-v12';
+    }
     // The source face map contains a peach skin base. Remove that base in linear
     // space before multiplying by the selected skin color; keep local painted detail.
     if (skin && name.includes('Face') && material.map) {
@@ -179,6 +192,7 @@ export function createHuman(state) {
   }
   // Materials with no visible primitive still belong to this instance and must be disposed.
   const buttonMaterial=new THREE.MeshToonMaterial({color:new THREE.Color(state.shirt).multiplyScalar(.73)});
+  buttonMaterial.userData.colorRole='shirtButton';
   buttonMaterial.gradientMap=materials[0].gradientMap;materials.push(buttonMaterial);
   const shirtMesh=data.meshes.find(m=>m.name==='Shirt');
   for(const point of shirtMesh?shirtButtonPoints(shirtMesh,data.landmarks):[]){
@@ -202,4 +216,14 @@ export function disposeHuman(group) {
   group.traverse(o=>o.geometry?.dispose());group.userData.skeleton?.dispose();
   for(const material of group.userData.materials||[]) {material.userData.ownedGradient?.dispose();material.dispose();}
   // Original maps are shared by all character instances and kept in the asset cache.
+}
+
+// Color changes update shared materials immediately, without rebuilding geometry or poses.
+export function applyHumanColors(group,state){
+ if(!group)return;
+ for(const material of group.userData.materials||[]){const role=material.userData.colorRole;if(!role)continue;
+  material.color.set(role==='shirtButton'?state.shirt:(state[role]||'#806449'));
+  if(role==='skin')material.color.multiplyScalar(1.07);
+  if(role==='shirtButton')material.color.multiplyScalar(.73);
+ }
 }

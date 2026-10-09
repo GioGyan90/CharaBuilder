@@ -25,8 +25,10 @@ export function bindCharacter(group,base,deform){
   const geometry=mesh.geometry,source=mesh.userData.rigSource,part=mesh.userData.part;
   let attrs=cache.get(source||mesh);
   if(!attrs){const count=geometry.attributes.position.count,indices=new Uint16Array(count*4),weights=new Float32Array(count*4);
+   const fitted=source?.skinIndices?{indices:source.skinIndices,weights:source.skinWeights}:null;
    const original=part==='Body'?rig.meshes.Body:part==='Face'?rig.meshes.Face:null;
    for(let i=0;i<count;i++){
+    if(fitted){for(let a=0;a<4;a++){indices[i*4+a]=fitted.indices[i*4+a];weights[i*4+a]=fitted.weights[i*4+a];}continue;}
     if(part?.startsWith('Hair')){indices[i*4]=rig.humanoid.head;weights[i*4]=1;continue;}
     const p=source?source.positions.slice(i*3,i*3+3).map(v=>v/100000):mesh.userData.rigPoints?.[i];
     const owner=original||skin,id=original?i:nearest(p||[0,base.landmarks.neck[1]-.2,0]);
