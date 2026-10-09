@@ -85,3 +85,13 @@ python scripts/fit-vroid-presets.py
 肤色、发色、瞳孔颜色、上装和下装均保留快捷色，同时提供 HSL 色板、H/S/L 滑块及 HEX 输入。颜色直接更新材质，保持当前动作/暂停姿势。自定义颜色和瞳孔颜色随角色 JSON 保存，旧档案自动补充默认瞳孔颜色。
 
 验证：`tests/colors.mjs` 检查 4096 组 RGB/HSL 往返；`tests/appearance.mjs` 检查实时改色、无肩带网格与姿势保留；`tests/archive.mjs` 检查五个颜色字段；`tests/rig.mjs` 检查服装蒙皮与身材极值。
+
+### v13 分区发色与男性短发
+
+所有 `_HAIR` 材质现在从贴图中仅取亮度细节，保留透明边缘；按该材质实际使用的 UV 岛中值校准明暗，避免不同 CC0 来源的前/后/侧发把底色和底亮度乘到所选发色上。HSL 实时调色保持有效。
+
+男性经典预设新增圆寸、陆军短发、方正平头、短碎渐变；前发新增对应四种顶部，后发/侧发增加贴头短发与高渐变。沿用 CC0 scalp 的网格和发际线，投射到当前底模头部表面；crew 顶部前长后短，flattop 顶部较平，渐变区从肤色过渡到发色。短碎刘海保留 bob 作者原始中心发束的完整拓扑，再缩短长度。新增短发仍绑定头骨，可调头部参数、长度、蓬松度和颜色。
+
+结构参考（仅观察剪裁结构，未导入网页图片/模型）：[Crew cut](https://en.wikipedia.org/wiki/Crew_cut)、[High and tight](https://en.wikipedia.org/wiki/High_and_tight)、[Buzz cut](https://en.wikipedia.org/wiki/Buzz_cut)。模型来源和 CC0 记录见 THIRD_PARTY.md。
+
+`node tests/hair-shorts.mjs` 检查四预设、男女参数极值、长短发混合、渐变属性、索引有效性和动作骨骼绑定；档案继续存储分区 ID，旧档案保留原发型。

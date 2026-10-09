@@ -1,9 +1,9 @@
-import {bindCharacter} from './rig.js?v=12';
+import {bindCharacter} from './rig.js?v=13';
 import * as THREE from 'three';
-import {createDeformer,deformNormal} from './parameters.js?v=12';
-import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=12';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=12';
-import {createUnderwearData} from './underwear.js?v=12';
+import {createDeformer,deformNormal} from './parameters.js?v=13';
+import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=13';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=13';
+import {createUnderwearData} from './underwear.js?v=13';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -33,6 +33,7 @@ async function loadAsset(id, textures = true) {
     data.maps = textures ? await Promise.all(data.materials.map(async (m,i) => {
       if (!m.texture || !used.has(i) || /_CLOTH/.test(m.name) || (m.name.includes('Body') && m.name.includes('_SKIN'))) return null;
       const map = await new THREE.TextureLoader().loadAsync(new URL(m.texture, root).href);
+      if(m.name.includes('_HAIR'))map.userData.hairReference=hairMapReference(map,data,i);
       map.flipY = false; map.colorSpace = THREE.SRGBColorSpace;map.anisotropy = 4;
       return map;
     })) : [];
@@ -41,6 +42,20 @@ async function loadAsset(id, textures = true) {
   })();
   pending.set(id,promise);
   try {return await promise;} finally {pending.delete(id);}
+}
+// Measure the actual hair UV islands, not unrelated transparent atlas space.
+function hairMapReference(map,data,materialIndex){
+ try{
+  const canvas=document.createElement('canvas'),image=map.image;canvas.width=image.width;canvas.height=image.height;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data,values=[];
+  const linear=c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4;
+  for(const mesh of data.meshes)for(const g of mesh.groups.filter(g=>g.material===materialIndex))for(let i=0;i<g.indices.length;i+=Math.max(3,Math.floor(g.indices.length/180/3)*3)){
+   const ids=g.indices.slice(i,i+3);if(ids.length<3)continue;let u=0,v=0;for(const id of ids){u+=mesh.uv[id*2]/65535/3;v+=mesh.uv[id*2+1]/65535/3;}
+   const x=Math.max(0,Math.min(canvas.width-1,Math.round(u*(canvas.width-1)))),y=Math.max(0,Math.min(canvas.height-1,Math.round(v*(canvas.height-1)))),k=(y*canvas.width+x)*4;
+   if(pixels[k+3]<128)continue;values.push(.299*linear(pixels[k]/255)+.587*linear(pixels[k+1]/255)+.114*linear(pixels[k+2]/255));
+  }
+  values.sort((a,b)=>a-b);return Math.max(.02,values[Math.floor(values.length*.5)]||.65);
+ }catch{return .65;}
 }
 export async function loadHumanAssets({textures = true} = {}) {
   await Promise.all(['female','male'].map(id=>loadAsset(id,textures)));
@@ -118,6 +133,34 @@ export function createHuman(state) {
       transparent: overlay, depthWrite: !overlay,
     });
     material.userData.colorRole=skin?'skin':hair||brow?'hairColor':iris?'eyeColor':clothes?(name.includes('Bottoms')||name.includes('Shoes')||name.includes('AccessoryNeck')?'pants':'shirt'):null;
+    if(hair && material.map){
+      material.onBeforeCompile=shader=>{
+        shader.uniforms.hairMapReference={value:material.map.userData.hairReference||.65};
+        shader.fragmentShader='uniform float hairMapReference;\n'+shader.fragmentShader;
+        shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', `
+#ifdef USE_MAP
+  vec4 hairDetail=texture2D(map,vMapUv);
+  float hairTone=dot(hairDetail.rgb,vec3(0.299,0.587,0.114));
+  float neutralHair=clamp(1.0+(hairTone/max(hairMapReference,0.02)-1.0)*0.20,0.80,1.0);
+  diffuseColor.rgb *= neutralHair;
+  diffuseColor.a *= hairDetail.a;
+#endif
+`);
+      };material.customProgramCacheKey=()=> 'neutral-modular-hair-v13';
+    }
+    if(m.shortHair){
+      const skinColor=new THREE.Color(state.skin).multiplyScalar(1.07);material.userData.shortHairSkin=skinColor;
+      material.onBeforeCompile=shader=>{
+        shader.uniforms.shortHairSkin={value:skinColor};
+        shader.vertexShader='attribute float hairCoverage; varying float vHairCoverage; varying vec2 vCloseUv;\n'+shader.vertexShader;
+        shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvHairCoverage=hairCoverage; vCloseUv=uv;');
+        shader.fragmentShader='uniform vec3 shortHairSkin; varying float vHairCoverage; varying vec2 vCloseUv;\n'+shader.fragmentShader;
+        shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', `
+float closeGrain=fract(sin(dot(floor(vCloseUv*750.0),vec2(12.9898,78.233)))*43758.5453);
+diffuseColor.rgb=mix(shortHairSkin,diffuseColor.rgb*mix(0.84,1.0,closeGrain),clamp(vHairCoverage,0.0,1.0));
+`);
+      };material.customProgramCacheKey=()=> 'close-cut-hair-v13';
+    }
     if(iris && material.map){
       material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', `
 #ifdef USE_MAP
@@ -162,8 +205,8 @@ export function createHuman(state) {
     const expression=source.expressions[state.expression];
     const normals=new Float32Array(p.length);
     let sourceNormals=source.normals;
-    if(source.name==='Shirt'||source.name==='Pants'){
-      const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(source.positions.map(v=>v/100000),3));g.setIndex(source.groups.flatMap(g=>g.indices));g.computeVertexNormals();sourceNormals=Array.from(g.attributes.normal.array,v=>v*32767);g.dispose();
+    if(source.name==='Shirt'||source.name==='Pants'||source.coverage){
+      const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(source.positions.map(v=>v/100000),3));g.setIndex(source.normalIndices||source.groups.flatMap(g=>g.indices));g.computeVertexNormals();sourceNormals=Array.from(g.attributes.normal.array,v=>v*32767);g.dispose();
     }
     for(let i=0;i<p.length;i+=3) {
       const q=deform((source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,source.name);
@@ -176,6 +219,7 @@ export function createHuman(state) {
       if(description.includes('EyeExtra'))continue;
       const geometry=new THREE.BufferGeometry();
       geometry.setAttribute('position',new THREE.BufferAttribute(p,3));
+      if(source.coverage)geometry.setAttribute('hairCoverage',new THREE.Float32BufferAttribute(source.coverage,1));
       geometry.setAttribute('uv',new THREE.Float32BufferAttribute(source.uv.map(v=>v/65535),2));
       geometry.setIndex(part.indices);
       // Transform smooth source normals with the same parameter deformation.
@@ -221,7 +265,7 @@ export function disposeHuman(group) {
 // Color changes update shared materials immediately, without rebuilding geometry or poses.
 export function applyHumanColors(group,state){
  if(!group)return;
- for(const material of group.userData.materials||[]){const role=material.userData.colorRole;if(!role)continue;
+ for(const material of group.userData.materials||[]){const role=material.userData.colorRole;if(material.userData.shortHairSkin)material.userData.shortHairSkin.set(state.skin).multiplyScalar(1.07);if(!role)continue;
   material.color.set(role==='shirtButton'?state.shirt:(state[role]||'#806449'));
   if(role==='skin')material.color.multiplyScalar(1.07);
   if(role==='shirtButton')material.color.multiplyScalar(.73);

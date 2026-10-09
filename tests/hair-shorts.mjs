@@ -26,24 +26,16 @@ for(const gender of ['female','male']){
 
 const {updateCharacterMotion}=await import(moduleURL(path.join(temp,'rig.mjs')));
 const THREE=await import(moduleURL(base+'vendor/three.module.js'));
-let checks=0;
-for(const gender of ['female','male'])for(const clothes of ['shirtPants','underwear'])for(const extreme of [false,true]){
- const state={...defaults,gender,clothes,shoes:'barefoot'};
- if(extreme)for(const key of ['height','weight','headSize','chest','waist','hips','legThickness','sleeveLength','shirtLength','pantsWidth'])state[key]=100;
- await ensureHumanPresets(state,{textures:false});const start=performance.now();const model=createHuman(state);console.log(gender,clothes,extreme?'extreme':'default','build ms',Math.round(performance.now()-start));
- model.updateMatrixWorld(true);model.userData.skeleton.update();
- const meshes=[];model.traverse(o=>{if(o.isMesh)meshes.push(o);});
- for(const m of meshes){if(!m.isSkinnedMesh)throw Error('unbound '+m.name);const {skinWeight:w,skinIndex:j,position:p}=m.geometry.attributes;
-  for(let i=0;i<p.count;i++){let sum=0;for(let a=0;a<4;a++){sum+=w.array[i*4+a];if(j.array[i*4+a]>=m.skeleton.bones.length)throw Error('bad joint');}if(Math.abs(sum-1)>.0001)throw Error('bad weight');}
-  for(const i of [...new Set(m.geometry.index.array)].filter((_,n)=>n%53===0)){const v=new THREE.Vector3().fromBufferAttribute(p,i),rest=v.clone();m.applyBoneTransform(i,v);if(v.distanceTo(rest)>1e-5)throw Error('bind drift '+m.name+' '+v.distanceTo(rest));}
- }
- const body=meshes.find(m=>m.userData.part==='Body'&&m.name.includes('_SKIN')),p=body.geometry.attributes.position;
- let moved=0;
- for(const mode of ['idle','inspect'])for(const t of [0,1,3.5,5,7.5,9,10.5,11.99,12,24]){updateCharacterMotion(model,t,mode);
-  for(const m of meshes)for(const i of [...new Set(m.geometry.index.array)].filter((_,n)=>n%131===0)){const v=new THREE.Vector3().fromBufferAttribute(m.geometry.attributes.position,i);m.applyBoneTransform(i,v);if(!v.toArray().every(Number.isFinite))throw Error('nonfinite pose');}
-  const h=model.userData.motion.bones[model.userData.motion.humanoid.leftHand];if(mode==='inspect'&&t===3.5){const v=new THREE.Vector3();h.getWorldPosition(v);updateCharacterMotion(model,0,'rest');const rest=new THREE.Vector3();h.getWorldPosition(rest);moved=v.distanceTo(rest);if(moved<.05)throw Error('hand did not move');updateCharacterMotion(model,t,mode);}
- }
- updateCharacterMotion(model,0,'rest');for(const bone of model.userData.skeleton.bones)if(bone.rotation.toArray().slice(0,3).some(v=>v!==0))throw Error('reset');
- disposeHuman(model);checks++;
+
+const {classicHairPresets}=await import(moduleURL(path.join(temp,'hair.mjs')));
+const presets=classicHairPresets.filter(p=>p.gender==='male');let count=0;const shapes=new Set();
+async function check(state){await ensureHumanPresets(state,{textures:false});const model=createHuman(state),meshes=[];model.traverse(m=>{if(m.isMesh)meshes.push(m);});
+ for(const m of meshes.filter(m=>m.userData.part?.startsWith('Hair'))){const p=m.geometry.attributes.position;if(!p.array.every(Number.isFinite)||m.geometry.index.array.some(i=>i>=p.count))throw Error('invalid hair');if(!m.isSkinnedMesh)throw Error('unbound hair');const coverage=m.geometry.attributes.hairCoverage;if(coverage&&(coverage.count!==p.count||!coverage.array.every(v=>v>=0&&v<=1)))throw Error('invalid fade');}
+ for(const [key,part] of [['frontHair','HairFront'],['backHair','HairBack'],['sideHair','HairSide'],['braid','HairBraid']])if((state[key]!=='none')!==meshes.some(m=>m.userData.part===part))throw Error('missing part '+key);
+ updateCharacterMotion(model,3.5,'inspect');for(const m of meshes.filter(m=>m.userData.part?.startsWith('Hair')))for(const i of [...new Set(m.geometry.index.array)].filter((_,k)=>k%71===0)){const v=new THREE.Vector3().fromBufferAttribute(m.geometry.attributes.position,i);m.applyBoneTransform(i,v);if(!v.toArray().every(Number.isFinite))throw Error('invalid pose');}
+ const hair=meshes.filter(m=>m.userData.part==='HairFront');shapes.add(JSON.stringify(hair.map(m=>Array.from(m.geometry.attributes.position.array))));disposeHuman(model);count++;
 }
-console.log('PASS',checks,'rigged configurations: original weights, bind identity, finite poses, moving hands, reset, extreme proportions');
+for(const gender of ['male','female'])for(const preset of presets)for(const value of [0,50,100])await check({...defaults,gender,...preset.values,headSize:value,faceWidth:value,frontLength:value,backLength:value,sideLength:value,hairVolume:value});
+for(const gender of ['male','female'])for(const [key,values] of [['frontHair',['buzz','crew','flattop','crop']],['backHair',['buzz','fade']],['sideHair',['buzz','fade']]])for(const value of values)await check({...defaults,gender,[key]:value});
+if(shapes.size<4)throw Error('styles identical');
+console.log('PASS',count,'short hairstyle states, legacy/short combinations, extremes, fade coverage, indices and animated head binding');
