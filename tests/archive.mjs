@@ -20,10 +20,14 @@ for(const key of Object.keys({...parameterDefaults,...wardrobeDefaults,...hairRa
  if(normalizeState({[key]:-123})[key]!==0)throw Error('lower bound');
  if(normalizeState({[key]:NaN})[key]!==50)throw Error('finite guard');
 }
+for(const gender of ['female','male'])for(const clothes of ['shirtPants','underwear'])for(const shoes of ['shoes','barefoot']){
+ const actual=normalizeState(JSON.parse(JSON.stringify({gender,clothes,shoes})));
+ if(actual.gender!==gender||actual.clothes!==clothes||actual.shoes!==shoes)throw Error('clothes/footwear roundtrip');
+}
 const bald=normalizeState({gender:'female',hair:'bald',clothes:'classicPreset',height:70});
 if(bald.frontHair!=='none'||bald.backHair!=='none'||bald.sideHair!=='none'||bald.braid!=='none'||bald.height!==70||bald.clothes!=='shirtPants')throw Error('legacy bald');
 if(normalizeState({hair:'longPreset'}).backHair!=='long')throw Error('legacy long');
 if(normalizeState({hair:'bobPreset'}).backHair!=='bob')throw Error('legacy bob');
 const partial=normalizeState({frontHair:'swept',backHair:'long',braid:'double',gender:'female'});
 if(normalizeState({...partial,gender:'male'}).braid!=='double')throw Error('gender switch discarded hair sections');
-console.log('PASS 144 modular hairstyle archive roundtrips, parameter bounds, legacy migration and gender switch');
+console.log('PASS all modular hairstyle archive roundtrips, parameter bounds, legacy migration and gender switch');

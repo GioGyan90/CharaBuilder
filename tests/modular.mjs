@@ -7,7 +7,7 @@ const base=fileURLToPath(distURL);
 const moduleURL=path=>pathToFileURL(path).href;
 const temp=await fs.mkdtemp(path.join(os.tmpdir(),'charabuilder-modular-'));
 let hair=await fs.readFile(base+'hair.js','utf8');hair=hair.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'hair.mjs'),hair);
-let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=8'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=8'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./hair.js?v=8'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
+let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=9'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=9'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=9'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=9'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
 global.fetch=async url=>{try{return new Response(await fs.readFile(new URL(url)),{status:200});}catch{return new Response('',{status:404});}};
 const {loadHumanAssets,ensureHumanPresets,createHuman,disposeHuman}=await import(moduleURL(path.join(temp,'model.mjs')));
 const {hairDefaults,hairChoices,hairRanges}=await import(moduleURL(path.join(temp,'hair.mjs')));
@@ -32,10 +32,12 @@ async function check(state,exportName){
   for(const id of skin.geometry.index.array)visible=Math.max(visible,Math.abs(p[id*3]));
   if(visible<all*.98)throw Error('garment occlusion removed hands '+JSON.stringify({state,all,visible}));
  }
- if(!meshes.some(o=>o.userData.part==='Shirt')||!meshes.some(o=>o.userData.part==='Pants'))throw Error('missing clothes');
- for(const [key,part] of [['frontHair','HairFront'],['backHair','HairBack'],['sideHair','HairSide'],['braid','HairBraid']])if((state[key]!=='none')!==meshes.some(o=>o.name===part))throw Error('section mismatch '+key);
+ if(state.clothes!=='underwear'&&(!meshes.some(o=>o.userData.part==='Shirt')||!meshes.some(o=>o.userData.part==='Pants')))throw Error('missing clothes');
+ for(const [key,part] of [['frontHair','HairFront'],['backHair','HairBack'],['sideHair','HairSide'],['braid','HairBraid']])if((state[key]!=='none')!==meshes.some(o=>o.userData.part===part))throw Error('section mismatch '+key);
  disposeHuman(model);count++;
 }
+for(const gender of ['female','male'])await check({...defaults,gender,clothes:'underwear',shoes:'barefoot',frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});
+console.log('PASS cold underwear/barefoot loading without garment or hair packs');
 function signature(model,part){
  const values=[];model.traverse(o=>{if(o.isMesh&&o.userData.part===part){const p=o.geometry.attributes.position.array;for(const i of o.geometry.index.array)values.push(p[i*3],p[i*3+1],p[i*3+2]);}});return JSON.stringify(values);
 }
@@ -55,13 +57,28 @@ for(const gender of ['female','male']){
 console.log('PASS all garment and hair controls affect visible geometry; resetting preserves source data');
 for(const gender of ['female','male']){
  for(const [frontHair] of hairChoices.frontHair)for(const [backHair] of hairChoices.backHair)for(const [sideHair] of hairChoices.sideHair)for(const [braid] of hairChoices.braid)await check({...defaults,gender,frontHair,backHair,sideHair,braid});
- console.log('PASS all 144 modular hair combinations for',gender);
+ console.log('PASS all modular hair combinations for',gender);
 }
 for(const gender of ['female','male']){
  await check({...defaults,gender},gender+'-modular');
  for(const [key,choices] of Object.entries(hairChoices))for(const [value] of choices)await check({...defaults,gender,[key]:value});
  for(const extreme of [0,100])await check({...defaults,gender,...Object.fromEntries([...Object.keys(parameterDefaults),...Object.keys(wardrobeDefaults),...Object.keys(hairRanges)].map(k=>[k,extreme])),frontHair:'straight',backHair:'long',sideHair:'long',braid:'double'},gender+'-modular-extreme-'+extreme);
  await check({...defaults,gender,frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});
+ for(const extreme of [0,100])await check({...defaults,gender,clothes:'underwear',shoes:'barefoot',...Object.fromEntries([...Object.keys(parameterDefaults),...Object.keys(hairRanges)].map(k=>[k,extreme]))});
+ for(const clothes of ['shirtPants','underwear'])for(const shoes of ['shoes','barefoot']){
+  const state={...defaults,gender,clothes,shoes};await ensureHumanPresets(state,{textures:false});const model=createHuman(state),meshes=[];model.traverse(o=>{if(o.isMesh)meshes.push(o);});
+  if((shoes==='shoes')!==meshes.some(o=>o.name.includes('Shoes')))throw Error('shoe toggle');
+  if(clothes==='underwear'){
+   if(meshes.some(o=>o.userData.part==='Shirt'||o.userData.part==='Pants'||o.userData.part==='ShirtDetail'))throw Error('outer clothes remained');
+   const bottom=meshes.find(o=>o.userData.part==='UnderwearBottom');if(!bottom||bottom.geometry.index.count<30)throw Error('missing underwear bottom');
+   if((gender==='female')!==meshes.some(o=>o.userData.part==='UnderwearTop'))throw Error('underwear top');
+   const body=meshes.find(o=>o.userData.part==='Body'&&o.name.includes('_SKIN'));
+   if(body.geometry.index.count!==skinIds[gender].length)throw Error('underwear body still cropped');
+  }
+  if(!Number.isFinite(model.userData.height)||Math.abs(new (await import(moduleURL(base+'vendor/three.module.js'))).Box3().setFromObject(model).min.y)>.015)throw Error('floor alignment');
+  disposeHuman(model);count++;
+ }
+
  await check({...defaults,gender,frontHair:'swept',backHair:'bob',sideHair:'long',braid:'double'},gender+'-braids');
 }
 console.log('PASS',count,'section choices, body/garment/hair extremes, bald and geometry');
