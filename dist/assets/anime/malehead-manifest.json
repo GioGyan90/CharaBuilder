@@ -1,0 +1,19 @@
+{
+  "parts": [
+    "malehead-0.b64",
+    "malehead-1.b64",
+    "malehead-2.b64",
+    "malehead-3.b64",
+    "malehead-4.b64",
+    "malehead-5.b64",
+    "malehead-6.b64",
+    "malehead-7.b64"
+  ],
+  "bytes": 276183,
+  "source": "https://sketchfab.com/3d-models/male-head-base-mesh-6a480c4603cd4768b615393e93dbd7d0",
+  "author": "DEGUIDER",
+  "license": "CC-BY-4.0",
+  "sourceSha256": "c353d222169c2fb6a738dbac6de0d1db92a9a72c861f797a5f33a053239586d6",
+  "triangles": 20480,
+  "adaptation": "Author topology retained; polygon triangulation, coordinate conversion and quantization. Runtime head fitting and neck blending; no source hair/body."
+}

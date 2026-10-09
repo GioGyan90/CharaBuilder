@@ -75,3 +75,11 @@ Micket，2013，CC0-1.0：
 仅转换作者的发型对象，不导入参考人头、场景灯光或相机。多边形扇形三角化，角点展开以保留原 UV 与平滑/硬边法线，原造型和不对称保留。头部适配使用仿射缩放，前、后、侧分区共用连续的长度形变，绑到角色头骨。源文件 SHA-256 记录在各 manifest；转换脚本 `scripts/prepare-authored-hair.py`，构建时依赖 Blender Asset Tracer 的读取器，不将其代码打包进应用。原 `.blend`、GLB、VRM 不随运行时分发。
 
 v14 四张照片参考及对应自创短发已撤下，不能作为模型来源。
+
+
+## v16 独立作者头部
+
+- 女性：FACE BASE Woman，byzmod3d，[作者来源](https://opengameart.org/content/face-base-woman)，CC0。从原 .blend 的 FACE_Cube.002 和 FACE.001_Cube.001 对象提取，不导入作者头发或身体。灰度化/中和原贴图底色，保留局部绘制细节。
+- 男性：This work is based on "Male Head Base mesh" (https://sketchfab.com/3d-models/male-head-base-mesh-6a480c4603cd4768b615393e93dbd7d0) by DEGUIDER (https://sketchfab.com/DEGUIDER) licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/).
+- 转换：保留作者头部及眼部拓扑，三角化、坐标转换、量化；运行时拟合身高/头部尺寸/颈部，添加头颈权重。男性无贴图，眼球保留原作；瞳孔、高光和眉毛复用已有 CC0 VRoid 组件。两款不包含可复用表情形态键，本轮只开放自然表情。
+- 生成脚本：scripts/prepare-authored-faces.py；源文件 SHA-256、三角数、许可及作者记在 femalehead/malehead-manifest.json。运行时只加载压缩数组/PNG，不加载原 .blend、glTF、bin。

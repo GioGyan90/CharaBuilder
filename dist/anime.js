@@ -1,9 +1,9 @@
-import {bindCharacter} from './rig.js?v=15';
+import {bindCharacter} from './rig.js?v=16';
 import * as THREE from 'three';
-import {createDeformer,deformNormal} from './parameters.js?v=15';
-import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=15';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=15';
-import {createUnderwearData} from './underwear.js?v=15';
+import {createDeformer,deformNormal} from './parameters.js?v=16';
+import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=16';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=16';
+import {createUnderwearData} from './underwear.js?v=16';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -61,7 +61,7 @@ export async function loadHumanAssets({textures = true} = {}) {
   await Promise.all(['female','male'].map(id=>loadAsset(id,textures)));
 }
 export async function ensureHumanPresets(state, {textures = true} = {}) {
-  const ids=hairAssetIds(state);if(state.clothes!=='underwear')ids.push(...(state.gender==='female'?['long','uniform']:['uniform']));
+  const ids=hairAssetIds(state);if(state.faceSource==='authored')ids.push(state.gender+'head');if(state.clothes!=='underwear')ids.push(...(state.gender==='female'?['long','uniform']:['uniform']));
   await Promise.all([...new Set(ids)].map(id=>loadAsset(id,textures)));
 }
 function compose(state) {
@@ -72,15 +72,22 @@ function compose(state) {
     const offset=data.materials.length;data.materials.push(...owner.materials);data.maps.push(...owner.materials.map((_,i)=>owner.maps[i]||null));
     data.meshes.push({...source,groups:groups.map(g=>({...g,material:g.material+offset}))});
   }
-  const face=base.meshes.find(m=>m.name==='Face');add(base,face,face.groups);
+  const face=base.meshes.find(m=>m.name==='Face');
+  if(state.faceSource==='authored'){
+    const fitted=authoredFace(assets[state.gender+'head'],base);
+    data.landmarks={...base.landmarks,...fitted.landmarks};
+    for(const mesh of fitted.meshes)add(fitted,mesh,mesh.groups);
+  }else add(base,face,face.groups);
   const body=base.meshes.find(m=>m.name==='Body');
   const neck=base.landmarks.neck[1],hip=base.landmarks.hips[1],sleeve=.124+Math.max(0,Math.min(100,state.sleeveLength??50))*(state.gender==='female'?.00276:.00316);
   const skinGroups=body.groups.filter(g=>base.materials[g.material].name.includes('_SKIN')||(state.shoes!=='barefoot'&&base.materials[g.material].name.includes('Shoes')));
   const filtered=skinGroups.map(g=>{
-    if(state.clothes==='underwear'||!base.materials[g.material].name.includes('_SKIN'))return g;
+    if(!base.materials[g.material].name.includes('_SKIN'))return g;
     const indices=[];
     for(let i=0;i<g.indices.length;i+=3){
       const ids=g.indices.slice(i,i+3);let covered=0;
+      if(state.faceSource==='authored'&&ids.every(id=>body.positions[id*3+1]/100000>neck+.025))continue;
+      if(state.clothes==='underwear'){indices.push(...ids);continue;}
       for(const id of ids){const x=Math.abs(body.positions[id*3]/100000),y=body.positions[id*3+1]/100000;
         const axial=(x-.12)*.4695+(y-(neck-.065))*(-.8829);
         if((x<.19&&y>.13&&y<hip+.08)||(x<.13&&y>hip&&y<neck-.085)||(x>.13&&y<neck-.045&&axial<sleeve-.025))covered++;
@@ -106,6 +113,63 @@ function compose(state) {
   for(const {owner,mesh} of referenceHairMeshes(assets,state))add(owner,mesh,mesh.groups);
   return data;
 }
+
+function authoredFace(owner,base){
+ if(!owner)throw Error('参考头部未载入');
+ const original=base.meshes.find(m=>m.name==='Face'),headMesh=owner.meshes[0];
+ const originalTop=Math.max(...original.positions.filter((_,i)=>i%3===1))/100000;
+ const donorTop=Math.max(...headMesh.positions.filter((_,i)=>i%3===1))/100000;
+ const donorEye=owner.landmarks.leftEye[1],targetEye=base.landmarks.leftEye[1],neck=base.landmarks.neck;
+ const factor=(originalTop-targetEye)/(donorTop-donorEye);
+ const zCenter=base.landmarks.head[2],rawZ=headMesh.positions.filter((_,i)=>i%3===2).map(v=>v/100000);
+ const donorCenter=(Math.min(...rawZ)+Math.max(...rawZ))*.5;
+ const eyeZ=(owner.landmarks.leftEye[2]-donorCenter)*factor+zCenter;
+ const eyes=[owner.landmarks.leftEye[0]*factor,-owner.landmarks.leftEye[0]*factor];
+ const map=(x,y,z)=>{
+  x*=factor;y=(y-donorEye)*factor+targetEye;z=(z-donorCenter)*factor+zCenter;
+  // Fit the lower donor neck into the existing body's neck, leaving the face intact.
+  const blend=Math.max(0,Math.min(1,(targetEye-.105-y)/.06));
+  y=Math.max(neck[1]-.006,y);
+  if(blend>0){const radius=Math.hypot(x,z-zCenter)||1;const fit=.029/radius;x*=1-blend+blend*fit;z=zCenter+(z-zCenter)*(1-blend+blend*fit);}
+  return [x,y,z];
+ };
+ const data={...owner,meshes:[],landmarks:{leftEye:[eyes[0],targetEye,eyeZ],rightEye:[eyes[1],targetEye,eyeZ]}};
+ for(const source of owner.meshes){
+  const p=[];for(let i=0;i<source.positions.length;i+=3)p.push(...map(...source.positions.slice(i,i+3).map(v=>v/100000)).map(v=>Math.round(v*100000)));
+  // Recompute smooth normals after fitting. Explicit head/neck weights avoid indexing
+  // the unrelated original VRoid face topology.
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(p.map(v=>v/100000),3));geometry.setIndex(source.groups.flatMap(g=>g.indices));geometry.computeVertexNormals();
+  const shared=new Map(),n=geometry.attributes.normal.array;for(let i=0;i<p.length;i+=3){const key=p.slice(i,i+3).join(',');let sum=shared.get(key);if(!sum){sum=[0,0,0];shared.set(key,sum);}for(let a=0;a<3;a++)sum[a]+=n[i+a];}for(let i=0;i<p.length;i+=3){const sum=shared.get(p.slice(i,i+3).join(',')),l=Math.hypot(...sum)||1;for(let a=0;a<3;a++)n[i+a]=sum[a]/l;}
+  const weights=[],indices=[];
+  for(let i=0;i<p.length;i+=3){const w=Math.max(0,Math.min(1,(p[i+1]/100000-neck[1])/.085));indices.push(base.rig.humanoid.head,base.rig.humanoid.neck,0,0);weights.push(w,1-w,0,0);}
+  data.meshes.push({...source,positions:p,normals:Array.from(geometry.attributes.normal.array,v=>Math.round(v*32767)),skinIndices:indices,skinWeights:weights});geometry.dispose();
+ }
+ // Retain the existing authored VRoid iris/highlight geometry for the untextured
+ // male eye balls. Fit each eye to the donor's actual eye centers/front surface.
+ if(base.gender==='male'||base===assets.male){
+  const groups=original.groups.filter(g=>/EyeIris|EyeHighlight|FaceBrow/.test(base.materials[g.material].name));
+  const p=[...original.positions],ids=new Set(groups.flatMap(g=>g.indices));
+  for(const sign of [-1,1]){
+   const side=[...ids].filter(id=>Math.sign(original.positions[id*3])===sign);
+   const cx=side.reduce((sum,id)=>sum+original.positions[id*3]/100000,0)/side.length;
+   const cy=side.reduce((sum,id)=>sum+original.positions[id*3+1]/100000,0)/side.length;
+   const cz=Math.max(...side.map(id=>original.positions[id*3+2]/100000));
+   for(const id of side){p[id*3]=Math.round((sign*Math.abs(eyes[0])+(p[id*3]/100000-cx)*.72)*100000);p[id*3+1]=Math.round((targetEye+(p[id*3+1]/100000-cy)*.72)*100000);const dx=p[id*3]/100000-sign*Math.abs(eyes[0]),dy=p[id*3+1]/100000-targetEye,r=.094*factor;p[id*3+2]=Math.round((eyeZ-r+Math.sqrt(Math.max(0,r*r-dx*dx-dy*dy))+.001)*100000);}
+  }
+  const browIds=new Set(groups.filter(g=>base.materials[g.material].name.includes('FaceBrow')).flatMap(g=>g.indices));
+  const skinPoints=data.meshes[0].positions;
+  for(const id of browIds){
+   const x=p[id*3]/100000,y=p[id*3+1]/100000;let best=Infinity,z=eyeZ;
+   for(let j=0;j<skinPoints.length;j+=3){const d=(skinPoints[j]/100000-x)**2+(skinPoints[j+1]/100000-y)**2;if(skinPoints[j+2]/100000>zCenter&&d<best){best=d;z=skinPoints[j+2]/100000;}}
+   p[id*3+2]=Math.round((z+.0006)*100000);
+  }
+  const offset=data.materials.length;data.materials=[...data.materials,...base.materials];data.maps=[...owner.maps,...base.maps];
+  const skinIndices=[],skinWeights=[];for(let i=0;i<p.length/3;i++){skinIndices.push(base.rig.humanoid.head,0,0,0);skinWeights.push(1,0,0,0);}
+  data.meshes.push({...original,positions:p,expressions:{},skinIndices,skinWeights,groups:groups.map(g=>({...g,material:g.material+offset}))});
+ }
+ return data;
+}
+
 export function createHuman(state) {
   const data = compose(state);
   const base=assets[state.gender];
@@ -148,7 +212,16 @@ export function createHuman(state) {
 `);
       };material.customProgramCacheKey=()=> 'neutral-modular-hair-v13';
     }
-    if(iris && material.map){
+    if(name==='AuthoredEyeIris_Female'&&material.map){
+      material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`
+#ifdef USE_MAP
+ vec4 detail=texture2D(map,vMapUv);
+ float tone=detail.r;
+ float sclera=smoothstep(0.42,0.72,tone);
+ diffuseColor.rgb=mix(diffuseColor.rgb*clamp(tone*3.0,0.0,1.0),vec3(tone),sclera);
+#endif
+`);};material.customProgramCacheKey=()=> 'authored-eye-atlas-v16';
+    }else if(iris && material.map){
       material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', `
 #ifdef USE_MAP
   vec4 irisDetail = texture2D(map, vMapUv);
@@ -162,7 +235,7 @@ export function createHuman(state) {
     // The source face map contains a peach skin base. Remove that base in linear
     // space before multiplying by the selected skin color; keep local painted detail.
     if (skin && name.includes('Face') && material.map) {
-      const reference = new THREE.Color(state.gender==='female'?'#f3cdb7':'#f3d1b7');
+      const reference = new THREE.Color(name.startsWith('Authored')?'#ffffff':state.gender==='female'?'#f3cdb7':'#f3d1b7');
       material.onBeforeCompile = shader => {
         shader.uniforms.faceSkinReference = {value:reference};
         shader.fragmentShader = 'uniform vec3 faceSkinReference;\n' + shader.fragmentShader;
@@ -170,7 +243,7 @@ export function createHuman(state) {
 #ifdef USE_MAP
   vec4 faceDetail = texture2D(map, vMapUv);
   vec3 neutralDetail = clamp(faceDetail.rgb / max(faceSkinReference, vec3(0.001)), vec3(0.0), vec3(1.0));
-  diffuseColor.rgb *= mix(vec3(1.0), neutralDetail, 0.65);
+  diffuseColor.rgb *= mix(vec3(1.0), neutralDetail, ${name.startsWith('Authored')?'0.35':'0.65'});
   diffuseColor.a *= faceDetail.a;
 #endif
 `);
@@ -239,7 +312,7 @@ export function createHuman(state) {
   group.userData.height=new THREE.Box3().setFromObject(group).max.y;
   group.userData.faceY=deform(0,eyeY,data.landmarks.head[2],'Face')[1]+group.position.y;
   group.userData.model='vroid-beta-parametric';
-  group.userData.parameterVersion=1;
+  group.userData.parameterVersion=1;group.userData.faceSource=state.faceSource||'vroid';
   return group;
 }
 export function disposeHuman(group) {

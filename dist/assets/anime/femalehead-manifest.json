@@ -1,0 +1,13 @@
+{
+  "parts": [
+    "femalehead-0.b64",
+    "femalehead-1.b64"
+  ],
+  "bytes": 65788,
+  "source": "https://opengameart.org/content/face-base-woman",
+  "author": "byzmod3d",
+  "license": "CC0-1.0",
+  "sourceSha256": "a47b9234136a26914dc4b71308bb666e50b77e41d906d1b925e0514bec195da1",
+  "triangles": 2072,
+  "adaptation": "Author topology retained; polygon triangulation, coordinate conversion and quantization. Runtime head fitting and neck blending; no source hair/body."
+}

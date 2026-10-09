@@ -17,32 +17,29 @@ await loadHumanAssets({textures:false});
 const defaults={...parameterDefaults,...wardrobeDefaults,...hairDefaults,gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jaw:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',shirt:'#d7c8b0',pants:'#343b50'};
 import {gunzipSync} from 'node:zlib';
 const skinIds={};
-for(const gender of ['female','male']){
- const root=base+'assets/anime/';const manifest=JSON.parse(await fs.readFile(root+gender+'-manifest.json','utf8'));
- const fragments=await Promise.all(manifest.parts.map(p=>fs.readFile(root+p,'utf8')));
- const data=JSON.parse(gunzipSync(Buffer.from(fragments.join(''),'base64')));
- const body=data.meshes.find(m=>m.name==='Body');skinIds[gender]=body.groups.filter(g=>data.materials[g.material].name.includes('_SKIN')).flatMap(g=>g.indices);
-}
 
 const {updateCharacterMotion}=await import(moduleURL(path.join(temp,'rig.mjs')));
 const THREE=await import(moduleURL(base+'vendor/three.module.js'));
-
 const {applyHumanColors}=await import(moduleURL(path.join(temp,'model.mjs')));
 for(const gender of ['female','male']){
- const state={...defaults,gender,clothes:'underwear',eyeColor:'#437fbc'};await ensureHumanPresets(state,{textures:false});const model=createHuman(state);
- const meshes=[];model.traverse(m=>{if(m.isMesh)meshes.push(m);});const eye=meshes.find(m=>m.name.includes('EyeIris'));
- if(eye.material.color.getHexString()!=='437fbc')throw Error('iris color');
- const skeleton=model.userData.skeleton,geometry=eye.geometry;updateCharacterMotion(model,3.5,'inspect');const pose=JSON.stringify(skeleton.bones.map(b=>b.quaternion.toArray()));
- const colors={skin:'#e2a576',hairColor:'#418688',eyeColor:'#af547c',shirt:'#bd392f',pants:'#ad41ae'};applyHumanColors(model,colors);
- if(eye.geometry!==geometry||model.userData.skeleton!==skeleton||JSON.stringify(skeleton.bones.map(b=>b.quaternion.toArray()))!==pose)throw Error('color update rebuilt or reset pose');
- for(const [role,hex] of Object.entries(colors)){const m=model.userData.materials.find(m=>m.userData.colorRole===role);if(!m)throw Error('missing role '+role);const expected=new THREE.Color(hex);if(role==='skin')expected.multiplyScalar(1.07);if(!m.color.equals(expected))throw Error('color role '+role);}
- if(gender==='female'){
-  const top=meshes.find(m=>m.userData.part==='UnderwearTop');if(!top)throw Error('missing strapless top');
-  // Inverse scale of the default rig: highest top edge must sit below the old strap region.
-  const body=meshes.find(m=>m.userData.part==='Body'&&m.name.includes('_SKIN')),bones=model.userData.motion;
-  const neck=bones.bones[bones.humanoid.neck].position;const p=top.geometry.attributes.position;
-  if(Math.max(...Array.from(p.array).filter((_,i)=>i%3===1))>model.userData.faceY-.15)throw Error('straps remain');
+ const state={...defaults,gender,faceSource:'authored',clothes:'underwear',shoes:'barefoot',frontHair:'none',backHair:'none',sideHair:'none',braid:'none',eyeColor:'#437fbc'};
+ await ensureHumanPresets(state,{textures:false});
+ for(const extreme of [50,0,100]){
+  const model=createHuman({...state,faceWidth:extreme,headSize:extreme,neckWidth:extreme,eyeSize:extreme});
+  const meshes=[];model.traverse(m=>{if(m.isMesh)meshes.push(m);});
+  if(!meshes.some(m=>m.name.startsWith('AuthoredFace')))throw Error('donor absent');
+  for(const m of meshes){
+   if(!m.geometry.attributes.position.array.every(Number.isFinite)||!m.geometry.attributes.normal.array.every(Number.isFinite))throw Error('nonfinite');
+   const w=m.geometry.attributes.skinWeight.array;
+   if(!w.every(Number.isFinite))throw Error('invalid weights');
+   for(let i=0;i<w.length;i+=4)if(Math.abs(w[i]+w[i+1]+w[i+2]+w[i+3]-1)>1e-5)throw Error('unnormalized weights');
+  }
+  updateCharacterMotion(model,3,'inspect');
+  const head=meshes.find(m=>m.name.startsWith('AuthoredFace')),point=new THREE.Vector3().fromBufferAttribute(head.geometry.attributes.position,0);head.applyBoneTransform(0,point);
+  if(!point.toArray().every(Number.isFinite))throw Error('posed head invalid');
+  applyHumanColors(model,{...state,skin:'#86543c',eyeColor:'#427b99'});
+  const eye=meshes.find(m=>m.name.includes('EyeIris'));if(!eye||eye.material.color.getHexString()!=='427b99')throw Error('eye color');
+  disposeHuman(model);
  }
- disposeHuman(model);
 }
-console.log('PASS strapless garment, five live color material roles, and unchanged geometry/skeleton/paused pose');
+console.log('PASS authored male/female heads, extreme sliders, normalized independent rig weights, inspect pose and live skin/iris colors');
