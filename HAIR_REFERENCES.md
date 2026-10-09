@@ -1,31 +1,36 @@
-# 发型参考与制作说明
+# 发型模型来源与转换说明
 
-本项目新增发型、服装的默认流程：先确认具体照片或可复用模型，再拆分轮廓、分区和发流；记录来源及许可。没有具体参考的试验形状不得标为已完成的经典预设。转换成 JS 或删除原模型不会改变素材许可。
+用户要求：发型和服装参考必须是他人已经建好的 3D 模型。保留作者的造型结构，再拆分、适配为 JS 参数可调的网格；照片只用于核对，不代替原模型。找不到合适且许可允许复用的款式先留缺。
 
-## v14 男性短发：照片参考重建
+## v15 已导入的真实模型
 
-这四款是观察真实照片后，在现有 CC0 头部上重建的 JS 网格，并非从照片提取的原始 3D 模型，也不是下载到的 VRoid 短发预设。照片没有显示的角度采用左右对称及现有头部结构补足；当前是一轮重建，需要继续评估实际游戏视角下的效果。
+| 预设 | 原模型 / 作者 | 许可 | 原始结构 | 接入方式 |
+| --- | --- | --- | --- | --- |
+| 侧分短发 | [Side parting hairstyle for male model](https://opengameart.org/content/side-parting-hairstyle-for-male-model) / Micket | CC0 | 114 顶点，131 多边形，201 三角面 | 原网格、法线及不对称侧分保留；没有另造发束或添加虚构纹理。 |
+| 上梳短发 | [Upcomb hair style for male model](https://opengameart.org/content/upcomb-hair-style-for-male-model) / Micket | CC0 | 132 顶点，148 多边形，236 三角面 | 原网格、UV、法线保留；原发流贴图转为灰度，仍受发色 / HSL 控制。 |
 
-| 预设 | 具体参考 | 实现观察 |
+这里的名称对应作者实际提供的款式。不将上梳短发改名为军式、平头或圆寸。v13–v14 自造的四款短发及照片参考已撤下；这些款式等待取得合适的现成 3D 模型后再加入。
+
+### 网格可追溯
+
+- `.blend` 对象矩阵转换为 Three.js 的 Y-up 坐标；原多边形扇形三角化，不重建外形、不重拓扑。
+- 展开角点以保留 UV 接缝及原平滑/硬边法线。运行顶点数因此分别为 463 / 532，三角面仍为 201 / 236。
+- 原顶点编号保存在转换数据 `sourceVertexIds`，原文件 SHA-256 记录在 `sidepart-manifest.json`、`upcomb-manifest.json`。
+- 只导入发型对象。为当前二次元头部做仿射尺寸适配，再按原网格位置划成前发、后发、侧发，完整预设不会额外叠加 VRoid 头皮。
+- 分区使用同一个连续长度形变，避免共享边随不同长度滑块裂开。原骨骼绑定及头部参数继续生效。
+- 构建脚本为 `scripts/prepare-authored-hair.py`。源文件临时下载、转换后删除；运行时用现有 JS BufferGeometry 与压缩网格数据，不加载 GLB / VRM / Blender。
+
+这是原模型网格的直接复用与适配，不是声称通过 JS 从头模拟作者的建模过程。原资产属于低多边形风格，细节上限由原资产决定。
+
+## 性别筛选
+
+| 编辑状态 | 显示 | 隐藏 |
 | --- | --- | --- |
-| 圆寸 | [Male buzzcut.jpg](https://commons.wikimedia.org/wiki/File:Male_buzzcut.jpg)，Mark S. Kettenhofen，美国海军，1998 | 发长极短，沿头骨轮廓，额前自然弧线、太阳穴退让，保留可见头皮。 |
-| 军式短发 | [Crew Cut, Semi Short Taper.jpg](https://commons.wikimedia.org/wiki/File:Crew_Cut,_Semi_Short_Taper.jpg)，美国海军陆战队照片裁切，2011 | 前顶较长并略抬起，后顶收短，太阳穴至耳上渐短；前向发流单独制作。不是将顶部统一拉高。 |
-| 方正平头 | [PRC flattop-1.jpg](https://commons.wikimedia.org/wiki/File:PRC_flattop-1.jpg)、[PRC flattop-2.jpg](https://commons.wikimedia.org/wiki/File:PRC_flattop-2.jpg)，SoHome Jacaranda Lilau，2014 | 同一发型的后面和侧面参考；近水平顶面、较方的肩线，枕部收紧，短直立发束。前面未展示，按对称结构补足。 |
-| 短碎渐变 | [Fresh and Short French Crop](https://haircutinspiration.com/french-crop-haircut/)，页面中 @tombaxter_hair 的同名照片 | 前向纹理，短且稍不齐的额前切口，上部比两侧长；移除 v13 的波波刘海压缩做法。照片仅供观察，不作为贴图，也不随项目分发。 |
+| 男性 | 侧分短发、上梳短发、原有层次短发；对应前 / 后 / 侧分区 | 双马尾、侧卷马尾、波波及女性长发分区；马尾控件 |
+| 女性 | 波波、柔顺长发、层次短发、双马尾、侧卷马尾；对应分区 | 本轮男性侧分 / 上梳短发分区及预设；已撤下的极短试验款 |
 
-![圆寸参考](references/hair/buzz.jpg)
-![军式短发参考](references/hair/crew.jpg)
-![平头后面参考](references/hair/flat1.jpg)
-![平头侧面参考](references/hair/flat2.jpg)
+这是本游戏的编辑器选项规则。随机、导入、存档载入和性别切换统一应用；共有选项保留，不适用的分区改为对应性别的默认选项，马尾在男性时改为无。
 
-上面的四张仓库内照片均为缩小后的参考副本，分别为 PD-USGov-Military / PD-USGov-Navy 或作者明确释放到 public domain 的文件。详细许可见各来源页面。人物外貌不用于复刻角色，观察对象为剪裁与发流。
+## 原有模型
 
-## 参数与拆分
-
-实现位于 `dist/hair.js` 的 `shortProfiles`（各款纵向顶面、横向肩线、渐短密度）和 `shortGuides`（分区发流导向）。这些数据是人工观察后的设计比例，不声称是摄影测量值。JS 细分现有头皮并贴合 CC0 头部，按参考曲线调整顶部，发束沿该表面拟合，分成前、侧、后发；长度和蓬松度仍可调，原骨骼、发色及 HSL 设置继续使用。
-
-## 其他候选素材
-
-[Micket 的 Side parting hairstyle](https://opengameart.org/content/side-parting-hairstyle-for-male-model) 是 CC0 的真实短发模型，已检查来源并下载研究文件。本轮没有将它伪称为圆寸、军式短发或平头，也没有接入运行时。以后可作为单独侧分预设的候选。
-
-BOOTH 上的 CC0 very short 候选（item 3748889）当前无法取得源文件，因此未作为已导入的模型记录。
+原有波波、长发、层次短发和马尾继续从许可允许的旧版 CC0 VRoid 模型中提取已建好的发束。具体文件和许可见 [THIRD_PARTY.md](THIRD_PARTY.md)。新款服装也必须沿用上述现成 3D 模型来源规则。

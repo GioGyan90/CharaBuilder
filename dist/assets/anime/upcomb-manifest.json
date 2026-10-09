@@ -1,0 +1,16 @@
+{
+  "parts": [
+    "upcomb.b64"
+  ],
+  "bytes": 8356,
+  "source": "https://opengameart.org/content/upcomb-hair-style-for-male-model",
+  "author": "Micket",
+  "license": "CC0-1.0",
+  "sourceFile": "upcomb_hair.blend",
+  "sourceSha256": "cd88bfb058bc00bb1b398100987144ee135b13a69b6cd98ed733bed99a6bc34d",
+  "sourceVertices": 132,
+  "sourcePolygons": 148,
+  "triangles": 236,
+  "runtimeVertices": 532,
+  "transform": "object matrix then (x,z,-y), loop normals/UV retained; no remeshing"
+}

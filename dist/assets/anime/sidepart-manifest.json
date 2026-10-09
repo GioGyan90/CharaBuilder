@@ -1,0 +1,16 @@
+{
+  "parts": [
+    "sidepart.b64"
+  ],
+  "bytes": 7337,
+  "source": "https://opengameart.org/content/side-parting-hairstyle-for-male-model",
+  "author": "Micket",
+  "license": "CC0-1.0",
+  "sourceFile": "side_parting_hair.blend",
+  "sourceSha256": "cb41c3753670f9571481201dd0426f659f09501d9c6b0bc82fe613ec54fc3d95",
+  "sourceVertices": 114,
+  "sourcePolygons": 131,
+  "triangles": 201,
+  "runtimeVertices": 463,
+  "transform": "object matrix then (x,z,-y), loop normals/UV retained; no remeshing"
+}

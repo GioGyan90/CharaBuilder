@@ -1,9 +1,9 @@
-import {bindCharacter} from './rig.js?v=14';
+import {bindCharacter} from './rig.js?v=15';
 import * as THREE from 'three';
-import {createDeformer,deformNormal} from './parameters.js?v=14';
-import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=14';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=14';
-import {createUnderwearData} from './underwear.js?v=14';
+import {createDeformer,deformNormal} from './parameters.js?v=15';
+import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=15';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=15';
+import {createUnderwearData} from './underwear.js?v=15';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -148,21 +148,6 @@ export function createHuman(state) {
 `);
       };material.customProgramCacheKey=()=> 'neutral-modular-hair-v13';
     }
-    if(m.shortHair){
-      const skinColor=new THREE.Color(state.skin).multiplyScalar(1.07);material.userData.shortHairSkin=skinColor;
-      material.onBeforeCompile=shader=>{
-        shader.uniforms.shortHairSkin={value:skinColor};
-        shader.vertexShader='attribute float hairCoverage; varying float vHairCoverage; varying vec2 vCloseUv;\n'+shader.vertexShader;
-        shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvHairCoverage=hairCoverage; vCloseUv=uv;');
-        shader.fragmentShader='uniform vec3 shortHairSkin; varying float vHairCoverage; varying vec2 vCloseUv;\n'+shader.fragmentShader;
-        shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', `
-float closeGrain=fract(sin(dot(floor(vCloseUv*750.0),vec2(12.9898,78.233)))*43758.5453);
-float stubble=smoothstep(0.20,0.65,closeGrain);
-float density=clamp(vHairCoverage,0.0,1.0)*mix(mix(0.50,1.0,stubble),1.0,smoothstep(0.88,1.0,vHairCoverage));
-diffuseColor.rgb=mix(shortHairSkin,diffuseColor.rgb*mix(0.88,1.0,closeGrain),density);
-`);
-      };material.customProgramCacheKey=()=> 'reference-short-hair-v14';
-    }
     if(iris && material.map){
       material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', `
 #ifdef USE_MAP
@@ -207,7 +192,7 @@ diffuseColor.rgb=mix(shortHairSkin,diffuseColor.rgb*mix(0.88,1.0,closeGrain),den
     const expression=source.expressions[state.expression];
     const normals=new Float32Array(p.length);
     let sourceNormals=source.normals;
-    if(source.name==='Shirt'||source.name==='Pants'||source.coverage){
+    if(source.name==='Shirt'||source.name==='Pants'){
       const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(source.positions.map(v=>v/100000),3));g.setIndex(source.normalIndices||source.groups.flatMap(g=>g.indices));g.computeVertexNormals();sourceNormals=Array.from(g.attributes.normal.array,v=>v*32767);g.dispose();
     }
     for(let i=0;i<p.length;i+=3) {
@@ -221,7 +206,6 @@ diffuseColor.rgb=mix(shortHairSkin,diffuseColor.rgb*mix(0.88,1.0,closeGrain),den
       if(description.includes('EyeExtra'))continue;
       const geometry=new THREE.BufferGeometry();
       geometry.setAttribute('position',new THREE.BufferAttribute(p,3));
-      if(source.coverage)geometry.setAttribute('hairCoverage',new THREE.Float32BufferAttribute(source.coverage,1));
       geometry.setAttribute('uv',new THREE.Float32BufferAttribute(source.uv.map(v=>v/65535),2));
       geometry.setIndex(part.indices);
       // Transform smooth source normals with the same parameter deformation.
@@ -267,7 +251,7 @@ export function disposeHuman(group) {
 // Color changes update shared materials immediately, without rebuilding geometry or poses.
 export function applyHumanColors(group,state){
  if(!group)return;
- for(const material of group.userData.materials||[]){const role=material.userData.colorRole;if(material.userData.shortHairSkin)material.userData.shortHairSkin.set(state.skin).multiplyScalar(1.07);if(!role)continue;
+ for(const material of group.userData.materials||[]){const role=material.userData.colorRole;if(!role)continue;
   material.color.set(role==='shirtButton'?state.shirt:(state[role]||'#806449'));
   if(role==='skin')material.color.multiplyScalar(1.07);
   if(role==='shirtButton')material.color.multiplyScalar(.73);

@@ -5,11 +5,11 @@ const {parameterDefaults,parameterRanges}=await import(pathToFileURL(dir+'parame
 const {wardrobeDefaults,wardrobeRanges}=await import(pathToFileURL(dir+'wardrobe.js').href);
 const hairText=await fs.readFile(dir+'hair.js','utf8');
 const hairDefinition=hairText.slice(hairText.indexOf('export const hairDefaults'),hairText.indexOf('const skullCache')).replaceAll('export ','');
-const {hairDefaults,hairChoices,hairRanges}=new Function(hairDefinition+'return {hairDefaults,hairChoices,hairRanges};')();
+const {hairDefaults,hairChoices,hairRanges,hairOptionsFor,filterHairForGender}=new Function(hairDefinition+'return {hairDefaults,hairChoices,hairRanges,hairOptionsFor,filterHairForGender};')();
 const text=await fs.readFile(dir+'app.js','utf8');const prefix=text.slice(text.indexOf('const defaults ='),text.indexOf('let state='));const choice=text.slice(text.indexOf('function choicesFor('),text.indexOf('let toastTimer;'));const normalize=text.slice(text.indexOf('function normalize('),text.indexOf('function element('));
-const normalizeState=new Function('parameterDefaults','parameterRanges','wardrobeDefaults','wardrobeRanges','hairDefaults','hairChoices','hairRanges',prefix+'let state={...defaults};'+choice+normalize+'return normalize;')(parameterDefaults,parameterRanges,wardrobeDefaults,wardrobeRanges,hairDefaults,hairChoices,hairRanges);
-for(const [frontHair] of hairChoices.frontHair)for(const [backHair] of hairChoices.backHair)for(const [sideHair] of hairChoices.sideHair)for(const [braid] of hairChoices.braid){
- const expected={name:'分区存档',gender:'male',frontHair,backHair,sideHair,braid,shirtLength:73,pantsWidth:31};
+const normalizeState=new Function('parameterDefaults','parameterRanges','wardrobeDefaults','wardrobeRanges','hairDefaults','hairChoices','hairRanges','hairOptionsFor','filterHairForGender',prefix+'let state={...defaults};'+choice+normalize+'return normalize;')(parameterDefaults,parameterRanges,wardrobeDefaults,wardrobeRanges,hairDefaults,hairChoices,hairRanges,hairOptionsFor,filterHairForGender);
+for(const gender of ['male','female'])for(const [frontHair] of hairOptionsFor('frontHair',gender))for(const [backHair] of hairOptionsFor('backHair',gender))for(const [sideHair] of hairOptionsFor('sideHair',gender))for(const [braid] of hairOptionsFor('braid',gender)){
+ const expected={name:'分区存档',gender,frontHair,backHair,sideHair,braid,shirtLength:73,pantsWidth:31};
  const actual=normalizeState(JSON.parse(JSON.stringify(expected)));
  for(const [k,v] of Object.entries(expected))if(actual[k]!==v)throw Error('roundtrip '+k);
  if(actual.clothes!=='shirtPants')throw Error('clothes');
@@ -29,7 +29,9 @@ if(bald.frontHair!=='none'||bald.backHair!=='none'||bald.sideHair!=='none'||bald
 if(normalizeState({hair:'longPreset'}).backHair!=='long')throw Error('legacy long');
 if(normalizeState({hair:'bobPreset'}).backHair!=='bob')throw Error('legacy bob');
 const partial=normalizeState({frontHair:'swept',backHair:'long',braid:'double',gender:'female'});
-if(normalizeState({...partial,gender:'male'}).braid!=='double')throw Error('gender switch discarded hair sections');
+if(normalizeState({...partial,gender:'male'}).braid!=='none')throw Error('male gender switch retained female ponytail');
+for(const gender of ['male','female'])for(const key of ['frontHair','backHair','sideHair','braid'])for(const [value] of hairChoices[key]){const result=normalizeState({gender,[key]:value});if(!hairOptionsFor(key,gender).some(([v])=>v===result[key]))throw Error('hidden hairstyle retained '+gender+' '+key);}
+for(const value of ['buzz','crew','flattop','crop'])for(const gender of ['male','female'])if(!hairOptionsFor('frontHair',gender).some(([v])=>v===normalizeState({gender,frontHair:value}).frontHair))throw Error('removed experimental style migration');
 console.log('PASS all modular hairstyle archive roundtrips, parameter bounds, legacy migration and gender switch');
 
 for(const key of ['skin','hairColor','eyeColor','shirt','pants'])for(const color of ['#14a3ef','#7A225D','#ffffff','#000000'])if(normalizeState({[key]:color})[key]!==color)throw Error('custom color archive '+key);
