@@ -1,8 +1,9 @@
+import {bindCharacter} from './rig.js?v=10';
 import * as THREE from 'three';
-import {createDeformer,deformNormal} from './parameters.js?v=9';
-import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=9';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=9';
-import {createUnderwearData} from './underwear.js?v=9';
+import {createDeformer,deformNormal} from './parameters.js?v=10';
+import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=10';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=10';
+import {createUnderwearData} from './underwear.js?v=10';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -28,6 +29,7 @@ async function loadAsset(id, textures = true) {
     if (bytes.length !== manifest.bytes) throw Error('模型数据不完整');
     const data = JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
     const used = new Set(data.meshes.flatMap(m=>m.groups.map(g=>g.material)));
+    if(id==='female'||id==='male'){const response=await fetch(new URL(`${id}-rig.b64`,root));if(!response.ok)throw Error('骨骼资源加载失败');const bytes=Uint8Array.from(atob(await response.text()),c=>c.charCodeAt(0));data.rig=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());}
     data.maps = textures ? await Promise.all(data.materials.map(async (m,i) => {
       if (!m.texture || !used.has(i) || /_CLOTH/.test(m.name) || (m.name.includes('Body') && m.name.includes('_SKIN'))) return null;
       const map = await new THREE.TextureLoader().loadAsync(new URL(m.texture, root).href);
@@ -150,7 +152,7 @@ export function createHuman(state) {
       geometry.boundingBox=new THREE.Box3();const vertex=new THREE.Vector3();
       for(const id of part.indices)geometry.boundingBox.expandByPoint(vertex.fromArray(p,id*3));
       geometry.boundingSphere=geometry.boundingBox.getBoundingSphere(new THREE.Sphere());
-      const mesh=new THREE.Mesh(geometry,materials[part.material]);mesh.name=description;mesh.userData.texture=data.materials[part.material].texture;mesh.userData.part=source.name;
+      const mesh=new THREE.Mesh(geometry,materials[part.material]);mesh.name=description;mesh.userData.texture=data.materials[part.material].texture;mesh.userData.part=source.name;mesh.userData.rigSource=source;
       mesh.castShadow=!/Face|Eye|Hair/.test(description);mesh.receiveShadow=false;
       mesh.renderOrder=/Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(description)?2:0;
       group.add(mesh);
@@ -162,10 +164,11 @@ export function createHuman(state) {
   const shirtMesh=data.meshes.find(m=>m.name==='Shirt');
   for(const point of shirtMesh?shirtButtonPoints(shirtMesh,data.landmarks):[]){
     const geometry=new THREE.SphereGeometry(.003,8,6);geometry.translate(...point);
-    const p=geometry.attributes.position;
-    for(let i=0;i<p.count;i++)p.setXYZ(i,...deform(p.getX(i),p.getY(i),p.getZ(i),'Shirt'));
-    geometry.computeVertexNormals();const button=new THREE.Mesh(geometry,buttonMaterial);button.name='ShirtButton';button.userData.part='ShirtDetail';group.add(button);
+    const p=geometry.attributes.position;const rigPoints=[];
+    for(let i=0;i<p.count;i++){rigPoints.push([p.getX(i),p.getY(i),p.getZ(i)]);p.setXYZ(i,...deform(p.getX(i),p.getY(i),p.getZ(i),'Shirt'));}
+    geometry.computeVertexNormals();const button=new THREE.Mesh(geometry,buttonMaterial);button.name='ShirtButton';button.userData.part='ShirtDetail';button.userData.rigPoints=rigPoints;group.add(button);
   }
+  bindCharacter(group,base,deform);
   group.userData.materials=materials;
   const bodySource=data.meshes.find(m=>m.name==='Body');
   let floorY=Infinity;for(const part of bodySource.groups)for(const id of part.indices)floorY=Math.min(floorY,bodySource.positions[id*3+1]/100000);
@@ -177,7 +180,7 @@ export function createHuman(state) {
   return group;
 }
 export function disposeHuman(group) {
-  group.traverse(o=>o.geometry?.dispose());
+  group.traverse(o=>o.geometry?.dispose());group.userData.skeleton?.dispose();
   for(const material of group.userData.materials||[]) {material.userData.ownedGradient?.dispose();material.dispose();}
   // Original maps are shared by all character instances and kept in the asset cache.
 }
