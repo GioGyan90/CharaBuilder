@@ -1,4 +1,4 @@
-import {openHslPicker} from './colors.js?v=12';
+import {openHslPicker} from './colors.js?v=12b';
 import {updateCharacterMotion} from './rig.js?v=12';
 import {parameterDefaults,parameterRanges} from './parameters.js?v=12';
 import * as THREE from 'three';

@@ -9,6 +9,6 @@ export function openHslPicker(title,color,onChange){
  function sync(redraw=true,notify=true){const next=hslToHex(...values);inputs.forEach((input,i)=>{input.value=values[i];outputs[i].textContent=Math.round(values[i])+(i?'%':'°');});hex.value=next;dialog.querySelector('.hsl-preview').style.background=next;marker.style.left=values[1]+'%';marker.style.top=(100-values[2])+'%';if(redraw)draw();if(notify)onChange(next);}
  function point(e){const r=canvas.getBoundingClientRect();values[1]=Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100));values[2]=Math.max(0,Math.min(100,100-(e.clientY-r.top)/r.height*100));sync(false);}
  canvas.onpointerdown=e=>{canvas.setPointerCapture(e.pointerId);point(e);};canvas.onpointermove=e=>{if(canvas.hasPointerCapture(e.pointerId))point(e);};canvas.onpointerup=e=>{if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);};
- hex.onchange=()=>{if(/^#[0-9a-f]{6}$/i.test(hex.value)){values=hexToHsl(hex.value);sync();}else sync(false,false);};
+ hex.oninput=()=>{if(/^#[0-9a-f]{6}$/i.test(hex.value)){values=hexToHsl(hex.value);sync();}};hex.onchange=()=>sync(false,false);
  dialog.querySelector('button').onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();document.body.append(dialog);sync(true,false);dialog.showModal();
 }
