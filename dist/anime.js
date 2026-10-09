@@ -1,9 +1,9 @@
-import {bindCharacter} from './rig.js?v=13';
+import {bindCharacter} from './rig.js?v=14';
 import * as THREE from 'three';
-import {createDeformer,deformNormal} from './parameters.js?v=13';
-import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=13';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=13';
-import {createUnderwearData} from './underwear.js?v=13';
+import {createDeformer,deformNormal} from './parameters.js?v=14';
+import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=14';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=14';
+import {createUnderwearData} from './underwear.js?v=14';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -157,9 +157,11 @@ export function createHuman(state) {
         shader.fragmentShader='uniform vec3 shortHairSkin; varying float vHairCoverage; varying vec2 vCloseUv;\n'+shader.fragmentShader;
         shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', `
 float closeGrain=fract(sin(dot(floor(vCloseUv*750.0),vec2(12.9898,78.233)))*43758.5453);
-diffuseColor.rgb=mix(shortHairSkin,diffuseColor.rgb*mix(0.84,1.0,closeGrain),clamp(vHairCoverage,0.0,1.0));
+float stubble=smoothstep(0.20,0.65,closeGrain);
+float density=clamp(vHairCoverage,0.0,1.0)*mix(mix(0.50,1.0,stubble),1.0,smoothstep(0.88,1.0,vHairCoverage));
+diffuseColor.rgb=mix(shortHairSkin,diffuseColor.rgb*mix(0.88,1.0,closeGrain),density);
 `);
-      };material.customProgramCacheKey=()=> 'close-cut-hair-v13';
+      };material.customProgramCacheKey=()=> 'reference-short-hair-v14';
     }
     if(iris && material.map){
       material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', `

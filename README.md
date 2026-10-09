@@ -95,3 +95,9 @@ python scripts/fit-vroid-presets.py
 结构参考（仅观察剪裁结构，未导入网页图片/模型）：[Crew cut](https://en.wikipedia.org/wiki/Crew_cut)、[High and tight](https://en.wikipedia.org/wiki/High_and_tight)、[Buzz cut](https://en.wikipedia.org/wiki/Buzz_cut)。模型来源和 CC0 记录见 THIRD_PARTY.md。
 
 `node tests/hair-shorts.mjs` 检查四预设、男女参数极值、长短发混合、渐变属性、索引有效性和动作骨骼绑定；档案继续存储分区 ID，旧档案保留原发型。
+
+## 发型与服装参考要求
+
+新增发型、服装先选定具体参考照片或许可允许的模型，再重建为可调 JS 几何，逐款记录来源及还原范围。不得仅按名称编造形状后标成参考复刻。见 [发型参考与制作说明](HAIR_REFERENCES.md)。
+
+v14 重做圆寸、军式短发、方正平头、短碎渐变，并在发型面板增加参考入口。
