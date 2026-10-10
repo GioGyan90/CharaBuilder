@@ -3,7 +3,7 @@ import {updateCharacterMotion} from './rig.js?v=16';
 import {parameterDefaults,parameterRanges} from './parameters.js?v=16';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=16';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=17';
 
 import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=16';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=16';

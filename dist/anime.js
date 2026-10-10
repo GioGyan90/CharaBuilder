@@ -117,25 +117,72 @@ function compose(state) {
 function authoredFace(owner,base){
  if(!owner)throw Error('参考头部未载入');
  const original=base.meshes.find(m=>m.name==='Face'),headMesh=owner.meshes[0];
- const originalTop=Math.max(...original.positions.filter((_,i)=>i%3===1))/100000;
- const donorTop=Math.max(...headMesh.positions.filter((_,i)=>i%3===1))/100000;
+ const points=headMesh.positions,referenceSkin=original.groups.find(g=>base.materials[g.material].name.includes('_SKIN'));
+ const referenceIds=[...new Set(referenceSkin.indices)],reference=referenceIds.map(id=>original.positions.slice(id*3,id*3+3).map(v=>v/100000));
+ const originalTop=Math.max(...reference.map(p=>p[1])),targetChin=Math.min(...reference.map(p=>p[1]));
+ const donorTop=Math.max(...points.filter((_,i)=>i%3===1))/100000;
  const donorEye=owner.landmarks.leftEye[1],targetEye=base.landmarks.leftEye[1],neck=base.landmarks.neck;
  const factor=(originalTop-targetEye)/(donorTop-donorEye);
- const zCenter=base.landmarks.head[2],rawZ=headMesh.positions.filter((_,i)=>i%3===2).map(v=>v/100000);
- const donorCenter=(Math.min(...rawZ)+Math.max(...rawZ))*.5;
- const eyeZ=(owner.landmarks.leftEye[2]-donorCenter)*factor+zCenter;
- const eyes=[owner.landmarks.leftEye[0]*factor,-owner.landmarks.leftEye[0]*factor];
- const map=(x,y,z)=>{
-  x*=factor;y=(y-donorEye)*factor+targetEye;z=(z-donorCenter)*factor+zCenter;
-  // Fit the lower donor neck into the existing body's neck, leaving the face intact.
-  const blend=Math.max(0,Math.min(1,(targetEye-.105-y)/.06));
-  y=Math.max(neck[1]-.006,y);
-  if(blend>0){const radius=Math.hypot(x,z-zCenter)||1;const fit=.029/radius;x*=1-blend+blend*fit;z=zCenter+(z-zCenter)*(1-blend+blend*fit);}
+ const rawZ=points.filter((_,i)=>i%3===2).map(v=>v/100000),rawX=points.filter((_,i)=>i%3===0).map(v=>v/100000);
+ const front=Math.max(...rawZ),depth=front-Math.min(...rawZ),width=Math.max(...rawX);
+ let donorChin=donorEye;
+ for(let i=0;i<points.length;i+=3)if(Math.abs(points[i]/100000)<width*.18&&points[i+2]/100000>front-depth*.28)donorChin=Math.min(donorChin,points[i+1]/100000);
+ const referenceFront=Math.max(...reference.map(p=>p[2]));
+ const zCenter=base.landmarks.head[2],headX=base.landmarks.head[0];
+ const bodyHead=base.meshes.find(m=>m.name==='Body'),skull=[];
+ for(const g of bodyHead.groups.filter(g=>base.materials[g.material].name.includes('_SKIN')))for(const id of new Set(g.indices))if(bodyHead.positions[id*3+1]/100000>targetEye-.10)skull.push(bodyHead.positions[id*3+2]/100000);
+ const zScale=(referenceFront-Math.min(...skull))/(front-Math.min(...rawZ));
+ const donorWidth=width*factor,targetWidth=Math.max(...reference.map(p=>Math.abs(p[0]-headX)));
+ const xScale=targetWidth/donorWidth;
+ const irisGroup=original.groups.find(g=>base.materials[g.material].name.includes('EyeIris'));
+ const irisPoints=[...new Set(irisGroup.indices)].map(id=>original.positions.slice(id*3,id*3+3).map(v=>v/100000));
+ const centers=[-1,1].map(sign=>{const side=irisPoints.filter(p=>Math.sign(p[0])===sign);return [0,1,2].map(a=>(Math.min(...side.map(p=>p[a]))+Math.max(...side.map(p=>p[a])))*.5);});
+ const eyeGeometry=owner.meshes[1].positions;
+ const sourceEyes=[-1,1].map(sign=>{const ps=[];for(let i=0;i<eyeGeometry.length;i+=3)if(Math.sign(eyeGeometry[i])===sign)ps.push(eyeGeometry.slice(i,i+3).map(v=>v/100000));return [0,1,2].map(a=>(Math.min(...ps.map(p=>p[a]))+Math.max(...ps.map(p=>p[a])))*.5);});
+ const smooth=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
+ // Independent skull, eye and chin anchors preserve the existing hairstyle envelope.
+ // The lower neck is fitted to the body's authored elliptical cross-section.
+ const body=base.meshes.find(m=>m.name==='Body'),ring=[];
+ for(const g of body.groups.filter(g=>base.materials[g.material].name.includes('_SKIN')))for(const id of new Set(g.indices)){
+  const q=body.positions.slice(id*3,id*3+3).map(v=>v/100000);if(Math.abs(q[1]-neck[1]-.025)<.010&&Math.abs(q[0]-headX)<.05)ring.push(q);
+ }
+ const neckBounds=[0,2].map(a=>[Math.min(...ring.map(q=>q[a])),Math.max(...ring.map(q=>q[a]))]);
+ const neckCX=(neckBounds[0][0]+neckBounds[0][1])*.5,neckCZ=(neckBounds[1][0]+neckBounds[1][1])*.5;
+ const neckRX=(neckBounds[0][1]-neckBounds[0][0])*.5,neckRZ=(neckBounds[1][1]-neckBounds[1][0])*.5;
+ const map=(x,y,z,eyeMesh=false)=>{
+  const sourceY=y,sourceZ=z,sign=x<0?-1:1,si=sign<0?0:1;
+  x=x*factor*xScale+headX;
+  y=sourceY>=donorEye?(sourceY-donorEye)*factor+targetEye:targetEye+(sourceY-donorEye)*(targetEye-targetChin)/(donorEye-donorChin);
+  z=(z-front)*zScale+referenceFront;
+  // Keep the donor identity/jaw, but bring the central facial planes toward the
+  // actual same-sex VRoid preset: quieter lips/nose, less photographic relief.
+  const frontWeight=smooth(front-depth*.60,front-depth*.22,sourceZ);
+  if(!eyeMesh&&frontWeight>.01&&y>targetChin&&y<targetEye+.075){
+   let total=0,height=0;
+   for(const q of reference){const d=(x-q[0])**2+(y-q[1])**2;if(q[2]>zCenter&&d<.0016){const w=Math.exp(-d/.00022);total+=w;height+=q[2]*w;}}
+   const surface=total?height/total:z;
+   const center=1-smooth(.030,.080,Math.abs(x-headX)),band=smooth(targetChin,targetChin+.025,y)*(1-smooth(targetEye+.035,targetEye+.075,y));
+   z+=(surface-z)*frontWeight*band*(.28+.22*center);
+  }
+  const blend=1-smooth(neck[1]+.015,targetChin+.012+(1-frontWeight)*.045,y);
+  if(blend>0){const angle=Math.atan2(z-zCenter,x-headX);x=x*(1-blend)+(neckCX+Math.cos(angle)*neckRX)*blend;z=z*(1-blend)+(neckCZ+Math.sin(angle)*neckRZ)*blend;y=Math.max(neck[1]-.005,y);}
   return [x,y,z];
  };
+ const mappedEyes=sourceEyes.map(p=>map(...p,true)),eyes=[mappedEyes[1][0],mappedEyes[0][0]],eyeZ=map(...sourceEyes[1],true)[2];
  const data={...owner,meshes:[],landmarks:{leftEye:[eyes[0],targetEye,eyeZ],rightEye:[eyes[1],targetEye,eyeZ]}};
  for(const source of owner.meshes){
-  const p=[];for(let i=0;i<source.positions.length;i+=3)p.push(...map(...source.positions.slice(i,i+3).map(v=>v/100000)).map(v=>Math.round(v*100000)));
+  const p=[];for(let i=0;i<source.positions.length;i+=3)p.push(...map(...source.positions.slice(i,i+3).map(v=>v/100000),source!==headMesh).map(v=>Math.round(v*100000)));
+  if(source===headMesh){
+   const welded=new Map(),vertices=[],lookup=[];
+   for(let i=0;i<p.length;i+=3){const key=source.positions.slice(i,i+3).join(',');if(!welded.has(key)){welded.set(key,vertices.length);vertices.push({p:p.slice(i,i+3),ids:[],neighbors:new Set(),boundary:false});}const id=welded.get(key);lookup.push(id);vertices[id].ids.push(i/3);}
+   const edges=new Map();for(const g of source.groups)for(let i=0;i<g.indices.length;i+=3){const ids=g.indices.slice(i,i+3).map(id=>lookup[id]);for(let a=0;a<3;a++){const u=ids[a],v=ids[(a+1)%3];vertices[u].neighbors.add(v);vertices[v].neighbors.add(u);const key=u<v?u+','+v:v+','+u;edges.set(key,(edges.get(key)||0)+1);}}
+   for(const [key,count] of edges)if(count===1)for(const id of key.split(',').map(Number))vertices[id].boundary=true;
+   for(let pass=0;pass<5;pass++){
+    const next=vertices.map(v=>{if(v.boundary||v.p[1]/100000<targetChin+.018||v.p[1]/100000>targetEye+.025||v.p[2]/100000<zCenter+.015)return v.p;const ids=[...v.neighbors];return v.p.map((q,a)=>q*.64+ids.reduce((sum,id)=>sum+vertices[id].p[a],0)/ids.length*.36);});
+    vertices.forEach((v,i)=>v.p=next[i]);
+   }
+   for(const v of vertices)for(const id of v.ids)p.splice(id*3,3,...v.p.map(Math.round));
+  }
   // Recompute smooth normals after fitting. Explicit head/neck weights avoid indexing
   // the unrelated original VRoid face topology.
   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(p.map(v=>v/100000),3));geometry.setIndex(source.groups.flatMap(g=>g.indices));geometry.computeVertexNormals();
@@ -150,13 +197,16 @@ function authoredFace(owner,base){
   const groups=original.groups.filter(g=>/EyeIris|EyeHighlight|FaceBrow/.test(base.materials[g.material].name));
   const p=[...original.positions],ids=new Set(groups.flatMap(g=>g.indices));
   for(const sign of [-1,1]){
-   const side=[...ids].filter(id=>Math.sign(original.positions[id*3])===sign);
-   const cx=side.reduce((sum,id)=>sum+original.positions[id*3]/100000,0)/side.length;
-   const cy=side.reduce((sum,id)=>sum+original.positions[id*3+1]/100000,0)/side.length;
-   const cz=Math.max(...side.map(id=>original.positions[id*3+2]/100000));
-   for(const id of side){p[id*3]=Math.round((sign*Math.abs(eyes[0])+(p[id*3]/100000-cx)*.72)*100000);p[id*3+1]=Math.round((targetEye+(p[id*3+1]/100000-cy)*.72)*100000);const dx=p[id*3]/100000-sign*Math.abs(eyes[0]),dy=p[id*3+1]/100000-targetEye,r=.094*factor;p[id*3+2]=Math.round((eyeZ-r+Math.sqrt(Math.max(0,r*r-dx*dx-dy*dy))+.001)*100000);}
+   const si=sign<0?0:1,center=centers[si],target=mappedEyes[si];
+   const eyeSide=[];for(let i=0;i<eyeGeometry.length;i+=3)if(Math.sign(eyeGeometry[i])===sign)eyeSide.push(map(...eyeGeometry.slice(i,i+3).map(v=>v/100000),true));
+   const radius=Math.max(...eyeSide.map(q=>Math.abs(q[0]-target[0]))),frontZ=Math.max(...eyeSide.map(q=>q[2]));
+   for(const id of [...ids].filter(id=>Math.sign(original.positions[id*3])===sign)){
+    const x=target[0]+(original.positions[id*3]/100000-center[0])*.90,y=target[1]+(original.positions[id*3+1]/100000-center[1])*.90;
+    const dx=x-target[0],dy=y-target[1],z=frontZ-radius+Math.sqrt(Math.max(0,radius*radius-dx*dx-dy*dy))+.0007;
+    p.splice(id*3,3,...[x,y,z].map(v=>Math.round(v*100000)));
+   }
   }
-  const browIds=new Set(groups.filter(g=>base.materials[g.material].name.includes('FaceBrow')).flatMap(g=>g.indices));
+  const browIds=new Set(groups.filter(g=>/FaceBrow|FaceEyeline|FaceEyelash/.test(base.materials[g.material].name)).flatMap(g=>g.indices));
   const skinPoints=data.meshes[0].positions;
   for(const id of browIds){
    const x=p[id*3]/100000,y=p[id*3+1]/100000;let best=Infinity,z=eyeZ;
@@ -216,11 +266,11 @@ export function createHuman(state) {
       material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`
 #ifdef USE_MAP
  vec4 detail=texture2D(map,vMapUv);
- float tone=detail.r;
+ float tone=sqrt(max(0.0,detail.r));
  float sclera=smoothstep(0.42,0.72,tone);
  diffuseColor.rgb=mix(diffuseColor.rgb*clamp(tone*3.0,0.0,1.0),vec3(tone),sclera);
 #endif
-`);};material.customProgramCacheKey=()=> 'authored-eye-atlas-v16';
+`);};material.customProgramCacheKey=()=> 'authored-eye-atlas-v17';
     }else if(iris && material.map){
       material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>', `
 #ifdef USE_MAP
@@ -243,16 +293,16 @@ export function createHuman(state) {
 #ifdef USE_MAP
   vec4 faceDetail = texture2D(map, vMapUv);
   vec3 neutralDetail = clamp(faceDetail.rgb / max(faceSkinReference, vec3(0.001)), vec3(0.0), vec3(1.0));
-  diffuseColor.rgb *= mix(vec3(1.0), neutralDetail, ${name.startsWith('Authored')?'0.35':'0.65'});
+  ${name.startsWith('Authored')?'float ink = 1.0-smoothstep(0.035,0.19,dot(neutralDetail,vec3(0.299,0.587,0.114))); diffuseColor.rgb *= mix(vec3(1.0),vec3(0.24),ink);':'diffuseColor.rgb *= mix(vec3(1.0), neutralDetail, 0.65);'}
   diffuseColor.a *= faceDetail.a;
 #endif
 `);
       };
-      material.customProgramCacheKey = () => 'neutral-face-skin-v11';
+      material.customProgramCacheKey = () => name.startsWith('Authored')?'authored-face-ink-v17':'neutral-face-skin-v11';
       material.userData.faceSkinReference = reference;
     }
     // A broad light band keeps the face soft, while painted iris/eyelash detail remains crisp.
-    const gradient = new THREE.DataTexture(new Uint8Array([155,224,255]),3,1,THREE.RedFormat);
+    const gradient = new THREE.DataTexture(new Uint8Array(name.startsWith('Authored')?[118,210,255]:[155,224,255]),3,1,THREE.RedFormat);
     gradient.minFilter=gradient.magFilter=THREE.NearestFilter;gradient.needsUpdate=true;
     material.gradientMap=gradient;
     material.userData.ownedGradient=gradient;
@@ -291,6 +341,13 @@ export function createHuman(state) {
       mesh.castShadow=!/Face|Eye|Hair/.test(description);mesh.receiveShadow=false;
       mesh.renderOrder=/Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(description)?2:0;
       group.add(mesh);
+      if(description.startsWith('AuthoredFace')&&description.includes('_SKIN')){
+        const outlineGeometry=geometry.clone(),op=outlineGeometry.attributes.position;
+        for(let id=0;id<op.count;id++){const taper=Math.max(0,Math.min(1,(source.positions[id*3+1]/100000-base.landmarks.neck[1]-.025)/.04)),width=.00085*scale*taper;op.setXYZ(id,op.getX(id)+normals[id*3]*width,op.getY(id)+normals[id*3+1]*width,op.getZ(id)+normals[id*3+2]*width);}
+        const outlineMaterial=new THREE.MeshBasicMaterial({color:'#47352e',side:THREE.BackSide});materials.push(outlineMaterial);
+        const outline=new THREE.Mesh(outlineGeometry,outlineMaterial);outline.name='AuthoredHeadOutline';outline.userData.part=source.name;outline.userData.rigSource=source;outline.renderOrder=-1;group.add(outline);
+      }
+
     }
   }
   // Materials with no visible primitive still belong to this instance and must be disposed.

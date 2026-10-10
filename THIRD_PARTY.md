@@ -83,3 +83,7 @@ v14 四张照片参考及对应自创短发已撤下，不能作为模型来源�
 - 男性：This work is based on "Male Head Base mesh" (https://sketchfab.com/3d-models/male-head-base-mesh-6a480c4603cd4768b615393e93dbd7d0) by DEGUIDER (https://sketchfab.com/DEGUIDER) licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/).
 - 转换：保留作者头部及眼部拓扑，三角化、坐标转换、量化；运行时拟合身高/头部尺寸/颈部，添加头颈权重。男性无贴图，眼球保留原作；瞳孔、高光和眉毛复用已有 CC0 VRoid 组件。两款不包含可复用表情形态键，本轮只开放自然表情。
 - 生成脚本：scripts/prepare-authored-faces.py；源文件 SHA-256、三角数、许可及作者记在 femalehead/malehead-manifest.json。运行时只加载压缩数组/PNG，不加载原 .blend、glTF、bin。
+
+### v17 reference-guided face adaptation
+
+The byzmod3d and DEGUIDER heads retain their source topology. Runtime adaptations now include piecewise eye/top/chin alignment, skull depth and neck fitting to the existing VRoid beta preset, reference-surface blending and local smoothing of central facial relief, neutralized painted skin shading, toon light bands and a rigged outline. Original author identity and license attribution above continue to apply. No expression morphs were created for these heads.

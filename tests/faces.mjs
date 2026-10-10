@@ -34,6 +34,20 @@ for(const gender of ['female','male']){
    if(!w.every(Number.isFinite))throw Error('invalid weights');
    for(let i=0;i<w.length;i+=4)if(Math.abs(w[i]+w[i+1]+w[i+2]+w[i+3]-1)>1e-5)throw Error('unnormalized weights');
   }
+  const outline=meshes.find(m=>m.name==='AuthoredHeadOutline');
+  if(!outline||outline.skeleton!==meshes.find(m=>m.name.startsWith('AuthoredFace')).skeleton)throw Error('outline detached from head rig');
+  const face=meshes.find(m=>m.name.startsWith('AuthoredFace'));
+  if(!face.material.gradientMap.image.data.every((v,i)=>v===[118,210,255][i]))throw Error('authored toon bands missing');
+  if(extreme===50){
+   const reference=createHuman({...state,faceSource:'vroid',jaw:50});
+   const old=[];reference.traverse(m=>{if(m.isMesh&&m.name.includes('Face_00_SKIN'))old.push(m);});
+   const maxY=m=>Math.max(...Array.from(m.geometry.index.array,id=>m.geometry.attributes.position.getY(id)));
+   if(Math.abs(maxY(face)-maxY(old[0]))>.006)throw Error('head top not aligned to original hairstyle envelope');
+   const minY=m=>Math.min(...Array.from(m.geometry.index.array,id=>m.geometry.attributes.position.getY(id)));
+   const q=face.geometry.attributes.position,neckLevel=minY(face);
+   for(let id=0;id<q.count;id++)if(q.getY(id)<neckLevel+.01&&Math.abs(q.getX(id))>.075)throw Error('donor neck flares outside body');
+   disposeHuman(reference);
+  }
   updateCharacterMotion(model,3,'inspect');
   const head=meshes.find(m=>m.name.startsWith('AuthoredFace')),point=new THREE.Vector3().fromBufferAttribute(head.geometry.attributes.position,0);head.applyBoneTransform(0,point);
   if(!point.toArray().every(Number.isFinite))throw Error('posed head invalid');
