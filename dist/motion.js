@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import library from './assets/motion/quaternius.js?v=26';
-import {updateCharacterMotion as proceduralMotion,updatePantsNormals} from './rig.js?v=27';
+import {updateCharacterMotion as proceduralMotion,updatePantsNormals} from './rig.js?v=28';
 export const motionPresets=[
  {id:'relaxed',label:'放松站姿',source:'Idle_Loop'},
  {id:'talk',label:'交谈手势',source:'Idle_Talking_Loop'},

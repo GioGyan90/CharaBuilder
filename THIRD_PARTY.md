@@ -114,3 +114,7 @@ The same CC0 Quaternius Standard source now supplies all 30 finger-joint tracks,
 ### v27 trouser knee adaptation
 
 Sakurada Fumiriya CC0 trouser topology remains the source. Conforming midpoint subdivision is limited to the knee region and preserves its original flat rest surface and UV interpolation. Thigh/shin influences inside a joint-scaled knee band are adapted to a continuous circumferential blend; original author weights outside this band are retained. The runtime continues to recalculate posed garment normals. No additional donor model is included.
+
+### v28 leg ownership
+
+Knee adaptation and midpoint refinement now determine trouser-leg ownership from the original author skin influences, rather than vertex X coordinates. Inner-leg vertices crossing the midline retain their original leg. This corrects a v27 cross-leg deformation regression without removing faces or changing source garment shape.

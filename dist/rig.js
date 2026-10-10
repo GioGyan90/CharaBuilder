@@ -1,10 +1,17 @@
 import * as THREE from 'three';
+// Inner trouser vertices may cross x=0, even at neutral width. Their original
+// skin influences define leg ownership; position is not a reliable side label.
+function pantsLegOwnership(indices,weights,humanoid){
+ const score=new Map();for(const side of ['left','right'])for(const part of ['UpperLeg','LowerLeg','Foot'])score.set(humanoid[side+part],side==='left'?1:-1);
+ return (a,b=a)=>{let value=0;for(const i of [a,b])for(let k=0;k<4;k++)value+=(score.get(indices[i*4+k])||0)*weights[i*4+k];return value>=0?'left':'right';};
+}
 // Conforming midpoint splits: retain the author's rest surface/UVs and add
 // samples only around the bending knees. Neighbouring triangles share splits.
 function refinePantsKnees(geometry,attrs,points,humanoid){
  const p=Array.from(geometry.attributes.position.array),n=Array.from(geometry.attributes.normal.array),uv=Array.from(geometry.attributes.uv.array),j=Array.from(attrs[0].array),w=Array.from(attrs[1].array);
  let index=Array.from(geometry.index.array);
- const near=(a,b)=>{const x=(p[a*3]+p[b*3])*.5,y=(p[a*3+1]+p[b*3+1])*.5,side=x>=0?'left':'right',knee=points[humanoid[side+'LowerLeg']],upper=points[humanoid[side+'UpperLeg']],foot=points[humanoid[side+'Foot']];return Math.abs(y-knee.y)<Math.min(knee.distanceTo(upper),knee.distanceTo(foot))*.40;};
+ const owner=pantsLegOwnership(j,w,humanoid);
+ const near=(a,b)=>{const y=(p[a*3+1]+p[b*3+1])*.5,side=owner(a,b),knee=points[humanoid[side+'LowerLeg']],upper=points[humanoid[side+'UpperLeg']],foot=points[humanoid[side+'Foot']];return Math.abs(y-knee.y)<Math.min(knee.distanceTo(upper),knee.distanceTo(foot))*.40;};
  const key=(a,b)=>a<b?`${a}:${b}`:`${b}:${a}`;
  function midpoint(a,b){const id=p.length/3;
   for(let k=0;k<3;k++){p.push((p[a*3+k]+p[b*3+k])*.5);n.push((n[a*3+k]+n[b*3+k])*.5);}const length=Math.hypot(...n.slice(id*3,id*3+3))||1;for(let k=0;k<3;k++)n[id*3+k]/=length;
@@ -74,8 +81,9 @@ export function bindCharacter(group,base,deform){
    // The donor's body-fitted weights vary sharply around a knee ring. Loose
    // trousers need a continuous thigh/shin transition around the whole tube.
    const p=geometry.attributes.position,indices=attrs[0].array,weights=attrs[1].array;
+   const owner=pantsLegOwnership(indices,weights,rig.humanoid);
    for(const i of new Set(geometry.index.array)){
-    const side=p.getX(i)>=0?'left':'right',upper=rig.humanoid[side+'UpperLeg'],lower=rig.humanoid[side+'LowerLeg'],foot=rig.humanoid[side+'Foot'];
+    const side=owner(i),upper=rig.humanoid[side+'UpperLeg'],lower=rig.humanoid[side+'LowerLeg'],foot=rig.humanoid[side+'Foot'];
     const knee=points[lower].y,band=Math.min(points[upper].distanceTo(points[lower]),points[lower].distanceTo(points[foot]))*.28;
     if(Math.abs(p.getY(i)-knee)>=band)continue;
     const t=THREE.MathUtils.smoothstep(p.getY(i),knee-band,knee+band);

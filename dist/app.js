@@ -1,10 +1,10 @@
 import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=21';
 import {openHslPicker} from './colors.js?v=16';
-import {updateCharacterMotion,motionPresets} from './motion.js?v=27';
+import {updateCharacterMotion,motionPresets} from './motion.js?v=28';
 import {parameterDefaults,parameterRanges} from './parameters.js?v=21';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=27';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=28';
 
 import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=16';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';

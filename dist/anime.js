@@ -1,4 +1,4 @@
-import {bindCharacter} from './rig.js?v=27';
+import {bindCharacter} from './rig.js?v=28';
 import * as THREE from 'three';
 import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=21';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
