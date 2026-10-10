@@ -1,21 +1,27 @@
-import {deformAnimeFace} from './face.js?v=18';
-export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=18';
+import {deformAnimeFace} from './face.js?v=19';
+export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=19';
 // Parameters deform the original topology; source vertices are never mutated.
 export const parameterDefaults = {
   headSize:50,neckWidth:50,chest:50,waist:50,hips:50,legThickness:50,
-  forehead:50,chinLength:50,noseProjection:50,mouthHeight:50
+  forehead:50,chinLength:50,noseProjection:50,mouthHeight:50,
+  faceHeight:50,cheek:50,chinWidth:50,eyeWidth:50,eyeHeight:50,eyeVertical:50,eyeTilt:50,browHeight:50,browAngle:50,noseWidth:50,noseHeight:50,mouthThickness:50,mouthProjection:50,mouthCorner:50
 };
 export const parameterRanges = {
   headSize:['头部大小','小','大'],neckWidth:['颈部粗细','细','粗'],
   chest:['胸廓尺寸','小','大'],waist:['腰围','细','宽'],hips:['臀围','窄','宽'],legThickness:['腿部粗细','细','粗'],
+  faceHeight:['脸部长度','短','长'],cheek:['面颊饱满度','收窄','丰满'],chinWidth:['下巴宽度','窄','宽'],
+  eyeWidth:['眼睛宽度','窄','宽'],eyeHeight:['眼睛高度','扁','圆'],eyeVertical:['眼部位置','低','高'],eyeTilt:['眼睛角度','下垂','上扬'],
+  browHeight:['眉毛位置','低','高'],browAngle:['眉毛角度','平缓','上挑'],noseWidth:['鼻翼宽度','窄','宽'],noseHeight:['鼻部位置','低','高'],
+  mouthThickness:['嘴唇厚度','薄','厚'],mouthProjection:['嘴部突出','平','突出'],mouthCorner:['嘴角形状','下压','上扬'],
   forehead:['额头饱满度','平','饱满'],chinLength:['下巴长度','短','长'],
   noseProjection:['鼻梁突出','平','突出'],mouthHeight:['嘴部位置','低','高']
 };
+export const faceAdjustmentKeys=['faceWidth','jaw','eyeSize','eyeSpace','nose','mouth','forehead','chinLength','noseProjection','mouthHeight','faceHeight','cheek','chinWidth','eyeWidth','eyeHeight','eyeVertical','eyeTilt','browHeight','browAngle','noseWidth','noseHeight','mouthThickness','mouthProjection','mouthCorner'];
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 const gaussian=(v,c,s)=>Math.exp(-(((v-c)/s)**2));
 export function createDeformer(input,landmarks,scale) {
   const state={...input};
-  for(const [key,value] of Object.entries(parameterDefaults))state[key]=Number.isFinite(input[key])?Math.max(0,Math.min(100,input[key])):value;
+  for(const [key,value] of Object.entries(parameterDefaults))state[key]=Number.isFinite(input[key])?Math.max(faceAdjustmentKeys.includes(key)?-50:0,Math.min(faceAdjustmentKeys.includes(key)?150:100,input[key])):value;
   const head=landmarks.head,neck=landmarks.neck,hip=landmarks.hips[1];
   const eyeY=(landmarks.leftEye[1]+landmarks.rightEye[1])/2;
   const eyes=[landmarks.leftEye[0],landmarks.rightEye[0]];

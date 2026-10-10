@@ -1,6 +1,6 @@
 import {bindCharacter} from './rig.js?v=16';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair} from './parameters.js?v=18';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair} from './parameters.js?v=19';
 import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=16';
 import {referenceHairMeshes,hairAssetIds} from './hair.js?v=16';
 import {createUnderwearData} from './underwear.js?v=16';
@@ -73,11 +73,9 @@ function compose(state) {
     data.meshes.push({...source,groups:groups.map(g=>({...g,material:g.material+offset}))});
   }
   const face=base.meshes.find(m=>m.name==='Face');
-  if(state.faceSource==='authored'){
-    const fitted=buildAnimeFace(base,state.gender);
-    data.landmarks={...base.landmarks,...fitted.landmarks};
-    for(const mesh of fitted.meshes)add(fitted,mesh,mesh.groups);
-  }else add(base,face,face.groups);
+  const fitted=buildAnimeFace(base,state.gender,state.faceSource==='authored');
+  data.landmarks={...base.landmarks,...fitted.landmarks};
+  for(const mesh of fitted.meshes)add(fitted,mesh,mesh.groups);
   const body=base.meshes.find(m=>m.name==='Body');
   const neck=base.landmarks.neck[1],hip=base.landmarks.hips[1],sleeve=.124+Math.max(0,Math.min(100,state.sleeveLength??50))*(state.gender==='female'?.00276:.00316);
   const skinGroups=body.groups.filter(g=>base.materials[g.material].name.includes('_SKIN')||(state.shoes!=='barefoot'&&base.materials[g.material].name.includes('Shoes')));
@@ -209,7 +207,7 @@ if(iris && material.map){
       p.set(q,i);
       normals.set(deformNormal(deform,(source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,...sourceNormals.slice(i,i+3).map(v=>v/32767),deformPart),i);
     }
-    if(state.faceSource==='authored'){
+    if(data.landmarks.faceRig){
       if(source.name==='Face'||source.name==='Body'){
         const offset=envelopePoints.length/3;envelopePoints.push(...p);
         for(const g of source.groups)if(data.materials[g.material].name.includes('_SKIN')){envelopeIndices.push(...g.indices.map(id=>id+offset));if(source.name==='Face')for(const id of g.indices)editedChin=Math.min(editedChin,p[id*3+1]);}
@@ -257,6 +255,14 @@ if(iris && material.map){
     for(let i=0;i<p.count;i++){rigPoints.push([p.getX(i),p.getY(i),p.getZ(i)]);p.setXYZ(i,...deform(p.getX(i),p.getY(i),p.getZ(i),'Shirt'));}
     geometry.computeVertexNormals();const button=new THREE.Mesh(geometry,buttonMaterial);button.name='ShirtButton';button.userData.part='ShirtDetail';button.userData.rigPoints=rigPoints;group.add(button);
   }
+  const rig=data.landmarks.faceRig;
+  group.userData.faceHandles=[
+   ...rig.eyes.map((p,i)=>({group:'eyes',side:i===0?-1:1,position:deform(...p,'Face:eye'+i)})),
+   {group:'brows',side:1,position:deform(...rig.brows[1],'Face:brow1')},
+   {group:'nose',side:1,position:deform(...rig.nose,'Face:skin')},
+   {group:'mouth',side:1,position:deform(...rig.mouth,'Face:mouth')},
+   {group:'contour',side:1,position:deform(rig.headX,rig.chin,rig.mouth[2],'Face:skin')}
+  ];
   bindCharacter(group,base,deform);
   group.userData.materials=materials;
   const bodySource=data.meshes.find(m=>m.name==='Body');
