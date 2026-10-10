@@ -1,3 +1,5 @@
+import {deformAnimeFace} from './face.js?v=18';
+export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=18';
 // Parameters deform the original topology; source vertices are never mutated.
 export const parameterDefaults = {
   headSize:50,neckWidth:50,chest:50,waist:50,hips:50,legThickness:50,
@@ -20,6 +22,7 @@ export function createDeformer(input,landmarks,scale) {
   const legDelta=(state.legs-50)*.0008;
   function deform(x,y,z,name) {
     const oldY = y;
+    if(name.startsWith('Face:')&&landmarks.faceRig)[x,y,z]=deformAnimeFace(x,y,z,state,landmarks.faceRig,name);
     const headScale=1+(state.headSize-50)*.002;
     const headBlend=smooth(neck[1]-.025,neck[1]+.07,y);
     x*=1+(headScale-1)*headBlend;
@@ -28,7 +31,7 @@ export function createDeformer(input,landmarks,scale) {
     const headWeight = smooth(neck[1]-.025,neck[1]+.07,y);
     const faceWidth = 1 + (state.faceWidth-50)*.0017;
     x *= 1 + (faceWidth-1)*headWeight;
-    if (name==='Face') {
+    if (name==='Face'&&!landmarks.faceRig) {
       const jawWeight = gaussian(y,eyeY-.10,.07) * smooth(-.025,.05,z);
       x *= 1 + (state.jaw-50)*.0016*jawWeight;
       // The same continuous deformation acts on skin, lids, brows and iris meshes.

@@ -87,3 +87,7 @@ v14 四张照片参考及对应自创短发已撤下，不能作为模型来源�
 ### v17 reference-guided face adaptation
 
 The byzmod3d and DEGUIDER heads retain their source topology. Runtime adaptations now include piecewise eye/top/chin alignment, skull depth and neck fitting to the existing VRoid beta preset, reference-surface blending and local smoothing of central facial relief, neutralized painted skin shading, toon light bands and a rigged outline. Original author identity and license attribution above continue to apply. No expression morphs were created for these heads.
+
+### v18 anime face module (current runtime)
+
+The complete converted byzmod3d/DEGUIDER head meshes are no longer loaded for rendering. Their facial jaw proportions, excluding the neck, are sampled by `scripts/prepare-face-guides.py`, with attribution and input-data hashes preserved in `dist/face-guides.js`. The visible face topology, UV/painted detail, eyes, brows and rig remain the existing CC0 VRoid beta assets. `dist/face.js` supplies JS feature-region deformation and the reference-proportion blend; the source donor necks and realistic skulls are not used. 绫 and 隼 are this project's new preset names, not source author character names. The attribution and source license information above remain preserved for the reference measurements and stored intermediate source conversions.
