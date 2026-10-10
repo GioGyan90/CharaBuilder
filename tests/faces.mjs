@@ -8,7 +8,7 @@ const moduleURL=path=>pathToFileURL(path).href;
 const temp=await fs.mkdtemp(path.join(os.tmpdir(),'charabuilder-modular-'));
 let hair=await fs.readFile(base+'hair.js','utf8');hair=hair.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'hair.mjs'),hair);
 let rig=await fs.readFile(base+'rig.js','utf8');rig=rig.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'rig.mjs'),rig);
-let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./rig.js?v=16'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=19'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=16'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=16'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=16'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
+let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./rig.js?v=16'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=21'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=16'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=16'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=16'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
 const requested=[];global.fetch=async url=>{requested.push(String(url));try{return new Response(await fs.readFile(new URL(url)),{status:200});}catch{return new Response('',{status:404});}};
 const {loadHumanAssets,ensureHumanPresets,createHuman,disposeHuman}=await import(moduleURL(path.join(temp,'model.mjs')));
 const {hairDefaults,hairChoices,hairRanges}=await import(moduleURL(path.join(temp,'hair.mjs')));
@@ -62,7 +62,7 @@ for(const gender of ['female','male']){
  await ensureHumanPresets(state,{textures:false});
  for(const faceSource of ['authored','vroid'])for(const key of faceAdjustmentKeys){
   const models=[0,100].map(value=>createHuman({...state,faceSource,[key]:value}));
-  const needle=key.startsWith('eye')?'EyeIris':key.startsWith('brow')?'FaceBrow':key.startsWith('mouth')?'FaceMouth':faceSource==='authored'?'AnimeReferenceFace':'Face_00_SKIN';
+  const needle=key==='eyeSpace'||key==='eyeVertical'?'EyeIris':key.startsWith('eye')?'EyeWhite':key.startsWith('brow')?'FaceBrow':key.startsWith('mouth')?'FaceMouth':faceSource==='authored'?'AnimeReferenceFace':'Face_00_SKIN';
   const [a,b]=models.map(model=>collect(model,needle));let max=0;
   for(const id of new Set(a.geometry.index.array)){let d=0;for(let axis=0;axis<3;axis++)d+=(a.geometry.attributes.position.array[id*3+axis]-b.geometry.attributes.position.array[id*3+axis])**2;max=Math.max(max,Math.sqrt(d));}
   if(max<.002)throw Error(gender+' '+key+' not visibly editable: '+max);
@@ -92,3 +92,18 @@ for(const gender of ['female','male'])for(const extreme of [-50,50,150]){
 
 if(requested.some(url=>/femalehead|malehead/.test(url)))throw Error('downloaded neck/head still fetched by runtime');
 console.log('PASS runtime excludes downloaded head/neck assets');
+
+// Iris and highlight vertices must form a rigid translated copy through all eye edits.
+for(const gender of ['female','male'])for(const faceSource of ['authored','vroid']){
+ const state={...defaults,gender,faceSource,frontHair:'none',backHair:'none',sideHair:'none',braid:'none',clothes:'underwear',expression:'neutral'};
+ await ensureHumanPresets(state,{textures:false});const neutral=createHuman(state);
+ for(const key of ['eyeSize','eyeWidth','eyeHeight','eyeSpace','eyeVertical','eyeTilt','faceWidth','faceHeight','jaw','noseProjection','browHeight'])for(const value of [-50,150]){
+  const model=createHuman({...state,[key]:value});
+  for(const needle of ['EyeIris','EyeHighlight']){const a=collect(neutral,needle),b=collect(model,needle),ids=[...new Set(a.geometry.index.array)];
+   for(const sign of [-1,1]){const same=ids.filter(i=>Math.sign(a.geometry.attributes.position.getX(i))===sign),first=same[0],offset=[0,1,2].map(k=>b.geometry.attributes.position.array[first*3+k]-a.geometry.attributes.position.array[first*3+k]);
+    for(const i of same)for(let k=0;k<3;k++)if(Math.abs(b.geometry.attributes.position.array[i*3+k]-a.geometry.attributes.position.array[i*3+k]-offset[k])>2e-6)throw Error('iris shape stretched: '+gender+' '+faceSource+' '+key+' '+needle);
+   }
+  }disposeHuman(model);
+ }disposeHuman(neutral);
+}
+console.log('PASS pupil/iris and highlights retain their original size and aspect through eye size, width, height, position, tilt and neighboring face edits');

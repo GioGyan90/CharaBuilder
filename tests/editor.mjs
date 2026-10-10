@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {faceEditorGroups,dragValues,bindDrag} from '../dist/editor.js';
-import {faceAdjustmentKeys} from '../dist/parameters.js';
+import {faceEditorGroups,bodyEditorGroups,dragValues,bindDrag} from '../dist/editor.js';
+import {faceAdjustmentKeys,bodyAdjustmentKeys} from '../dist/parameters.js';
 assert.deepEqual(new Set(faceEditorGroups.flatMap(g=>g.keys).filter(k=>faceAdjustmentKeys.includes(k))),new Set(faceAdjustmentKeys));
 assert.equal(faceEditorGroups.flatMap(g=>g.keys).filter(k=>faceAdjustmentKeys.includes(k)).length,24);
 const axis=['eyeSpace','eyeVertical'],initial={eyeSpace:50,eyeVertical:50};
@@ -20,3 +20,8 @@ assert.equal(begins,1);target.send('pointerup');assert.equal(ends,1);assert.equa
 target.send('pointermove',{clientX:500});assert.deepEqual(state,{eyeSpace:72,eyeVertical:72});
 for(const cancel of ['pointercancel','lostpointercapture']){target.send('pointerdown',{pointerType:'touch'});target.send('pointermove',{clientX:110,shiftKey:true});target.send(cancel);assert.equal(target.capture,null);assert.equal(target.classes.size,0);}
 assert.equal(ends,3);console.log('PASS 24 grouped geometry parameters, mirrored/relative drags, free bounds, Shift micro-adjustment, touch capture and cancel cleanup');
+
+assert.deepEqual(new Set(bodyEditorGroups.flatMap(g=>g.keys).filter(k=>bodyAdjustmentKeys.includes(k))),new Set(bodyAdjustmentKeys));
+assert.equal(bodyEditorGroups.filter(g=>g.axes.length).length,8);
+assert.deepEqual(dragValues({weight:45,height:50},40,-20,bodyEditorGroups[0].axes[0]),{weight:67,height:61});
+console.log('PASS 31 body parameters in eight drag groups, plus independent skin color card');

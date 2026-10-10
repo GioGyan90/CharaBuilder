@@ -10,7 +10,7 @@ export function buildAnimeFace(base,gender,reference=true){
  const find=name=>source.groups.filter(g=>base.materials[g.material].name.includes(name));
  const groupPoints=groups=>[...new Set(groups.flatMap(g=>g.indices))].map(id=>points.slice(id*3,id*3+3));
  const eyes=[-1,1].map(sign=>center(groupPoints(find('EyeIris')).filter(p=>Math.sign(p[0])===sign)));
- for(const g of source.groups){const name=base.materials[g.material].name;for(const id of g.indices){if(/EyeIris|EyeWhite|EyeHighlight|Eyeline|Eyelash|EyeExtra/.test(name))regions[id]='Face:eye'+(points[id*3]<0?'0':'1');else if(name.includes('FaceBrow'))regions[id]='Face:brow'+(points[id*3]<0?'0':'1');else if(name.includes('FaceMouth'))regions[id]='Face:mouth';}}
+ for(const g of source.groups){const name=base.materials[g.material].name;for(const id of g.indices){if(/EyeIris|EyeHighlight/.test(name))regions[id]='Face:iris'+(points[id*3]<0?'0':'1');else if(/EyeWhite|Eyeline|Eyelash|EyeExtra/.test(name))regions[id]='Face:eye'+(points[id*3]<0?'0':'1');else if(name.includes('FaceBrow'))regions[id]='Face:brow'+(points[id*3]<0?'0':'1');else if(name.includes('FaceMouth'))regions[id]='Face:mouth';}}
  const skin=groupPoints(find('_SKIN')),chin=Math.min(...skin.map(p=>p[1])),top=Math.max(...skin.map(p=>p[1])),mouth=center(groupPoints(find('FaceMouth'))),eyeY=(eyes[0][1]+eyes[1][1])/2;
  const nosePoints=skin.filter(p=>Math.abs(p[0]-base.landmarks.head[0])<.014&&Math.abs(p[1]-(eyeY-.037))<.025);const nose=center(nosePoints);
  const brows=[-1,1].map(sign=>center(groupPoints(find('FaceBrow')).filter(p=>Math.sign(p[0])===sign)));

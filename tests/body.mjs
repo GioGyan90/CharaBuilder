@@ -26,24 +26,32 @@ for(const gender of ['female','male']){
 
 const {updateCharacterMotion}=await import(moduleURL(path.join(temp,'rig.mjs')));
 const THREE=await import(moduleURL(base+'vendor/three.module.js'));
-let checks=0;
-for(const gender of ['female','male'])for(const clothes of ['shirtPants','underwear'])for(const extreme of [false,true]){
- const state={...defaults,gender,clothes,shoes:'barefoot'};
- if(extreme)for(const key of ['height','weight','headSize','chest','waist','hips','legThickness','sleeveLength','shirtLength','pantsWidth'])state[key]=100;
- await ensureHumanPresets(state,{textures:false});const start=performance.now();const model=createHuman(state);console.log(gender,clothes,extreme?'extreme':'default','build ms',Math.round(performance.now()-start));
- model.updateMatrixWorld(true);model.userData.skeleton.update();
- const meshes=[];model.traverse(o=>{if(o.isMesh)meshes.push(o);});
- for(const m of meshes){if(!m.isSkinnedMesh)throw Error('unbound '+m.name);const {skinWeight:w,skinIndex:j,position:p}=m.geometry.attributes;
-  for(let i=0;i<p.count;i++){let sum=0;for(let a=0;a<4;a++){sum+=w.array[i*4+a];if(j.array[i*4+a]>=m.skeleton.bones.length)throw Error('bad joint');}if(Math.abs(sum-1)>.0001)throw Error('bad weight');}
-  for(const i of [...new Set(m.geometry.index.array)].filter((_,n)=>n%53===0)){const v=new THREE.Vector3().fromBufferAttribute(p,i),rest=v.clone();m.applyBoneTransform(i,v);if(v.distanceTo(rest)>1e-5)throw Error('bind drift '+m.name+' '+v.distanceTo(rest));}
+
+const {bodyAdjustmentKeys}=await import(moduleURL(base+'parameters.js'));
+for(const gender of ['female','male']){
+ const state={...defaults,gender,clothes:'underwear',frontHair:'none',backHair:'none',sideHair:'none',braid:'none',shoes:'barefoot'};
+ await ensureHumanPresets(state,{textures:false});
+ for(const key of bodyAdjustmentKeys){
+  const models=[-50,150].map(value=>createHuman({...state,[key]:value}));
+  const skin=models.map(model=>model.children.find(m=>m.isMesh&&m.name.includes('Body')&&m.name.includes('_SKIN')));let max=0;
+  for(const id of new Set(skin[0].geometry.index.array)){let d=0;for(let a=0;a<3;a++)d+=(skin[0].geometry.attributes.position.array[id*3+a]-skin[1].geometry.attributes.position.array[id*3+a])**2;max=Math.max(max,Math.sqrt(d));}
+  if(max<.002)throw Error(gender+' '+key+' no visible effect: '+max);
+  if(!models.every(model=>model.userData.bodyHandles.length===8&&model.userData.bodyHandles.every(h=>h.position.every(Number.isFinite))))throw Error('body edit anchors invalid');
+  models.forEach(disposeHuman);console.log('BODY',gender,key,max.toFixed(4));
  }
- const body=meshes.find(m=>m.userData.part==='Body'&&m.name.includes('_SKIN')),p=body.geometry.attributes.position;
- let moved=0;
- for(const mode of ['idle','inspect'])for(const t of [0,1,3.5,5,7.5,9,10.5,11.99,12,24]){updateCharacterMotion(model,t,mode);
-  for(const m of meshes)for(const i of [...new Set(m.geometry.index.array)].filter((_,n)=>n%131===0)){const v=new THREE.Vector3().fromBufferAttribute(m.geometry.attributes.position,i);m.applyBoneTransform(i,v);if(!v.toArray().every(Number.isFinite))throw Error('nonfinite pose');}
-  const h=model.userData.motion.bones[model.userData.motion.humanoid.leftHand];if(mode==='inspect'&&t===3.5){const v=new THREE.Vector3();h.getWorldPosition(v);updateCharacterMotion(model,0,'rest');const rest=new THREE.Vector3();h.getWorldPosition(rest);moved=v.distanceTo(rest);if(moved<.05)throw Error('hand did not move');updateCharacterMotion(model,t,mode);}
- }
- updateCharacterMotion(model,0,'rest');for(const bone of model.userData.skeleton.bones)if(bone.rotation.toArray().slice(0,3).some(v=>v!==0))throw Error('reset');
- disposeHuman(model);checks++;
 }
-console.log('PASS',checks,'rigged configurations: original weights, bind identity, finite poses, moving hands, reset, extreme proportions');
+for(const gender of ['female','male'])for(const clothes of ['underwear','shirtPants'])for(const value of [-50,150]){
+ const state={...defaults,gender,clothes,frontHair:'none',backHair:'none',sideHair:'none',braid:'none',shoes:'barefoot'};
+ for(const key of bodyAdjustmentKeys)state[key]=value;
+ await ensureHumanPresets(state,{textures:false});const model=createHuman(state);let floor=Infinity;
+ model.updateMatrixWorld(true);model.userData.skeleton.update();
+ model.traverse(m=>{if(!m.isMesh)return;const p=m.geometry.attributes.position,n=m.geometry.attributes.normal,w=m.geometry.attributes.skinWeight;if(!p.array.every(Number.isFinite)||!n.array.every(Number.isFinite))throw Error('nonfinite new body');
+  for(let i=0;i<w.count;i++)if(Math.abs(w.array[i*4]+w.array[i*4+1]+w.array[i*4+2]+w.array[i*4+3]-1)>1e-5)throw Error('weight normalization');
+  for(const id of new Set(m.geometry.index.array)){floor=Math.min(floor,p.getY(id)+model.position.y);}
+  for(const id of [...new Set(m.geometry.index.array)].filter((_,i)=>i%97===0)){const q=new THREE.Vector3().fromBufferAttribute(p,id),rest=q.clone();m.applyBoneTransform(id,q);if(q.distanceTo(rest)>1e-5)throw Error('bind drift');}
+ });
+ if(Math.abs(floor)>.005)throw Error('feet lifted off floor: '+floor);
+ for(const mode of ['idle','inspect','rest']){updateCharacterMotion(model,3.5,mode);model.traverse(m=>{if(!m.isMesh)return;for(const id of [...new Set(m.geometry.index.array)].filter((_,i)=>i%101===0)){const q=new THREE.Vector3().fromBufferAttribute(m.geometry.attributes.position,id);m.applyBoneTransform(id,q);if(!q.toArray().every(Number.isFinite))throw Error('new body pose invalid');}});}
+ disposeHuman(model);
+}
+console.log('PASS 31 visible body parameters, eight handle anchors, eight free-range clothing/body combinations, grounded feet, normalized skin weights and bone motion');

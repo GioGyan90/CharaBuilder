@@ -8,7 +8,7 @@ const normal=deformNormal((x,y,z)=>[x,y,z],0,0,0,.3,.4,.5,'Face');
 normal.forEach((v,i)=>assert.ok(Math.abs(v-[.3,.4,.5][i]/Math.sqrt(.5))<1e-7));
 for(const key of Object.keys(parameterDefaults).filter(k=>!faceAdjustmentKeys.includes(k)||['forehead','chinLength','noseProjection','mouthHeight'].includes(k))){
  const changed=createDeformer({...state,[key]:100},landmarks,1);let effect=false;
- for(let y=.2;y<1.7;y+=.03)for(const x of [-.1,-.025,0,.025,.1])for(const z of [.04,.1]){
+ for(let y=.04;y<1.7;y+=.03)for(const x of [-.4,-.3,-.1,-.025,0,.025,.1,.3,.4])for(const z of [-.08,-.03,.04,.1]){
   const point=changed(x,y,z,'Face');assert.ok(point.every(Number.isFinite));
   if(point.some((v,i)=>Math.abs(v-neutral(x,y,z,'Face')[i])>1e-7))effect=true;
   const skin=changed(x,y,z,'Body'),shirt=changed(x,y,z,'Shirt');assert.deepEqual(skin,shirt);
@@ -16,3 +16,6 @@ for(const key of Object.keys(parameterDefaults).filter(k=>!faceAdjustmentKeys.in
  assert.ok(effect,key+' has no effect');
 }
 console.log('PASS neutral shape, normal orientation, each body/face parameter and shared clothing deformation');
+const hand=[.36,.85,.025],baseHand=neutral(...hand,'Body');
+for(const key of ['legThickness','thigh','calf','ankle','legSpace'])assert.deepEqual(createDeformer({...state,[key]:150},landmarks,1)(...hand,'Body'),baseHand,key+' distorted the hand');
+console.log('PASS leg/foot regional edits do not deform the A-pose hand');

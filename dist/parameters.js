@@ -1,12 +1,16 @@
-import {deformAnimeFace} from './face.js?v=19';
-export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=19';
+import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=21';
+export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=21';
+import {deformAnimeFace} from './face.js?v=21';
+export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=21';
 // Parameters deform the original topology; source vertices are never mutated.
 export const parameterDefaults = {
+  ...bodyDefaults,
   headSize:50,neckWidth:50,chest:50,waist:50,hips:50,legThickness:50,
   forehead:50,chinLength:50,noseProjection:50,mouthHeight:50,
   faceHeight:50,cheek:50,chinWidth:50,eyeWidth:50,eyeHeight:50,eyeVertical:50,eyeTilt:50,browHeight:50,browAngle:50,noseWidth:50,noseHeight:50,mouthThickness:50,mouthProjection:50,mouthCorner:50
 };
 export const parameterRanges = {
+  ...bodyRanges,
   headSize:['头部大小','小','大'],neckWidth:['颈部粗细','细','粗'],
   chest:['胸廓尺寸','小','大'],waist:['腰围','细','宽'],hips:['臀围','窄','宽'],legThickness:['腿部粗细','细','粗'],
   faceHeight:['脸部长度','短','长'],cheek:['面颊饱满度','收窄','丰满'],chinWidth:['下巴宽度','窄','宽'],
@@ -21,13 +25,18 @@ const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3
 const gaussian=(v,c,s)=>Math.exp(-(((v-c)/s)**2));
 export function createDeformer(input,landmarks,scale) {
   const state={...input};
-  for(const [key,value] of Object.entries(parameterDefaults))state[key]=Number.isFinite(input[key])?Math.max(faceAdjustmentKeys.includes(key)?-50:0,Math.min(faceAdjustmentKeys.includes(key)?150:100,input[key])):value;
+  for(const [key,value] of Object.entries(parameterDefaults))state[key]=Number.isFinite(input[key])?Math.max((faceAdjustmentKeys.includes(key)||bodyAdjustmentKeys.includes(key))?-50:0,Math.min((faceAdjustmentKeys.includes(key)||bodyAdjustmentKeys.includes(key))?150:100,input[key])):value;
   const head=landmarks.head,neck=landmarks.neck,hip=landmarks.hips[1];
   const eyeY=(landmarks.leftEye[1]+landmarks.rightEye[1])/2;
   const eyes=[landmarks.leftEye[0],landmarks.rightEye[0]];
+  const editBody=createBodyDeformer(state,landmarks);
   const legDelta=(state.legs-50)*.0008;
   function deform(x,y,z,name) {
-    const oldY = y;
+    if(name.startsWith('Face:iris')&&landmarks.faceRig){
+      const eye=landmarks.faceRig.eyes[Number(name.slice(-1))],c=deform(...eye,'Face:eye'+name.slice(-1)),uniform=(1+(state.headSize-50)*.002)*scale;
+      return [c[0]+(x-eye[0])*uniform,c[1]+(y-eye[1])*uniform,c[2]+(z-eye[2])*uniform];
+    }
+    const source=[x,y,z],oldY = y;
     if(name.startsWith('Face:')&&landmarks.faceRig)[x,y,z]=deformAnimeFace(x,y,z,state,landmarks.faceRig,name);
     const headScale=1+(state.headSize-50)*.002;
     const headBlend=smooth(neck[1]-.025,neck[1]+.07,y);
@@ -68,7 +77,7 @@ export function createDeformer(input,landmarks,scale) {
     const pelvis=gaussian(oldY,hip-.025,.13)*central;
     x*=1+(state.chest-50)*.002*chest+(state.waist-50)*.0025*waist+(state.hips-50)*.002*pelvis;
     z*=1+(state.chest-50)*.0025*chest+(state.waist-50)*.002*waist+(state.hips-50)*.002*pelvis;
-    const legBand=(1-smooth(hip-.14,hip-.02,oldY))*smooth(.10,.25,oldY);
+    const legBand=(1-smooth(hip-.14,hip-.02,oldY))*smooth(.10,.25,oldY)*(1-smooth(.15,.24,Math.abs(source[0])));
     const legCenter=Math.sign(x)*.085;
     x+=(x-legCenter)*(state.legThickness-50)*.002*legBand;
     z*=1+(state.legThickness-50)*.002*legBand;
@@ -85,6 +94,7 @@ export function createDeformer(input,landmarks,scale) {
     if (name==='Hair001' && state.hair==='trim' && state.gender==='male') {
       x=head[0]+(x-head[0])*.94;z=head[2]+(z-head[2])*.94;
     }
+    [x,y,z]=editBody(x,y,z,source);
     y += legDelta*smooth(.02,hip,oldY);
     return [x*scale,(y+.001)*scale,z*scale];
   }

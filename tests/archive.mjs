@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 const dir=fileURLToPath(new URL('../dist/',import.meta.url));
-const {parameterDefaults,parameterRanges,faceAdjustmentKeys}=await import(pathToFileURL(dir+'parameters.js').href);
+const {parameterDefaults,parameterRanges,faceAdjustmentKeys,bodyAdjustmentKeys}=await import(pathToFileURL(dir+'parameters.js').href);
 const {wardrobeDefaults,wardrobeRanges}=await import(pathToFileURL(dir+'wardrobe.js').href);
 const hairText=await fs.readFile(dir+'hair.js','utf8');
 const hairDefinition=hairText.slice(hairText.indexOf('export const hairDefaults'),hairText.indexOf('const skullCache')).replaceAll('export ','');
@@ -16,8 +16,8 @@ for(const gender of ['male','female'])for(const [frontHair] of hairOptionsFor('f
 }
 for(const key of Object.keys({...parameterDefaults,...wardrobeDefaults,...hairRanges})){
  if(normalizeState({})[key]!==50)throw Error('default '+key);
- if(normalizeState({[key]:999})[key]!==(faceAdjustmentKeys.includes(key)?150:100))throw Error('upper bound');
- if(normalizeState({[key]:-999})[key]!==(faceAdjustmentKeys.includes(key)?-50:0))throw Error('lower bound');
+ if(normalizeState({[key]:999})[key]!==((faceAdjustmentKeys.includes(key)||bodyAdjustmentKeys.includes(key))?150:100))throw Error('upper bound');
+ if(normalizeState({[key]:-999})[key]!==((faceAdjustmentKeys.includes(key)||bodyAdjustmentKeys.includes(key))?-50:0))throw Error('lower bound');
  if(normalizeState({[key]:NaN})[key]!==50)throw Error('finite guard');
 }
 for(const gender of ['female','male'])for(const clothes of ['shirtPants','underwear'])for(const shoes of ['shoes','barefoot']){

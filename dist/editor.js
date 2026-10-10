@@ -18,3 +18,15 @@ export function bindDrag(target,{read,axis,write,begin=()=>{},end=()=>{},side=()
  const stop=e=>{if(!drag||drag.id!==e.pointerId)return;drag=null;target.classList.remove('dragging');if(target.hasPointerCapture(e.pointerId))target.releasePointerCapture(e.pointerId);end();};
  target.addEventListener('pointerup',stop);target.addEventListener('pointercancel',stop);target.addEventListener('lostpointercapture',stop);
 }
+
+export const bodyEditorGroups=[
+ {id:'proportions',title:'整体比例',keys:['height','weight','legs','torsoLength','headSize','neckWidth'],axes:[['weight','height','体型','身高'],['legs','torsoLength','腿长比例','躯干长度']]},
+ {id:'shoulderBody',title:'肩部与背部',keys:['shoulders','shoulderSlope','shoulderDepth','backDepth'],axes:[['shoulders','shoulderSlope','肩宽','肩部倾斜'],['shoulderDepth','backDepth','肩部厚度','背部厚度']]},
+ {id:'chestBody',title:'胸部',keys:['chest','chestDepth','bustSize','bustHeight'],axes:[['chest','chestDepth','胸廓尺寸','胸廓厚度'],['bustSize','bustHeight','胸部丰满度','胸部位置']]},
+ {id:'waistBody',title:'腰部与腹部',keys:['waist','waistHeight','abdomen'],axes:[['waist','waistHeight','腰围','腰线位置'],['waist','abdomen','腰围','腹部丰满度']]},
+ {id:'pelvisBody',title:'臀部与胯部',keys:['hips','hipDepth','hipHeight','legSpace'],axes:[['hips','hipHeight','臀围','臀部位置'],['legSpace','hipDepth','双腿间距','臀部厚度']]},
+ {id:'armsBody',title:'手臂与手掌',keys:['armLength','upperArm','forearm','handSize'],axes:[['upperArm','armLength','上臂粗细','手臂长度'],['forearm','handSize','前臂粗细','手掌大小']]},
+ {id:'legsBody',title:'腿部',keys:['legThickness','thigh','calf','ankle'],axes:[['thigh','calf','大腿粗细','小腿粗细'],['legThickness','ankle','腿部粗细','脚踝粗细']]},
+ {id:'feetBody',title:'脚掌',keys:['footLength','footWidth'],axes:[['footWidth','footLength','脚掌宽度','脚掌长度']]},
+ {id:'bodyColor',title:'肤色',keys:['skin'],axes:[]}
+];

@@ -1,6 +1,6 @@
 import {bindCharacter} from './rig.js?v=16';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair} from './parameters.js?v=19';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=21';
 import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=16';
 import {referenceHairMeshes,hairAssetIds} from './hair.js?v=16';
 import {createUnderwearData} from './underwear.js?v=16';
@@ -74,7 +74,7 @@ function compose(state) {
   }
   const face=base.meshes.find(m=>m.name==='Face');
   const fitted=buildAnimeFace(base,state.gender,state.faceSource==='authored');
-  data.landmarks={...base.landmarks,...fitted.landmarks};
+  data.landmarks={...base.landmarks,...fitted.landmarks,bodyRig:bodyAnchors(base)};
   for(const mesh of fitted.meshes)add(fitted,mesh,mesh.groups);
   const body=base.meshes.find(m=>m.name==='Body');
   const neck=base.landmarks.neck[1],hip=base.landmarks.hips[1],sleeve=.124+Math.max(0,Math.min(100,state.sleeveLength??50))*(state.gender==='female'?.00276:.00316);
@@ -263,6 +263,7 @@ if(iris && material.map){
    {group:'mouth',side:1,position:deform(...rig.mouth,'Face:mouth')},
    {group:'contour',side:1,position:deform(rig.headX,rig.chin,rig.mouth[2],'Face:skin')}
   ];
+  group.userData.bodyHandles=bodyHandlePoints(base).map(h=>({...h,position:deform(...h.position,'Body')}));
   bindCharacter(group,base,deform);
   group.userData.materials=materials;
   const bodySource=data.meshes.find(m=>m.name==='Body');
