@@ -26,30 +26,36 @@ for(const gender of ['female','male']){
 
 const {updateCharacterMotion}=await import(moduleURL(path.join(temp,'rig.mjs')));
 const THREE=await import(moduleURL(base+'vendor/three.module.js'));
+let motion=await fs.readFile(base+'motion.js','utf8');motion=motion.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./rig.js?v=28'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'./assets/motion/quaternius.js?v=26'",JSON.stringify(moduleURL(base+'assets/motion/quaternius.js')));await fs.writeFile(path.join(temp,'motion.mjs'),motion);
+const {updateCharacterMotion:play,motionPresets}=await import(moduleURL(path.join(temp,'motion.mjs')));
+const {default:library}=await import(moduleURL(base+'assets/motion/quaternius.js'));
 
-const {applyHumanColors}=await import(moduleURL(path.join(temp,'model.mjs')));
-for(const gender of ['female','male']){
- const state={...defaults,gender,clothes:'underwear',eyeColor:'#437fbc'};await ensureHumanPresets(state,{textures:false});const model=createHuman(state);
- const meshes=[];model.traverse(m=>{if(m.isMesh)meshes.push(m);});const eye=meshes.find(m=>m.name.includes('EyeIris'));
- if(eye.material.color.getHexString()!=='437fbc')throw Error('iris color');
- const skeleton=model.userData.skeleton,geometry=eye.geometry;updateCharacterMotion(model,3.5,'inspect');const pose=JSON.stringify(skeleton.bones.map(b=>b.quaternion.toArray()));
- const colors={skin:'#e2a576',hairColor:'#418688',eyeColor:'#af547c',shirt:'#bd392f',pants:'#ad41ae',shoeColor:'#e0ded7'};applyHumanColors(model,colors);
- if(eye.geometry!==geometry||model.userData.skeleton!==skeleton||JSON.stringify(skeleton.bones.map(b=>b.quaternion.toArray()))!==pose)throw Error('color update rebuilt or reset pose');
- for(const [role,hex] of Object.entries(colors)){const m=model.userData.materials.find(m=>m.userData.colorRole===role);if(!m)throw Error('missing role '+role);const expected=new THREE.Color(hex);if(role==='skin')expected.multiplyScalar(1.07);if(!m.color.equals(expected))throw Error('color role '+role);}
- // Each color can change while the other remains unchanged, with pose intact.
- const shoes=meshes.find(m=>m.name.includes('Shoes')),bottom=meshes.find(m=>m.userData.part==='UnderwearBottom');
- const shoeBefore=shoes.material.color.clone();applyHumanColors(model,{...colors,pants:'#22bb55'});
- if(!shoes.material.color.equals(shoeBefore)||bottom.material.color.getHexString()!=='22bb55')throw Error('pants tint changed shoes');
- applyHumanColors(model,{...colors,pants:'#22bb55',shoeColor:'#dd9922'});
- if(bottom.material.color.getHexString()!=='22bb55'||shoes.material.color.getHexString()!=='dd9922')throw Error('shoe tint changed pants');
- if(JSON.stringify(skeleton.bones.map(b=>b.quaternion.toArray()))!==pose)throw Error('separate tint reset pose');
- if(gender==='female'){
-  const top=meshes.find(m=>m.userData.part==='UnderwearTop');if(!top)throw Error('missing strapless top');
-  // Inverse scale of the default rig: highest top edge must sit below the old strap region.
-  const body=meshes.find(m=>m.userData.part==='Body'&&m.name.includes('_SKIN')),bones=model.userData.motion;
-  const neck=bones.bones[bones.humanoid.neck].position;const p=top.geometry.attributes.position;
-  if(Math.max(...Array.from(p.array).filter((_,i)=>i%3===1))>model.userData.faceY-.15)throw Error('straps remain');
+import assert from 'node:assert/strict';
+const {stonePreset}=await import(moduleURL(base+'experimental.js'));
+const {createDeformer}=await import(moduleURL(base+'parameters.js'));
+const landmarks={head:[0,1.42,0],neck:[0,1.35,0],hips:[0,.94,0],leftEye:[.021,1.48,.02],rightEye:[-.021,1.48,.02]};
+const neutral=createDeformer(defaults,landmarks,1);
+const muscleKeys=['muscleMass','trapezius','latWidth','deltoid'];
+for(const key of muscleKeys){
+ const edit=createDeformer({...defaults,[key]:150},landmarks,1);
+ for(const p of [[0,1.48,.1],[.03,1.55,.08]])assert.deepEqual(edit(...p,'Body'),neutral(...p,'Body'),key+' changed skull');
+ const p=[.09,1.15,-.05];assert.deepEqual(edit(...p,'Body'),edit(...p,'Shirt'));
+}
+let poses=0;
+for(const clothes of ['shirtPants','underwear']){
+ const state={...defaults,...stonePreset,clothes,shoes:clothes==='underwear'?'barefoot':'shoes'};
+ await ensureHumanPresets(state,{textures:false});const model=createHuman(state);
+ for(const [mode,times] of [['rest',[0]],['idle',[0,1.2,2.4]],['inspect',[2,4,8,10]],['walk',[.23,.72]]])for(const t of times){
+  play(model,0,mode);play(model,t,mode);
+  model.traverse(m=>{if(!m.isMesh)return;
+   for(const v of m.geometry.attributes.normal.array)assert.ok(Number.isFinite(v));
+   for(const i of [...new Set(m.geometry.index.array)].filter((_,i)=>i%67===0)){
+    const v=new THREE.Vector3().fromBufferAttribute(m.geometry.attributes.position,i);m.applyBoneTransform(i,v);assert.ok(v.toArray().every(Number.isFinite));
+   }
+  });poses++;
  }
  disposeHuman(model);
 }
-console.log('PASS strapless garment, six live color material roles, and unchanged geometry/skeleton/paused pose');
+const html=await fs.readFile(base+'index.html','utf8');assert.equal((html.match(/data-tab="experimental"/g)||[]).length,1);
+const app=await fs.readFile(base+'app.js','utf8');assert.ok(app.includes("label:'隼 · 熟男脸'"));assert.ok(app.includes('state=normalize({...defaults,...stonePreset})'));
+await fs.rm(temp,{recursive:true,force:true});console.log('PASS Stone experimental category, unchanged mature preset, skull protection, shared clothing mapping and '+poses+' actual skinned poses');

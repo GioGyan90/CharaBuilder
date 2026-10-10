@@ -62,6 +62,8 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  else for(let i=0;i<2;i++){const eye=rig.eyes[i];moveEye(eye,i,bell(source[0],eye[0],.042)*bell(source[1],eye[1],.041)*front);}
  for(let i=0;i<2;i++){
   const b=rig.brows[i],w=region==='Face:brow'+i?1:bell(source[0],b[0],.034)*bell(source[1],b[1],.019)*front;
+  if(region==='Face:brow'+i)y+=(source[1]-b[1])*(Math.max(.2,1+bounded(state.browThickness)*.55)-1);
+  if(region==='Face:skin'||region==='Face:brow'+i)z+=bounded(state.browRidge)*.005*w;
   y+=(bounded(state.browHeight)*.013+(source[0]-b[0])*Math.sign(b[0]-headX)*bounded(state.browAngle)*.30)*w;
  }
  const nw=bell(source[0],headX,.021)*bell(source[1],nose[1],.028)*front;

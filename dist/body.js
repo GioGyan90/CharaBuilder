@@ -1,6 +1,6 @@
 // Regional edits stay on the existing CC0 body topology and its bone landmarks.
-export const bodyDefaults={torsoLength:50,shoulderSlope:50,shoulderDepth:50,chestDepth:50,bustSize:50,bustHeight:50,backDepth:50,waistHeight:50,abdomen:50,hipDepth:50,hipHeight:50,armLength:50,upperArm:50,forearm:50,handSize:50,thigh:50,calf:50,ankle:50,footLength:50,footWidth:50,legSpace:50};
-export const bodyRanges={torsoLength:['躯干长度','短','长'],shoulderSlope:['肩部倾斜','平肩','溜肩'],shoulderDepth:['肩部厚度','薄','厚'],chestDepth:['胸廓厚度','薄','厚'],bustSize:['胸部丰满度','平','丰满'],bustHeight:['胸部位置','低','高'],backDepth:['背部厚度','薄','厚'],waistHeight:['腰线位置','低','高'],abdomen:['腹部丰满度','平','丰满'],hipDepth:['臀部厚度','薄','厚'],hipHeight:['臀部位置','低','高'],armLength:['手臂长度','短','长'],upperArm:['上臂粗细','细','粗'],forearm:['前臂粗细','细','粗'],handSize:['手掌大小','小','大'],thigh:['大腿粗细','细','粗'],calf:['小腿粗细','细','粗'],ankle:['脚踝粗细','细','粗'],footLength:['脚掌长度','短','长'],footWidth:['脚掌宽度','窄','宽'],legSpace:['双腿间距','近','远']};
+export const bodyDefaults={muscleMass:50,trapezius:50,latWidth:50,deltoid:50,torsoLength:50,shoulderSlope:50,shoulderDepth:50,chestDepth:50,bustSize:50,bustHeight:50,backDepth:50,waistHeight:50,abdomen:50,hipDepth:50,hipHeight:50,armLength:50,upperArm:50,forearm:50,handSize:50,thigh:50,calf:50,ankle:50,footLength:50,footWidth:50,legSpace:50};
+export const bodyRanges={muscleMass:['肌肉量','少','多'],trapezius:['斜方肌体积','平','厚'],latWidth:['背阔肌宽度','窄','宽'],deltoid:['肩部肌肉','小','大'],torsoLength:['躯干长度','短','长'],shoulderSlope:['肩部倾斜','平肩','溜肩'],shoulderDepth:['肩部厚度','薄','厚'],chestDepth:['胸廓厚度','薄','厚'],bustSize:['胸部丰满度','平','丰满'],bustHeight:['胸部位置','低','高'],backDepth:['背部厚度','薄','厚'],waistHeight:['腰线位置','低','高'],abdomen:['腹部丰满度','平','丰满'],hipDepth:['臀部厚度','薄','厚'],hipHeight:['臀部位置','低','高'],armLength:['手臂长度','短','长'],upperArm:['上臂粗细','细','粗'],forearm:['前臂粗细','细','粗'],handSize:['手掌大小','小','大'],thigh:['大腿粗细','细','粗'],calf:['小腿粗细','细','粗'],ankle:['脚踝粗细','细','粗'],footLength:['脚掌长度','短','长'],footWidth:['脚掌宽度','窄','宽'],legSpace:['双腿间距','近','远']};
 export const bodyAdjustmentKeys=['height','weight','shoulders','legs','headSize','neckWidth','chest','waist','hips','legThickness',...Object.keys(bodyDefaults)];
 const smooth=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
 const bell=(v,c,r)=>Math.exp(-(((v-c)/r)**2));
@@ -20,6 +20,18 @@ export function createBodyDeformer(state,l){
   const axial=1-smooth(.12,.22,ax),belowHead=1-smooth(neck-.09,neck-.02,sy),front=smooth(-.015,.04,sz),back=1-smooth(-.03,.015,sz);
   const shoulder=bell(sy,neck-.075,.065)*smooth(.045,.15,ax)*belowHead;
   y-=value.shoulderSlope*.024*shoulder;z*=1+value.shoulderDepth*.15*shoulder;
+  // Local muscle envelopes follow the author's A-pose landmarks. They do not
+  // add abdominal fat or move the skull. Skin and garments share this mapping.
+  const upperTorso=bell(sy,neck-.23,.13)*axial*belowHead;
+  const lat=bell(sy,neck-.27,.105)*smooth(.045,.10,ax)*axial*belowHead;
+  const trap=bell(sy,neck-.082,.045)*bell(ax,.055,.065)*belowHead;
+  const shoulderMuscle=bell(sy,a.shoulder[1]-.025,.065)*bell(ax,a.shoulder[0]+.014,.052)*belowHead;
+  x*=1+value.muscleMass*.10*upperTorso+value.latWidth*.22*lat;
+  z*=1+value.muscleMass*.18*upperTorso;
+  z-=value.latWidth*.014*lat*back+value.trapezius*.018*trap*back;
+  y+=value.trapezius*.016*trap;
+  x+=sign*value.deltoid*.010*shoulderMuscle;
+  z*=1+value.deltoid*.22*shoulderMuscle;
   const chest=bell(sy,neck-.22,.10)*axial*belowHead;
   z*=1+value.chestDepth*.17*chest;
   z+=value.bustSize*.022*bell(sy,bustY,.065)*axial*front*belowHead;
@@ -34,7 +46,7 @@ export function createBodyDeformer(state,l){
   y+=value.hipHeight*.014*bell(sy,hip-.025,.10)*axial;
   const legBlend=(1-smooth(hip-.12,hip+.025,sy))*(1-smooth(.15,.24,ax)),legX=a.knee[0];
   const thigh=bell(sy,(hip+a.knee[1])*.5,.16)*legBlend,calf=bell(sy,(a.knee[1]+a.foot[1])*.5,.14)*legBlend,ankle=bell(sy,a.foot[1]+.025,.055)*legBlend;
-  const legScale=(value.thigh*.18*thigh+value.calf*.20*calf+value.ankle*.15*ankle)*smooth(.006,.025,ax);
+  const legScale=((value.thigh*.18+value.muscleMass*.07)*thigh+(value.calf*.20+value.muscleMass*.06)*calf+value.ankle*.15*ankle)*smooth(.006,.025,ax);
   x+=(sx-sign*legX)*legScale;z*=1+legScale;
   const feet=(1-smooth(a.foot[1]-.025,a.foot[1]+.05,sy))*legBlend;
   x+=(sx-sign*a.foot[0])*value.footWidth*.15*feet;
@@ -47,7 +59,7 @@ export function createBodyDeformer(state,l){
   const line=s.map((q,i)=>q+u*v[i]),distance=Math.hypot(...p.map((q,i)=>q-line[i]));
   const armBlend=smooth(s[0]-.025,s[0]+.065,ax)*smooth(-.1,.15,u)*(1-smooth(.08,.16,distance));
   const upper=1-smooth(.40,.65,u),lower=smooth(.35,.65,u)*(1-smooth(.85,1.12,u));
-  const radial=(value.upperArm*.20*upper+value.forearm*.20*lower)*armBlend;
+  const radial=((value.upperArm*.20+value.muscleMass*.12)*upper+(value.forearm*.20+value.muscleMass*.08)*lower)*armBlend;
   x+=sign*(p[0]-axis[0])*radial;y+=(p[1]-axis[1])*radial;z+=(p[2]-axis[2])*radial;
   const extension=value.armLength*.10*Math.max(0,Math.min(1,u))*armBlend;
   x+=sign*v[0]*extension;y+=v[1]*extension;z+=v[2]*extension;
