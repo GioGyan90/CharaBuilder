@@ -1,0 +1,60 @@
+import * as THREE from 'three';
+import library from './assets/motion/quaternius.js?v=23';
+import {updateCharacterMotion as proceduralMotion} from './rig.js?v=16';
+export const motionPresets=[
+ {id:'relaxed',label:'放松站姿',source:'Idle_Loop'},
+ {id:'talk',label:'交谈手势',source:'Idle_Talking_Loop'},
+ {id:'walk',label:'自然步行',source:'Walk_Loop'},
+ {id:'formalWalk',label:'挺拔步行',source:'Walk_Formal_Loop'},
+ {id:'jog',label:'原地慢跑',source:'Jog_Fwd_Loop'},
+ {id:'dance',label:'舞蹈展示',source:'Dance_Loop'},
+];
+const next={leftUpperArm:'leftLowerArm',rightUpperArm:'rightLowerArm'};
+const q=new THREE.Quaternion(),parentQ=new THREE.Quaternion(),wanted=new THREE.Quaternion(),a=new THREE.Quaternion(),b=new THREE.Quaternion(),v=new THREE.Vector3();
+function setup(group){
+ if(group.userData.motionPlayback)return group.userData.motionPlayback;
+ const {bones,humanoid}=group.userData.motion,rest=bones.map(b=>b.position.clone()),alignment=bones.map(()=>new THREE.Quaternion());
+ group.updateMatrixWorld(true);
+ for(const [key,child] of Object.entries(next)){
+  const i=humanoid[key],j=humanoid[child];if(i===undefined||j===undefined)continue;
+  const sourceDir=new THREE.Vector3(...library.reference[child]).sub(new THREE.Vector3(...library.reference[key])).normalize();
+  const targetDir=bones[j].getWorldPosition(new THREE.Vector3()).sub(bones[i].getWorldPosition(new THREE.Vector3())).normalize();
+  a.setFromUnitVectors(sourceDir,targetDir);
+  const side=key.startsWith('left')?'left':'right';
+  for(const k of ['UpperArm','LowerArm','Hand'])if(humanoid[side+k]!==undefined)alignment[humanoid[side+k]].copy(a);
+ }
+ const byIndex=new Map(Object.entries(humanoid).map(([key,i])=>[i,key])),index=new Map(bones.map((b,i)=>[b,i]));
+ const depth=b=>b.parent?.isBone?1+depth(b.parent):0,order=bones.map((_,i)=>i).sort((i,j)=>depth(bones[i])-depth(bones[j]));
+ // Visible soles only; foot contact correction does not use donor mesh or alter body parameters.
+ const candidates=[];
+ group.traverse(m=>{if(!m.isSkinnedMesh)return;const p=m.geometry.attributes.position,used=[...new Set(m.geometry.index.array)];for(const i of used)if(p.getY(i)<.25&&Math.abs(p.getX(i))<.3)candidates.push({mesh:m,i,y:p.getY(i)});});
+ const floor=candidates.length?Math.min(...candidates.map(c=>c.y)):0;
+ const low=candidates.filter(c=>c.y<floor+.035),soles=[];
+ for(const side of [-1,1]){const part=low.filter(c=>Math.sign(c.mesh.geometry.attributes.position.getX(c.i))===side);const step=Math.max(1,Math.floor(part.length/96));for(let i=0;i<part.length;i+=step)soles.push(part[i]);}
+ const playback={rest,alignment,byIndex,index,order,soles,floor,baseY:group.position.y,hipsHeight:bones[humanoid.hips]?.getWorldPosition(v).y-group.position.y,world:bones.map(()=>new THREE.Quaternion()),mode:null,from:bones.map(b=>b.quaternion.clone()),fromHip:0,start:0};
+ group.userData.motionPlayback=playback;return playback;
+}
+export function updateCharacterMotion(group,time,mode='idle'){
+ if(!group?.userData.motion)return;
+ const p=setup(group),{bones,humanoid}=group.userData.motion,clip=library.clips[mode];
+ if(p.mode!==mode){p.from=bones.map(b=>b.quaternion.clone());p.fromHip=bones[humanoid.hips]?.position.y-p.rest[humanoid.hips]?.y||0;p.mode=mode;p.start=time;}
+ group.position.y=p.baseY;for(let i=0;i<bones.length;i++){bones[i].position.copy(p.rest[i]);bones[i].scale.set(1,1,1);}
+ if(!clip){proceduralMotion(group,time,mode);return;}
+ const phase=((time%clip.duration)+clip.duration)%clip.duration/clip.duration*(clip.frames-1),f=Math.floor(phase),g=Math.min(f+1,clip.frames-1),fraction=phase-f;
+ // World deltas from the author's T-pose, then compensate our baked relaxed arms.
+ // Reconstruct local rotations through the actual target hierarchy; body lengths stay editable.
+ for(const i of p.order){const key=p.byIndex.get(i),track=clip.rotations[key],parent=p.index.get(bones[i].parent);
+  parentQ.copy(parent===undefined?new THREE.Quaternion():p.world[parent]);
+  if(track){a.fromArray(track,f*4).normalize();b.fromArray(track,g*4).normalize();wanted.copy(a).slerp(b,fraction).multiply(q.copy(p.alignment[i]).invert());bones[i].quaternion.copy(parentQ).invert().multiply(wanted);}
+  else bones[i].quaternion.identity();
+  p.world[i].copy(parentQ).multiply(bones[i].quaternion);
+ }
+ const blend=THREE.MathUtils.smoothstep(time-p.start,0,.22),hipDelta=THREE.MathUtils.lerp(clip.hipY[f],clip.hipY[g],fraction)*p.hipsHeight;
+ for(let i=0;i<bones.length;i++){wanted.copy(bones[i].quaternion);bones[i].quaternion.copy(p.from[i]).slerp(wanted,blend);}
+ bones[humanoid.hips].position.y+=THREE.MathUtils.lerp(p.fromHip,hipDelta,blend);
+ group.updateMatrixWorld(true);group.userData.skeleton.update();
+ // Keep the lowest sampled visible sole on its neutral floor. This is height correction,
+ // not a full planted-foot IK solver; horizontal root motion is intentionally removed for preview.
+ let lowest=Infinity;for(const {mesh,i} of p.soles){v.fromBufferAttribute(mesh.geometry.attributes.position,i);mesh.applyBoneTransform(i,v);lowest=Math.min(lowest,v.y);}
+ if(Number.isFinite(lowest)){group.position.y=p.baseY+p.floor-lowest;group.updateMatrixWorld(true);group.userData.skeleton.update();}
+}

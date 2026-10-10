@@ -1,6 +1,6 @@
 import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=21';
 import {openHslPicker} from './colors.js?v=16';
-import {updateCharacterMotion} from './rig.js?v=16';
+import {updateCharacterMotion,motionPresets} from './motion.js?v=23';
 import {parameterDefaults,parameterRanges} from './parameters.js?v=21';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -145,14 +145,14 @@ async function buildCharacter(){
   }catch(error){if(request===buildRequest){console.error(error);toast('预设加载失败，可点击预览中的提示重试');presetLoading.textContent='预设加载失败，点击重试';presetLoading.classList.add('failed');presetLoading.onclick=()=>buildCharacter();stage.append(presetLoading);}}
   finally{clearTimeout(timer);if(request===buildRequest && succeeded)presetLoading.remove();}
 }
-let motionMode='idle',motionPlaying=true,motionTime=0,lastFrame=null;
+let motionMode='relaxed',motionPlaying=true,motionTime=0,motionSpeed=1,lastFrame=null;
 function setView(view){currentView=view;if(!camera||!orbit)return;
   if(view==='face'){const y=model?.userData.faceY||2.02;camera.position.set(0,y+.015,.95);orbit.target.set(0,y,.06);}
   else{const h=model?.userData.height||2.2,distance=Math.max(3.8,h/(2*Math.tan(camera.fov*Math.PI/360))*1.22);camera.position.set(directFaceEdit?0:.25,h*.54,distance);orbit.target.set(0,h*.52,0);}
   orbit.update();document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('selected',b.dataset.view===view));
 }
 
-try{scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(36,1,.05,100);renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;stage.append(renderer.domElement);orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.enablePan=false;orbit.minDistance=.65;orbit.maxDistance=7;orbit.maxPolarAngle=Math.PI*.52;scene.add(new THREE.HemisphereLight('#e4eeff','#4b4150',1.1));const key=new THREE.DirectionalLight('#ffe6c7',1.4);key.position.set(3,5,4);key.castShadow=true;key.shadow.mapSize.set(2048,2048);scene.add(key);const rim=new THREE.DirectionalLight('#a6c4ff',.6);rim.position.set(-3,3,-2);scene.add(rim);const floor=new THREE.Mesh(new THREE.CylinderGeometry(.8,.84,.08,64),material('#434b55'));floor.position.y=-.045;floor.receiveShadow=true;scene.add(floor);new ResizeObserver(()=>{const {width,height}=stage.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}).observe(stage);setView('full');renderer.setAnimationLoop(now=>{const dt=lastFrame===null?0:Math.min(.05,(now-lastFrame)/1000);lastFrame=now;if(motionPlaying)motionTime+=dt;updateCharacterMotion(model,motionTime,motionMode);orbit.update();renderer.render(scene,camera);updateFaceHandles();});}catch(error){console.error(error);$('#webgl-error').hidden=false;}
+try{scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(36,1,.05,100);renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;stage.append(renderer.domElement);orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.enablePan=false;orbit.minDistance=.65;orbit.maxDistance=7;orbit.maxPolarAngle=Math.PI*.52;scene.add(new THREE.HemisphereLight('#e4eeff','#4b4150',1.1));const key=new THREE.DirectionalLight('#ffe6c7',1.4);key.position.set(3,5,4);key.castShadow=true;key.shadow.mapSize.set(2048,2048);scene.add(key);const rim=new THREE.DirectionalLight('#a6c4ff',.6);rim.position.set(-3,3,-2);scene.add(rim);const floor=new THREE.Mesh(new THREE.CylinderGeometry(.8,.84,.08,64),material('#434b55'));floor.position.y=-.045;floor.receiveShadow=true;scene.add(floor);new ResizeObserver(()=>{const {width,height}=stage.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}).observe(stage);setView('full');renderer.setAnimationLoop(now=>{const dt=lastFrame===null?0:Math.min(.05,(now-lastFrame)/1000);lastFrame=now;if(motionPlaying)motionTime+=dt*motionSpeed;updateCharacterMotion(model,motionTime,motionMode);orbit.update();renderer.render(scene,camera);updateFaceHandles();});}catch(error){console.error(error);$('#webgl-error').hidden=false;}
 const storageKey='charabuilder.characters.v1';
 function readArchive(){const raw=JSON.parse(localStorage.getItem(storageKey)||'[]');if(!Array.isArray(raw))throw Error('档案格式错误');return raw;}
 function showArchive(){try{const rows=readArchive();$('#saved-list').replaceChildren();if(!rows.length)$('#saved-list').append(element('p',null,'还没有角色，点击「保存角色」创建档案。'));for(const row of rows){const div=element('div','save-row'),name=element('span',null,row.character.name);name.append(element('small',null,new Date(row.savedAt).toLocaleString()));const load=element('button',null,'载入'),del=element('button',null,'删除');load.onclick=()=>{state=normalize(row.character);faceBaseline={...state};bodyBaseline={...state};update();renderControls();setView(currentView);$('#archive').close();toast('角色已载入');};del.onclick=()=>{if(!confirm('删除这份角色档案？'))return;try{localStorage.setItem(storageKey,JSON.stringify(readArchive().filter(r=>r.id!==row.id)));showArchive();}catch{toast('无法更新档案');}};div.append(name,load,del);$('#saved-list').append(div);}if(!$('#archive').open)$('#archive').showModal();}catch{toast('无法读取浏览器档案，请检查浏览器存储设置');}}
@@ -167,5 +167,10 @@ const loading=element('div','model-loading','正在载入日漫角色…');stage
 try{await loadHumanAssets();humanReady=true;await buildCharacter();setView(currentView);loading.remove();}
 catch(error){console.error(error);loading.textContent='日漫模型加载失败，请刷新重试。'+error.message;loading.classList.add('failed');}
 
-function syncMotionControls(){document.querySelectorAll('[data-motion]').forEach(b=>{b.classList.toggle('selected',b.dataset.motion===motionMode);b.setAttribute('aria-pressed',String(b.dataset.motion===motionMode));});$('#motion-pause').textContent=motionPlaying?'暂停动作':'播放动作';$('#motion-pause').setAttribute('aria-pressed',String(!motionPlaying));}
-document.querySelectorAll('[data-motion]').forEach(b=>b.onclick=()=>{finishDirectEdit();motionMode=b.dataset.motion;motionTime=0;motionPlaying=true;syncMotionControls();setView('full');});$('#motion-pause').onclick=()=>{motionPlaying=!motionPlaying;syncMotionControls();};syncMotionControls();
+function syncMotionControls(){const select=$('#motion-select');if(select)select.value=motionMode;$('#motion-pause').textContent=motionPlaying?'暂停动作':'播放动作';$('#motion-pause').setAttribute('aria-pressed',String(!motionPlaying));$('#motion-source').textContent=motionPresets.some(p=>p.id===motionMode)?'CC0 动作 / Quaternius':'项目原有程序动作';}
+const motionSelect=$('#motion-select');
+for(const preset of [...motionPresets,{id:'idle',label:'轻微呼吸'},{id:'inspect',label:'查看身体'},{id:'rest',label:'静止编辑姿势'}]){const option=element('option',null,preset.label);option.value=preset.id;motionSelect.append(option);}
+motionSelect.onchange=()=>{finishDirectEdit();motionMode=motionSelect.value;motionTime=0;motionPlaying=true;syncMotionControls();setView('full');};
+$('#motion-speed').onchange=e=>{motionSpeed=Number(e.target.value);};
+$('#motion-pause').onclick=()=>{motionPlaying=!motionPlaying;syncMotionControls();};syncMotionControls();
+

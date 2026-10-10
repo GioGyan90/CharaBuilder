@@ -91,3 +91,12 @@ The byzmod3d and DEGUIDER heads retain their source topology. Runtime adaptation
 ### v18 anime face module (current runtime)
 
 The complete converted byzmod3d/DEGUIDER head meshes are no longer loaded for rendering. Their facial jaw proportions, excluding the neck, are sampled by `scripts/prepare-face-guides.py`, with attribution and input-data hashes preserved in `dist/face-guides.js`. The visible face topology, UV/painted detail, eyes, brows and rig remain the existing CC0 VRoid beta assets. `dist/face.js` supplies JS feature-region deformation and the reference-proportion blend; the source donor necks and realistic skulls are not used. 绫 and 隼 are this project's new preset names, not source author character names. The attribution and source license information above remain preserved for the reference measurements and stored intermediate source conversions.
+
+## v23 Quaternius authored animations
+
+Author: Quaternius. **Universal Animation Library Standard**, CC0-1.0.
+Original: https://quaternius.com/packs/universalanimationlibrary.html
+Downloaded glTF mirror: https://github.com/J-Ponzo/gltf-universal-animation-library
+License copy: `dist/assets/motion/LICENSE-Quaternius.txt`.
+
+Six source tracks are sampled at 30 Hz and normalized against the supplied A_TPose into `dist/assets/motion/quaternius.js`. No source meshes, materials or textures are distributed. Runtime adapts the authored rotations to the existing skeleton, preserves edited target bone lengths, scales vertical hip displacement, removes horizontal root drift for a stationary preview, blends initial clip entry, and applies sampled sole height correction. Finger channels are omitted. Source file checksums and exact track names are in `dist/assets/motion/provenance.json`; reproducible extraction is in `scripts/prepare-animations.py`. The existing procedural idle / inspect / rest actions retain their separate project-authored provenance.
