@@ -1,13 +1,15 @@
+import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
 import {bindCharacter} from './rig.js?v=28';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=31';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=32';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=16';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=32';
 import {createUnderwearData} from './underwear.js?v=16';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
 const assets = {};
+let stoneBrowMap=null;
 const root = new URL('./assets/anime/', import.meta.url);
 async function json(url) {
   const response = await fetch(url);
@@ -61,6 +63,7 @@ export async function loadHumanAssets({textures = true} = {}) {
   await Promise.all(['female','male'].map(id=>loadAsset(id,textures)));
 }
 export async function ensureHumanPresets(state, {textures = true} = {}) {
+  if(state.faceSource==='stone'&&textures&&!stoneBrowMap){stoneBrowMap=await new THREE.TextureLoader().loadAsync(new URL('stone-brow.png',root).href);stoneBrowMap.flipY=false;stoneBrowMap.colorSpace=THREE.SRGBColorSpace;}
   const ids=hairAssetIds(state);if(state.clothes!=='underwear')ids.push(...(state.gender==='female'?['long','uniform']:['uniform']));
   await Promise.all([...new Set(ids)].map(id=>loadAsset(id,textures)));
 }
@@ -73,7 +76,8 @@ function compose(state) {
     data.meshes.push({...source,groups:groups.map(g=>({...g,material:g.material+offset}))});
   }
   const face=base.meshes.find(m=>m.name==='Face');
-  const fitted=buildAnimeFace(base,state.gender,state.faceSource==='authored');
+  const fitted=buildAnimeFace(base,state.gender,state.faceSource==='stone'?'stone':state.faceSource==='authored');
+  if(state.faceSource==='stone'&&state.gender==='male'){fitted.maps=[...base.maps];for(let i=0;i<fitted.materials.length;i++)if(fitted.materials[i].name.includes('FaceBrow')){fitted.materials[i]={...fitted.materials[i],texture:'stone-brow.png'};fitted.maps[i]=stoneBrowMap;}}
   data.landmarks={...base.landmarks,...fitted.landmarks,bodyRig:bodyAnchors(base)};
   for(const mesh of fitted.meshes)add(fitted,mesh,mesh.groups);
   const body=base.meshes.find(m=>m.name==='Body');
@@ -121,6 +125,7 @@ export function createHuman(state) {
   const skinGroups=bodyBase.groups.filter(g=>base.materials[g.material].name.includes('_SKIN'));
   const top=Math.max(...skinGroups.flatMap(g=>g.indices.map(i=>bodyBase.positions[i*3+1])))/100000+.012;
   const scale = 2.22/top * (.92 + state.height*.0016);
+  const deform=createDeformer(state,data.landmarks,scale);
   const materials = data.materials.map((m,i) => {
     const name = m.name;
     const skin = name.includes('_SKIN'), hair = name.includes('_HAIR'), brow = name.includes('FaceBrow');
@@ -183,6 +188,11 @@ if(iris && material.map){
       material.customProgramCacheKey = () => name.startsWith('AnimeReference')?'parametric-anime-face-v18':'neutral-face-skin-v11';
       material.userData.faceSkinReference = reference;
     }
+    if(state.faceSource==='stone'&&state.gender==='male'&&skin&&name.includes('Face')){
+      const r=data.landmarks.faceRig,mouth=deform(...r.mouth,'Face:mouth'),chin=deform(r.headX,r.chin,r.nose[2],'Face:skin'),c=deform(...base.landmarks.head,'Body');
+      installStoneDetail(material,new THREE.Vector3(c[0],mouth[1],chin[1]),scale,c[2],deform(...r.eyes[0],'Face:eye0')[1]);
+    }
+    if(state.faceSource==='stone'&&state.gender==='male'&&hair){const r=data.landmarks.faceRig,c=deform(...base.landmarks.head,'Body');installStoneTemples(material,new THREE.Vector3(...c),deform(...r.eyes[0],'Face:eye0')[1],scale);}
     // A broad light band keeps the face soft, while painted iris/eyelash detail remains crisp.
     const gradient = new THREE.DataTexture(new Uint8Array(name.startsWith('AnimeReference')?[145,222,255]:[155,224,255]),3,1,THREE.RedFormat);
     gradient.minFilter=gradient.magFilter=THREE.NearestFilter;gradient.needsUpdate=true;
@@ -191,7 +201,6 @@ if(iris && material.map){
     if (overlay) {material.polygonOffset=true;material.polygonOffsetFactor=-1;material.polygonOffsetUnits=-1;}
     return material;
   });
-  const deform=createDeformer(state,data.landmarks,scale);
   let envelope=null,editedChin=Infinity;const envelopePoints=[],envelopeIndices=[];
   for (const source of data.meshes) {
     const p=new Float32Array(source.positions.length);
@@ -206,6 +215,10 @@ if(iris && material.map){
       const q=deform((source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,deformPart);
       p.set(q,i);
       normals.set(deformNormal(deform,(source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,...sourceNormals.slice(i,i+3).map(v=>v/32767),deformPart),i);
+    }
+    if(source.name==='Face'&&state.faceSource==='stone'){
+      const groups=source.groups.filter(g=>data.materials[g.material].name.includes('_SKIN')),smooth=smoothGarmentNormals(p,groups);
+      for(const id of new Set(groups.flatMap(g=>g.indices)))normals.set(smooth.subarray(id*3,id*3+3),id*3);
     }
     if(source.name==='Pants')normals.set(smoothGarmentNormals(p,source.groups));
     if(data.landmarks.faceRig){

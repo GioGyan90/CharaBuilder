@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 // Authored CC0 meshes: preserve polygons, locks, UVs and normals; only fit/split them.
 export const hairDefaults={frontHair:'straight',backHair:'bob',sideHair:'short',braid:'none',frontLength:50,backLength:50,sideLength:50,braidLength:50,hairVolume:50};
-export const hairChoices={frontHair:[['none','无前发'],['straight','齐刘海'],['parted','中分刘海'],['swept','层次斜刘海'],['soft','柔顺刘海'],['curtain','弧形刘海'],['sidepart','侧分短发 · 原模型'],['upcomb','上梳短发 · 原模型']],backHair:[['none','无后发'],['short','层次短发'],['bob','波波后发'],['long','直长后发'],['curled','卷曲后发'],['sidepart','侧分短后发'],['upcomb','上梳短后发']],sideHair:[['none','无侧发'],['short','波波侧发'],['layered','层次鬓发'],['long','长鬓发'],['curled','弧形侧发'],['sidepart','侧分短侧发'],['upcomb','上梳短侧发']],braid:[['none','无发辫'],['single','侧卷马尾'],['double','双马尾']]};
+export const hairChoices={frontHair:[['none','无前发'],['straight','齐刘海'],['parted','中分刘海'],['swept','层次斜刘海'],['soft','柔顺刘海'],['curtain','弧形刘海'],['sidepart','侧分短发 · 原模型'],['upcomb','上梳短发 · 原模型'],['layered06','分层短发 · culturalibre']],backHair:[['none','无后发'],['short','层次短发'],['bob','波波后发'],['long','直长后发'],['curled','卷曲后发'],['sidepart','侧分短后发'],['upcomb','上梳短后发'],['layered06','分层短后发']],sideHair:[['none','无侧发'],['short','波波侧发'],['layered','层次鬓发'],['long','长鬓发'],['curled','弧形侧发'],['sidepart','侧分短侧发'],['upcomb','上梳短侧发'],['layered06','分层短侧发']],braid:[['none','无发辫'],['single','侧卷马尾'],['double','双马尾']]};
 export const hairRanges={frontLength:['前发长度','短','长'],backLength:['后发长度','短','长'],sideLength:['侧发长度','短','长'],braidLength:['马尾长度','短','长'],hairVolume:['蓬松度','贴合','蓬松']};
 export const classicHairPresets=[
+ {label:'作者分层短发',gender:'male',reference:'https://www.makehumancommunity.org/node/2479',values:{frontHair:'layered06',backHair:'layered06',sideHair:'layered06',braid:'none'}},
  {label:'侧分短发',gender:'male',reference:'https://opengameart.org/content/side-parting-hairstyle-for-male-model',values:{frontHair:'sidepart',backHair:'sidepart',sideHair:'sidepart',braid:'none'}},
  {label:'上梳短发',gender:'male',reference:'https://opengameart.org/content/upcomb-hair-style-for-male-model',values:{frontHair:'upcomb',backHair:'upcomb',sideHair:'upcomb',braid:'none'}},
  {label:'经典波波',gender:'female',values:{frontHair:'straight',backHair:'bob',sideHair:'short',braid:'none'}},
@@ -13,14 +14,14 @@ export const classicHairPresets=[
  {label:'侧卷马尾',gender:'female',values:{frontHair:'curtain',backHair:'curled',sideHair:'curled',braid:'single'}}
 ];
 // Product selection policy, not a statement about who may wear a real hairstyle.
-export const genderHairValues={male:{frontHair:['none','swept','sidepart','upcomb'],backHair:['none','short','sidepart','upcomb'],sideHair:['none','layered','sidepart','upcomb'],braid:['none']},female:{frontHair:['none','straight','parted','swept','soft','curtain'],backHair:['none','short','bob','long','curled'],sideHair:['none','short','layered','long','curled'],braid:['none','single','double']}};
+export const genderHairValues={male:{frontHair:['none','swept','sidepart','upcomb','layered06'],backHair:['none','short','sidepart','upcomb','layered06'],sideHair:['none','layered','sidepart','upcomb','layered06'],braid:['none']},female:{frontHair:['none','straight','parted','swept','soft','curtain'],backHair:['none','short','bob','long','curled'],sideHair:['none','short','layered','long','curled'],braid:['none','single','double']}};
 export function hairOptionsFor(key,gender){const allowed=genderHairValues[gender]?.[key];return allowed?hairChoices[key].filter(([value])=>allowed.includes(value)):hairChoices[key];}
 export function filterHairForGender(input){const out={...input},gender=out.gender==='male'?'male':'female';const fallback=gender==='male'?{frontHair:'sidepart',backHair:'sidepart',sideHair:'sidepart',braid:'none'}:hairDefaults;
  for(const key of ['frontHair','backHair','sideHair','braid'])if(!hairOptionsFor(key,gender).some(([value])=>value===out[key]))out[key]=fallback[key];return out;}
 const skullCache=new WeakMap();
-const frontOwners={straight:'bob',parted:'female',swept:'uniform',soft:'long',curtain:'classic',sidepart:'sidepart',upcomb:'upcomb'};
-const backOwners={short:'uniform',bob:'bob',long:'long',curled:'classic',sidepart:'sidepart',upcomb:'upcomb'};
-const sideOwners={short:'bob',layered:'uniform',long:'long',curled:'classic',sidepart:'sidepart',upcomb:'upcomb'};
+const frontOwners={straight:'bob',parted:'female',swept:'uniform',soft:'long',curtain:'classic',sidepart:'sidepart',upcomb:'upcomb',layered06:'layered06'};
+const backOwners={short:'uniform',bob:'bob',long:'long',curled:'classic',sidepart:'sidepart',upcomb:'upcomb',layered06:'layered06'};
+const sideOwners={short:'bob',layered:'uniform',long:'long',curled:'classic',sidepart:'sidepart',upcomb:'upcomb',layered06:'layered06'};
 export function hairAssetIds(input){const state={...hairDefaults,...input};if(['frontHair','backHair','sideHair','braid'].every(k=>state[k]==='none'))return [];return [...new Set([state.gender==='male'?'uniform':'bob',frontOwners[state.frontHair],backOwners[state.backHair],sideOwners[state.sideHair],state.braid==='single'?'classic':state.braid==='double'?'female':null].filter(Boolean))];}
 function compact(source){
  const ids=[...new Set(source.groups.flatMap(g=>g.indices))].sort((a,b)=>a-b),index=new Map(ids.map((id,i)=>[id,i]));
@@ -85,7 +86,7 @@ function fit(owner,source,target,state,part){
  return {...source,name:part==='cap'?'HairScalp':part==='front'?'HairFront':part==='back'?'HairBack':part==='side'?'HairSide':'HairBraid',positions:p,normals,expressions:{}};
 }
 
-const authoredIds=new Set(['sidepart','upcomb']);
+const authoredIds=new Set(['sidepart','upcomb','layered06']);
 const authoredSectionsCache=new WeakMap();
 function authoredSections(owner){
  if(authoredSectionsCache.has(owner))return authoredSectionsCache.get(owner);
@@ -102,7 +103,17 @@ function fitAuthored(owner,source,target,state,part){
  const volume=1+((state.hairVolume??50)-50)*.0008;
  const sx=.0095*volume,sy=.0103,sz=.0093*volume;
  const positions=[],normals=[];
- for(let i=0;i<source.positions.length;i+=3){const x=source.positions[i]/100000,y=source.positions[i+1]/100000,z=source.positions[i+2]/100000;
+ for(let i=0;i<source.positions.length;i+=3){let x=source.positions[i]/100000,y=source.positions[i+1]/100000,z=source.positions[i+2]/100000;
+  let nx=source.normals[i],ny=source.normals[i+1],nz=source.normals[i+2];
+  // Stone's swept-up variation shortens the author's lower locks and tilts the
+  // frontal section, with a continuous seam field. No new locks are generated.
+  if(owner.materials[0].name.includes('Layered06')&&state.faceSource==='stone'){
+   if(y<22){y=22+(y-22)*.45;ny/=.45;}
+   const t=Math.max(0,Math.min(1,(z-3)/7)),angle=.95*t*t*(3-2*t);
+   const c=Math.cos(angle),s=Math.sin(angle),dy=y-22,dz=z-3;
+   y=22+c*dy+s*dz;z=3-s*dy+c*dz;
+   const q=ny;ny=c*q+s*nz;nz=-s*q+c*nz;
+  }
   // The whole authored mesh shares one deformation field across all three
   // sections. Length sliders must not tear a shared polygon seam apart.
   const clamp=v=>Math.max(0,Math.min(1,v)),ramp=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t);};
@@ -110,7 +121,7 @@ function fitAuthored(owner,source,target,state,part){
   const length=1+((front*((state.frontLength??50)-50)+back*((state.backLength??50)-50)+side*((state.sideLength??50)-50))/sum)*.0012;
   const down=y<24?24+(y-24)*length:y;
   positions.push(Math.round(x*sx*100000),Math.round((eye+(down-14)*sy)*100000),Math.round((cz+(z-3)*sz)*100000));
-  const n=new THREE.Vector3(source.normals[i]/sx,source.normals[i+1]/(sy*(y<24?length:1)),source.normals[i+2]/sz).normalize();normals.push(...n.toArray().map(v=>Math.round(v*32767)));
+  const n=new THREE.Vector3(nx/sx,ny/(sy*(y<24?length:1)),nz/sz).normalize();normals.push(...n.toArray().map(v=>Math.round(v*32767)));
  }
  return {...source,name:part==='front'?'HairFront':part==='back'?'HairBack':'HairSide',positions,normals,expressions:{}};
 }

@@ -1,0 +1,17 @@
+{
+  "parts": [
+    "layered06-0.b64",
+    "layered06-1.b64",
+    "layered06-2.b64"
+  ],
+  "bytes": 270495,
+  "author": "culturalibre",
+  "license": "CC0-1.0",
+  "source": "https://www.makehumancommunity.org/node/2479",
+  "licenseSource": "https://static.makehumancommunity.org/assets/assetpacks/hair01.html",
+  "downloadMirror": "https://github.com/beepobb/immersive-vr/blob/b761d0efa3f7fe487285c04fb01c6ff552586269/assets/Hair/culturalibre_hair_06.glb",
+  "sourceSha256": "547cb7b557827accc49d903704a39d142843de632f0beefb8186bc6936d6cd7a",
+  "sourceVertices": 10430,
+  "triangles": 14688,
+  "transform": "Affine head fit, authored polygons/UVs retained; tint-neutral texture; no generated locks."
+}

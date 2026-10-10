@@ -1,3 +1,4 @@
+import {muscleGuide} from './muscle-guide.js?v=32';
 // Regional edits stay on the existing CC0 body topology and its bone landmarks.
 export const bodyDefaults={muscleMass:50,trapezius:50,latWidth:50,deltoid:50,torsoLength:50,shoulderSlope:50,shoulderDepth:50,chestDepth:50,bustSize:50,bustHeight:50,backDepth:50,waistHeight:50,abdomen:50,hipDepth:50,hipHeight:50,armLength:50,upperArm:50,forearm:50,handSize:50,thigh:50,calf:50,ankle:50,footLength:50,footWidth:50,legSpace:50};
 export const bodyRanges={muscleMass:['肌肉量','少','多'],trapezius:['斜方肌体积','平','厚'],latWidth:['背阔肌宽度','窄','宽'],deltoid:['肩部肌肉','小','大'],torsoLength:['躯干长度','短','长'],shoulderSlope:['肩部倾斜','平肩','溜肩'],shoulderDepth:['肩部厚度','薄','厚'],chestDepth:['胸廓厚度','薄','厚'],bustSize:['胸部丰满度','平','丰满'],bustHeight:['胸部位置','低','高'],backDepth:['背部厚度','薄','厚'],waistHeight:['腰线位置','低','高'],abdomen:['腹部丰满度','平','丰满'],hipDepth:['臀部厚度','薄','厚'],hipHeight:['臀部位置','低','高'],armLength:['手臂长度','短','长'],upperArm:['上臂粗细','细','粗'],forearm:['前臂粗细','细','粗'],handSize:['手掌大小','小','大'],thigh:['大腿粗细','细','粗'],calf:['小腿粗细','细','粗'],ankle:['脚踝粗细','细','粗'],footLength:['脚掌长度','短','长'],footWidth:['脚掌宽度','窄','宽'],legSpace:['双腿间距','近','远']};
@@ -5,6 +6,12 @@ export const bodyAdjustmentKeys=['height','weight','shoulders','legs','headSize'
 const smooth=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
 const bell=(v,c,r)=>Math.exp(-(((v-c)/r)**2));
 const norm=v=>Math.max(-2,Math.min(2,((Number.isFinite(v)?v:50)-50)/50));
+export function authoredMuscleRatio(t,angle){
+ const g=muscleGuide,u=Math.max(0,Math.min(g.rows.length-1,(t-g.low)/(g.high-g.low)*(g.rows.length-1)));
+ const row=Math.min(g.rows.length-2,Math.floor(u)),f=u-row;
+ const a=((angle+Math.PI)/(2*Math.PI)*g.sectors%g.sectors+g.sectors)%g.sectors,j=Math.floor(a),k=(j+1)%g.sectors,w=a-j;
+ return (g.rows[row][j]*(1-w)+g.rows[row][k]*w)*(1-f)+(g.rows[row+1][j]*(1-w)+g.rows[row+1][k]*w)*f;
+}
 export function bodyAnchors(base){
  const l=base.landmarks,hip=l.hips[1],neck=l.neck[1],rig=base.rig;
  const bone=(name,fallback)=>rig?.bones[rig.humanoid[name]]?.position||fallback;
@@ -26,8 +33,9 @@ export function createBodyDeformer(state,l){
   const lat=bell(sy,neck-.27,.105)*smooth(.045,.10,ax)*axial*belowHead;
   const trap=bell(sy,neck-.082,.045)*bell(ax,.055,.065)*belowHead;
   const shoulderMuscle=bell(sy,a.shoulder[1]-.025,.065)*bell(ax,a.shoulder[0]+.014,.052)*belowHead;
-  x*=1+value.muscleMass*.10*upperTorso+value.latWidth*.22*lat;
-  z*=1+value.muscleMass*.18*upperTorso;
+  const t=(sy-hip)/(neck-hip),sculpt=(authoredMuscleRatio(t,Math.atan2(sz-l.hips[2],sx))-1)*value.muscleMass*.85*axial*belowHead*smooth(.01,.10,t);
+  x*=1+sculpt+value.latWidth*.16*lat;
+  z=l.hips[2]+(z-l.hips[2])*(1+sculpt);
   z-=value.latWidth*.014*lat*back+value.trapezius*.018*trap*back;
   y+=value.trapezius*.016*trap;
   x+=sign*value.deltoid*.010*shoulderMuscle;

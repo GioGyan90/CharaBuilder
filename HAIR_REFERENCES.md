@@ -34,3 +34,11 @@
 ## 原有模型
 
 原有波波、长发、层次短发和马尾继续从许可允许的旧版 CC0 VRoid 模型中提取已建好的发束。具体文件和许可见 [THIRD_PARTY.md](THIRD_PARTY.md)。新款服装也必须沿用上述现成 3D 模型来源规则。
+
+## v32 culturalibre 分层短发
+
+- 原作者：[culturalibre Hair06](https://www.makehumancommunity.org/node/2479)。官方 [Hair01 资产包清单](https://static.makehumancommunity.org/assets/assetpacks/hair01.html) 标明 CC0。
+- 源模型镜像：[固定提交的实际 GLB](https://github.com/beepobb/immersive-vr/blob/b761d0efa3f7fe487285c04fb01c6ff552586269/assets/Hair/culturalibre_hair_06.glb)，SHA-256 `547cb7b557827accc49d903704a39d142843de632f0beefb8186bc6936d6cd7a`。
+- 保留10430源顶点、14688源三角面、UV与作者发束；粉色底色转为中性灰纹理。`scripts/prepare-culturalibre-hair.py` 输出 `layered06-*` 压缩JSON顶点数据，浏览器不加载 GLB。源GLB转换后删除。
+- 新增男性“作者分层短发”组合与前/后/侧分区。原样组合保留作者刘海方向；Stone 的独立变体缩短下部发束并连续上梳前部，保持原拓扑，不能称作作者原样或参考肖像精准复刻。灰鬓由 Stone 的表面材质参数产生。
+- Cortu 的 short messy hair 也实际下载并检查过，但垂落方向不符合目标，没有接入，也没有拿照片生成替代发束。

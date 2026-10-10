@@ -1,7 +1,7 @@
-import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=31';
-export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=31';
-import {deformAnimeFace} from './face.js?v=31';
-export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=31';
+import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=32';
+export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=32';
+import {deformAnimeFace} from './face.js?v=32';
+export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=32';
 // Parameters deform the original topology; source vertices are never mutated.
 export const parameterDefaults = {
   ...bodyDefaults,
@@ -38,7 +38,7 @@ export function createDeformer(input,landmarks,scale) {
   const legDelta=(state.legs-50)*.0008;
   function deform(x,y,z,name) {
     if(name.startsWith('Face:iris')&&landmarks.faceRig){
-      const eye=landmarks.faceRig.eyes[Number(name.slice(-1))],c=deform(...eye,'Face:eye'+name.slice(-1)),uniform=(1+(state.headSize-50)*.002)*scale;
+      const eye=landmarks.faceRig.eyes[Number(name.slice(-1))],c=deform(...eye,'Face:eye'+name.slice(-1)),uniform=(1+(state.headSize-50)*.002)*scale*(landmarks.faceRig.preset.adult?.78:1);
       return [c[0]+(x-eye[0])*uniform,c[1]+(y-eye[1])*uniform,c[2]+(z-eye[2])*uniform];
     }
     const source=[x,y,z],oldY = y;
@@ -76,6 +76,12 @@ export function createDeformer(input,landmarks,scale) {
     const neckBand=gaussian(oldY,neck[1]-.025,.045)*(1-headWeight);
     x*=1+(state.neckWidth-50)*.002*neckBand;
     z*=1+(state.neckWidth-50)*.002*neckBand;
+    if(state.faceSource==='stone'&&state.gender==='male'){
+      // Long muscular neck, continuous with the upper back and lower head.
+      const adultNeck=gaussian(oldY,neck[1]-.016,.065)*(1-smooth(neck[1]+.010,neck[1]+.048,oldY))*(1-smooth(.07,.14,Math.abs(source[0])));
+      x*=1+.28*adultNeck;
+      z=neck[2]+(z-neck[2])*(1+.34*adultNeck);
+    }
     const central=gaussian(x,0,.20);
     const chest=gaussian(oldY,neck[1]-.22,.115)*central*(1-headWeight);
     const waist=gaussian(oldY,hip+.12,.10)*central*(1-headWeight);

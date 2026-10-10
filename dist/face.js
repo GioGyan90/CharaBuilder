@@ -2,10 +2,10 @@ import {faceGuides} from './face-guides.js?v=18';
 const smooth=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
 const bell=(x,c,r)=>Math.exp(-(((x-c)/r)**2));
 const bounded=v=>Math.max(-2,Math.min(2,((Number.isFinite(v)?v:50)-50)/50));
-const presets={female:{name:'绫 · 成女脸',eyeScale:1.02,jawMix:.38},male:{name:'隼 · 熟男脸',eyeScale:.90,jawMix:.42}};
+const presets={female:{name:'绫 · 成女脸',eyeScale:1.02,jawMix:.38},male:{name:'隼 · 熟男脸',eyeScale:.90,jawMix:.42},stone:{name:'Stone · 硬朗熟男脸',eyeScale:.90,jawMix:.55,adult:true}};
 function center(points){return [0,1,2].map(a=>(Math.min(...points.map(p=>p[a]))+Math.max(...points.map(p=>p[a])))*.5);}
 export function buildAnimeFace(base,gender,reference=true){
- const source=base.meshes.find(m=>m.name==='Face'),guide=faceGuides[gender],preset=reference?presets[gender]:{name:'原版日漫',eyeScale:1,jawMix:0};
+ const source=base.meshes.find(m=>m.name==='Face'),guide=faceGuides[gender],preset=reference==='stone'&&gender==='male'?presets.stone:reference?presets[gender]:{name:'原版日漫',eyeScale:1,jawMix:0};
  const points=source.positions.map(v=>v/100000),regions=Array(points.length/3).fill('Face:skin');
  const find=name=>source.groups.filter(g=>base.materials[g.material].name.includes(name));
  const groupPoints=groups=>[...new Set(groups.flatMap(g=>g.indices))].map(id=>points.slice(id*3,id*3+3));
@@ -84,6 +84,25 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  y-=(eyeY-source[1])*bounded(state.faceHeight)*.18*smooth(eyeY+.014,eyeY-.09,source[1])*front;
  const fw=bell(source[1],eyeY+.077,.056)*front;
  z+=bounded(state.forehead)*.010*fw;
+ if(preset.adult){
+  // Independent adult foundation, measured from DEGUIDER's authored jaw guide.
+  // Increase the lower facial height without moving eyes, scalp or neck geometry.
+  const h=eyeY-chin,lower=1-smooth(chin,eyeY,source[1]);
+  y-=.024*lower*front;
+  // A broad chin shelf replaces the adolescent central point. The continuous
+  // lift is strongest at the lowest front vertices, not at the jaw corners.
+  const shelf=(1-smooth(chin+.002,chin+.028,source[1]))*front;
+  y+=.011*shelf*(1-smooth(.021,.055,Math.abs(source[0]-headX)));
+  const lowerJaw=bell(source[1],chin+h*.30,.036)*front;
+  x=headX+(x-headX)*(1+.06*lowerJaw);
+  // Retain the source's nose bridge and lip plane instead of suppressing them
+  // with the youthful reference template's flattened relief.
+  z+=.006*nw+.002*mw;
+  if(region.startsWith('Face:brow')){
+   const b=rig.brows[Number(region.slice(-1))];
+   y+=(source[1]-b[1])*.15;
+  }
+ }
  if(source[1]<eyeY-.09)y=Math.max(rig.neckY+.022,y);
  return [x,y,z];
 }

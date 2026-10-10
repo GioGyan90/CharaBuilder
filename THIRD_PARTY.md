@@ -118,3 +118,11 @@ Sakurada Fumiriya CC0 trouser topology remains the source. Conforming midpoint s
 ### v28 leg ownership
 
 Knee adaptation and midpoint refinement now determine trouser-leg ownership from the original author skin influences, rather than vertex X coordinates. Inner-leg vertices crossing the midline retain their original leg. This corrects a v27 cross-leg deformation regression without removing faces or changing source garment shape.
+
+### v32 authored muscle and layered hair
+
+MakeHuman `universal-male-young-maxmuscle-averageweight.target` and matching average-muscle target are CC0 assets (explicit source headers and repository LICENSE.md). The runtime guide stores measured maximum/average cross-section ratios, not a copied head/neck or MakeHuman application code. `scripts/prepare-muscle-guide.py` reproduces the guide and records the maximum-muscle target SHA-256.
+
+culturalibre Hair06 is CC0 according to the official MakeHuman Hair01 inventory and original asset page https://www.makehumancommunity.org/node/2479 . The fixed public binary mirror, SHA-256, original10430 vertices /14688 triangles and conversion are recorded in `layered06-manifest.json`. All original triangles and UVs remain. The Stone variation adapts the existing locks; it is not a new original authored hairstyle. Original binary source files are not distributed or loaded at runtime.
+
+Stone brow coverage derives from the original CC0 VRoid beta male brow alpha; stubble, scar and grey temples are skinning-attached JS material details. The mature jaw still uses the previously credited DEGUIDER guide; no donor neck mesh is added.
