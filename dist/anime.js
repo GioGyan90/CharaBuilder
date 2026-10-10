@@ -1,4 +1,4 @@
-import {bindCharacter} from './rig.js?v=25';
+import {bindCharacter} from './rig.js?v=27';
 import * as THREE from 'three';
 import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=21';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
@@ -129,7 +129,7 @@ export function createHuman(state) {
     if (skin) color.set(state.skin).multiplyScalar(1.07);
     if (hair || brow) color.set(state.hairColor);
     if (iris) color.set(state.eyeColor||'#806449');
-    if (clothes) color.set(name.includes('Bottoms') || name.includes('Shoes') || name.includes('AccessoryNeck') ? state.pants : state.shirt);
+    if (clothes) color.set(name.includes('Shoes')?(state.shoeColor||state.pants):name.includes('Bottoms')||name.includes('AccessoryNeck')?state.pants:state.shirt);
     const overlay = /Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(name);
     const material = new THREE.MeshToonMaterial({
       color, map:clothes || (skin && name.includes('Body')) ? null : data.maps[i] || null,
@@ -137,7 +137,7 @@ export function createHuman(state) {
       alphaTest: m.blend ? .35 : 0,
       transparent: overlay, depthWrite: !overlay,
     });
-    material.userData.colorRole=skin?'skin':hair||brow?'hairColor':iris?'eyeColor':clothes?(name.includes('Bottoms')||name.includes('Shoes')||name.includes('AccessoryNeck')?'pants':'shirt'):null;
+    material.userData.colorRole=skin?'skin':hair||brow?'hairColor':iris?'eyeColor':clothes?(name.includes('Shoes')?'shoeColor':name.includes('Bottoms')||name.includes('AccessoryNeck')?'pants':'shirt'):null;
     if(hair && material.map){
       material.onBeforeCompile=shader=>{
         shader.uniforms.hairMapReference={value:material.map.userData.hairReference||.65};
@@ -286,7 +286,7 @@ export function disposeHuman(group) {
 export function applyHumanColors(group,state){
  if(!group)return;
  for(const material of group.userData.materials||[]){const role=material.userData.colorRole;if(!role)continue;
-  material.color.set(role==='shirtButton'?state.shirt:(state[role]||'#806449'));
+  material.color.set(role==='shirtButton'?state.shirt:(state[role]||(role==='shoeColor'?state.pants:'#806449')));
   if(role==='skin')material.color.multiplyScalar(1.07);
   if(role==='shirtButton')material.color.multiplyScalar(.73);
  }

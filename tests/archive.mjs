@@ -34,6 +34,9 @@ for(const gender of ['male','female'])for(const key of ['frontHair','backHair','
 for(const value of ['buzz','crew','flattop','crop'])for(const gender of ['male','female'])if(!hairOptionsFor('frontHair',gender).some(([v])=>v===normalizeState({gender,frontHair:value}).frontHair))throw Error('removed experimental style migration');
 console.log('PASS all modular hairstyle archive roundtrips, parameter bounds, legacy migration and gender switch');
 
-for(const key of ['skin','hairColor','eyeColor','shirt','pants'])for(const color of ['#14a3ef','#7A225D','#ffffff','#000000'])if(normalizeState({[key]:color})[key]!==color)throw Error('custom color archive '+key);
+for(const key of ['skin','hairColor','eyeColor','shirt','pants','shoeColor'])for(const color of ['#14a3ef','#7A225D','#ffffff','#000000'])if(normalizeState({[key]:color})[key]!==color)throw Error('custom color archive '+key);
 if(normalizeState({}).eyeColor!=='#806449')throw Error('legacy iris default');
-console.log('PASS all five custom color archive fields and legacy iris default');
+console.log('PASS all six custom color archive fields and legacy iris default');
+
+if(normalizeState({pants:'#14a3ef'}).shoeColor!=='#14a3ef')throw Error('legacy shoe color migration');
+const independent=normalizeState({pants:'#14a3ef',shoeColor:'#aabbcc'});if(independent.pants!=='#14a3ef'||independent.shoeColor!=='#aabbcc')throw Error('independent footwear color archive');

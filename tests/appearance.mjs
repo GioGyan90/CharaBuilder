@@ -8,7 +8,7 @@ const moduleURL=path=>pathToFileURL(path).href;
 const temp=await fs.mkdtemp(path.join(os.tmpdir(),'charabuilder-modular-'));
 let hair=await fs.readFile(base+'hair.js','utf8');hair=hair.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'hair.mjs'),hair);
 let rig=await fs.readFile(base+'rig.js','utf8');rig=rig.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'rig.mjs'),rig);
-let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./rig.js?v=25'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=21'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=16'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=16'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
+let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./rig.js?v=27'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=21'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=16'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=16'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
 global.fetch=async url=>{try{return new Response(await fs.readFile(new URL(url)),{status:200});}catch{return new Response('',{status:404});}};
 const {loadHumanAssets,ensureHumanPresets,createHuman,disposeHuman}=await import(moduleURL(path.join(temp,'model.mjs')));
 const {hairDefaults,hairChoices,hairRanges}=await import(moduleURL(path.join(temp,'hair.mjs')));
@@ -33,9 +33,16 @@ for(const gender of ['female','male']){
  const meshes=[];model.traverse(m=>{if(m.isMesh)meshes.push(m);});const eye=meshes.find(m=>m.name.includes('EyeIris'));
  if(eye.material.color.getHexString()!=='437fbc')throw Error('iris color');
  const skeleton=model.userData.skeleton,geometry=eye.geometry;updateCharacterMotion(model,3.5,'inspect');const pose=JSON.stringify(skeleton.bones.map(b=>b.quaternion.toArray()));
- const colors={skin:'#e2a576',hairColor:'#418688',eyeColor:'#af547c',shirt:'#bd392f',pants:'#ad41ae'};applyHumanColors(model,colors);
+ const colors={skin:'#e2a576',hairColor:'#418688',eyeColor:'#af547c',shirt:'#bd392f',pants:'#ad41ae',shoeColor:'#e0ded7'};applyHumanColors(model,colors);
  if(eye.geometry!==geometry||model.userData.skeleton!==skeleton||JSON.stringify(skeleton.bones.map(b=>b.quaternion.toArray()))!==pose)throw Error('color update rebuilt or reset pose');
  for(const [role,hex] of Object.entries(colors)){const m=model.userData.materials.find(m=>m.userData.colorRole===role);if(!m)throw Error('missing role '+role);const expected=new THREE.Color(hex);if(role==='skin')expected.multiplyScalar(1.07);if(!m.color.equals(expected))throw Error('color role '+role);}
+ // Each color can change while the other remains unchanged, with pose intact.
+ const shoes=meshes.find(m=>m.name.includes('Shoes')),bottom=meshes.find(m=>m.userData.part==='UnderwearBottom');
+ const shoeBefore=shoes.material.color.clone();applyHumanColors(model,{...colors,pants:'#22bb55'});
+ if(!shoes.material.color.equals(shoeBefore)||bottom.material.color.getHexString()!=='22bb55')throw Error('pants tint changed shoes');
+ applyHumanColors(model,{...colors,pants:'#22bb55',shoeColor:'#dd9922'});
+ if(bottom.material.color.getHexString()!=='22bb55'||shoes.material.color.getHexString()!=='dd9922')throw Error('shoe tint changed pants');
+ if(JSON.stringify(skeleton.bones.map(b=>b.quaternion.toArray()))!==pose)throw Error('separate tint reset pose');
  if(gender==='female'){
   const top=meshes.find(m=>m.userData.part==='UnderwearTop');if(!top)throw Error('missing strapless top');
   // Inverse scale of the default rig: highest top edge must sit below the old strap region.
@@ -45,4 +52,4 @@ for(const gender of ['female','male']){
  }
  disposeHuman(model);
 }
-console.log('PASS strapless garment, five live color material roles, and unchanged geometry/skeleton/paused pose');
+console.log('PASS strapless garment, six live color material roles, and unchanged geometry/skeleton/paused pose');

@@ -1,4 +1,33 @@
 import * as THREE from 'three';
+// Conforming midpoint splits: retain the author's rest surface/UVs and add
+// samples only around the bending knees. Neighbouring triangles share splits.
+function refinePantsKnees(geometry,attrs,points,humanoid){
+ const p=Array.from(geometry.attributes.position.array),n=Array.from(geometry.attributes.normal.array),uv=Array.from(geometry.attributes.uv.array),j=Array.from(attrs[0].array),w=Array.from(attrs[1].array);
+ let index=Array.from(geometry.index.array);
+ const near=(a,b)=>{const x=(p[a*3]+p[b*3])*.5,y=(p[a*3+1]+p[b*3+1])*.5,side=x>=0?'left':'right',knee=points[humanoid[side+'LowerLeg']],upper=points[humanoid[side+'UpperLeg']],foot=points[humanoid[side+'Foot']];return Math.abs(y-knee.y)<Math.min(knee.distanceTo(upper),knee.distanceTo(foot))*.40;};
+ const key=(a,b)=>a<b?`${a}:${b}`:`${b}:${a}`;
+ function midpoint(a,b){const id=p.length/3;
+  for(let k=0;k<3;k++){p.push((p[a*3+k]+p[b*3+k])*.5);n.push((n[a*3+k]+n[b*3+k])*.5);}const length=Math.hypot(...n.slice(id*3,id*3+3))||1;for(let k=0;k<3;k++)n[id*3+k]/=length;
+  for(let k=0;k<2;k++)uv.push((uv[a*2+k]+uv[b*2+k])*.5);
+  const weights=new Map();for(const v of [a,b])for(let k=0;k<4;k++)weights.set(j[v*4+k],(weights.get(j[v*4+k])||0)+w[v*4+k]*.5);
+  const top=[...weights].sort((a,b)=>b[1]-a[1]).slice(0,4),sum=top.reduce((s,v)=>s+v[1],0)||1;for(let k=0;k<4;k++){j.push(top[k]?.[0]||0);w.push((top[k]?.[1]||0)/sum);}return id;
+ }
+ for(let pass=0;pass<2;pass++){
+  const edges=new Map();for(let t=0;t<index.length;t+=3){const [a,b,c]=index.slice(t,t+3);for(const [x,y] of [[a,b],[b,c],[c,a]])if(near(x,y)){const k=key(x,y);if(!edges.has(k))edges.set(k,midpoint(x,y));}}
+  const next=[];for(let t=0;t<index.length;t+=3){const [a,b,c]=index.slice(t,t+3),ab=edges.get(key(a,b)),bc=edges.get(key(b,c)),ca=edges.get(key(c,a)),mask=(ab!==undefined?1:0)+(bc!==undefined?2:0)+(ca!==undefined?4:0);
+   if(mask===0)next.push(a,b,c);
+   else if(mask===1)next.push(a,ab,c,ab,b,c);
+   else if(mask===2)next.push(b,bc,a,bc,c,a);
+   else if(mask===4)next.push(c,ca,b,ca,a,b);
+   else if(mask===3)next.push(b,bc,ab,a,ab,c,ab,bc,c);
+   else if(mask===6)next.push(c,ca,bc,b,bc,a,bc,ca,a);
+   else if(mask===5)next.push(a,ab,ca,c,ca,b,ca,ab,b);
+   else next.push(a,ab,ca,ab,b,bc,ca,bc,c,ab,bc,ca);
+  }index=next;
+ }
+ geometry.setAttribute('position',new THREE.Float32BufferAttribute(p,3));geometry.setAttribute('normal',new THREE.Float32BufferAttribute(n,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geometry.setIndex(index);
+ return [new THREE.Uint16BufferAttribute(j,4),new THREE.Float32BufferAttribute(w,4)];
+}
 // Original CC0 beta body weights; fitted garments inherit weights from nearby skin.
 export function bindCharacter(group,base,deform){
  const rig=base.rig,bones=rig.bones.map(b=>{const o=new THREE.Bone();o.name=b.name;return o;});
@@ -39,6 +68,19 @@ export function bindCharacter(group,base,deform){
     const total=weights.slice(i*4,i*4+4).reduce((a,b)=>a+b,0);for(let a=0;a<4;a++)weights[i*4+a]/=total||1;
    }
    attrs=[new THREE.Uint16BufferAttribute(indices,4),new THREE.Float32BufferAttribute(weights,4)];cache.set(source||mesh,attrs);
+  }
+  if(part==='Pants'){
+   attrs=refinePantsKnees(geometry,attrs,points,rig.humanoid);
+   // The donor's body-fitted weights vary sharply around a knee ring. Loose
+   // trousers need a continuous thigh/shin transition around the whole tube.
+   const p=geometry.attributes.position,indices=attrs[0].array,weights=attrs[1].array;
+   for(const i of new Set(geometry.index.array)){
+    const side=p.getX(i)>=0?'left':'right',upper=rig.humanoid[side+'UpperLeg'],lower=rig.humanoid[side+'LowerLeg'],foot=rig.humanoid[side+'Foot'];
+    const knee=points[lower].y,band=Math.min(points[upper].distanceTo(points[lower]),points[lower].distanceTo(points[foot]))*.28;
+    if(Math.abs(p.getY(i)-knee)>=band)continue;
+    const t=THREE.MathUtils.smoothstep(p.getY(i),knee-band,knee+band);
+    indices.set([upper,lower,0,0],i*4);weights.set([t,1-t,0,0],i*4);
+   }
   }
   geometry.setAttribute('skinIndex',attrs[0]);geometry.setAttribute('skinWeight',attrs[1]);
   const skinned=new THREE.SkinnedMesh(geometry,mesh.material);skinned.name=mesh.name;skinned.userData=mesh.userData;delete skinned.userData.rigSource;delete skinned.userData.rigPoints;

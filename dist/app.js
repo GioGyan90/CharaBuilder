@@ -1,19 +1,19 @@
 import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=21';
 import {openHslPicker} from './colors.js?v=16';
-import {updateCharacterMotion,motionPresets} from './motion.js?v=26';
+import {updateCharacterMotion,motionPresets} from './motion.js?v=27';
 import {parameterDefaults,parameterRanges} from './parameters.js?v=21';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=25';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=27';
 
 import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=16';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
 const $ = s => document.querySelector(s);
-const defaults = {...parameterDefaults,...hairDefaults,...wardrobeDefaults,faceSource:'vroid',name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jaw:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',shoes:'shoes',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',eyeColor:'#806449',shirt:'#778f87',pants:'#343b50'};
+const defaults = {...parameterDefaults,...hairDefaults,...wardrobeDefaults,faceSource:'vroid',name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jaw:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',shoes:'shoes',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',eyeColor:'#806449',shirt:'#778f87',pants:'#343b50',shoeColor:'#343b50'};
 const choices = {faceSource:[['vroid','原版日漫'],['authored','参考日漫']],gender:[['female','女性'],['male','男性']],...hairChoices,hair:[['modular','分区发型']],clothes:[['shirtPants','衬衫 · 长裤'],['underwear','贴身内衣']],shoes:[['shoes','穿鞋'],['barefoot','光脚']],expression:[['neutral','自然'],['fun','微笑'],['joy','开心'],['angry','认真'],['sorrow','忧伤'],['blink','闭眼']]};
-const palettes = {eyeColor:['#806449','#427b99','#538368','#a67845','#8773a1','#8f454a'],skin:['#f1cbb2','#d6a17e','#b87c55','#86543c','#51372c'],hairColor:['#201d20','#332821','#815137','#c5a15e','#b7b9c4','#854d67'],shirt:['#778f87','#d7c8b0','#a24d54','#537892','#373c49','#bca0c2'],pants:['#343b50','#292c31','#a09380','#655850']};
+const palettes = {eyeColor:['#806449','#427b99','#538368','#a67845','#8773a1','#8f454a'],skin:['#f1cbb2','#d6a17e','#b87c55','#86543c','#51372c'],hairColor:['#201d20','#332821','#815137','#c5a15e','#b7b9c4','#854d67'],shirt:['#778f87','#d7c8b0','#a24d54','#537892','#373c49','#bca0c2'],pants:['#343b50','#292c31','#a09380','#655850'],shoeColor:['#292c31','#343b50','#655850','#a09380','#e0ded7']};
 const ranges = {...parameterRanges,...hairRanges,...wardrobeRanges,height:['身高','较矮','较高'],weight:['体型','纤细','丰满'],shoulders:['肩宽','窄','宽'],legs:['腿长比例','短','长'],faceWidth:['脸部宽度','窄','宽'],jaw:['下颌轮廓','收窄','方正'],eyeSize:['眼睛大小','小','大'],eyeSpace:['眼间距','近','远'],nose:['鼻子大小','小','大'],mouth:['嘴部宽度','窄','宽']};
-const tabs = {body:['01 / FOUNDATION','创造独一无二的你','保留日漫基础结构，用参数调整身体比例。',['name','gender','height','weight','shoulders','legs','headSize','neckWidth','chest','waist','hips','legThickness','torsoLength','shoulderSlope','shoulderDepth','chestDepth','bustSize','bustHeight','backDepth','waistHeight','abdomen','hipDepth','hipHeight','armLength','upperArm','forearm','handSize','thigh','calf','ankle','footLength','footWidth','legSpace','skin']],face:['02 / FEATURES','每一面，都有个性','眼形与瞳孔分开处理，瞳孔保留原始比例。',['faceWidth','faceHeight','jaw','cheek','chinWidth','chinLength','forehead','eyeSize','eyeWidth','eyeHeight','eyeSpace','eyeVertical','eyeTilt','browHeight','browAngle','nose','noseWidth','noseHeight','noseProjection','mouth','mouthHeight','mouthThickness','mouthProjection','mouthCorner','expression','eyeColor']],hair:['03 / HAIRSTYLE','从头开始的风格','从经典发型出发，分别调整前发、后发、侧发和马尾。',['frontHair','frontLength','backHair','backLength','sideHair','sideLength','braid','braidLength','hairVolume','hairColor']],clothes:['04 / WARDROBE','穿出你的日常','选择衬衫长裤或贴身内衣，可独立切换鞋履。',['clothes','shoes','shirtLength','sleeveLength','shirtEase','pantsWidth','shirt','pants']]};
+const tabs = {body:['01 / FOUNDATION','创造独一无二的你','保留日漫基础结构，用参数调整身体比例。',['name','gender','height','weight','shoulders','legs','headSize','neckWidth','chest','waist','hips','legThickness','torsoLength','shoulderSlope','shoulderDepth','chestDepth','bustSize','bustHeight','backDepth','waistHeight','abdomen','hipDepth','hipHeight','armLength','upperArm','forearm','handSize','thigh','calf','ankle','footLength','footWidth','legSpace','skin']],face:['02 / FEATURES','每一面，都有个性','眼形与瞳孔分开处理，瞳孔保留原始比例。',['faceWidth','faceHeight','jaw','cheek','chinWidth','chinLength','forehead','eyeSize','eyeWidth','eyeHeight','eyeSpace','eyeVertical','eyeTilt','browHeight','browAngle','nose','noseWidth','noseHeight','noseProjection','mouth','mouthHeight','mouthThickness','mouthProjection','mouthCorner','expression','eyeColor']],hair:['03 / HAIRSTYLE','从头开始的风格','从经典发型出发，分别调整前发、后发、侧发和马尾。',['frontHair','frontLength','backHair','backLength','sideHair','sideLength','braid','braidLength','hairVolume','hairColor']],clothes:['04 / WARDROBE','穿出你的日常','选择衬衫长裤或贴身内衣，可独立切换鞋履。',['clothes','shoes','shirtLength','sleeveLength','shirtEase','pantsWidth','shirt','pants','shoeColor']]};
 const bounds=key=>(tabs.face[3].includes(key)||tabs.body[3].includes(key))&&ranges[key]?[-50,150]:[0,100];
 const faceNeutral=Object.fromEntries(tabs.face[3].filter(k=>ranges[k]).map(k=>[k,50]));
 const facePresets=[
@@ -23,7 +23,7 @@ const facePresets=[
   {label:'清爽青年',values:{faceSource:'vroid',faceWidth:42,jaw:38,eyeSize:73,eyeSpace:50,nose:27,mouth:36}},
   {label:'原版日漫',values:{faceSource:'vroid',faceWidth:50,jaw:50,eyeSize:50,eyeSpace:50,nose:50,mouth:50,forehead:50,chinLength:50,noseProjection:50,mouthHeight:50}}
 ];
-const labels={frontHair:'前发',backHair:'后发',sideHair:'侧发',braid:'发辫 / 马尾',expression:'表情',gender:'性别',hair:'发型',clothes:'服饰',shoes:'鞋履',skin:'肤色',eyeColor:'瞳孔颜色',hairColor:'发色',shirt:'上装颜色',pants:'下装 / 鞋履颜色'};
+const labels={frontHair:'前发',backHair:'后发',sideHair:'侧发',braid:'发辫 / 马尾',expression:'表情',gender:'性别',hair:'发型',clothes:'服饰',shoes:'鞋履',skin:'肤色',eyeColor:'瞳孔颜色',hairColor:'发色',shirt:'上装颜色',pants:'下装颜色',shoeColor:'鞋履颜色'};
 let state={...defaults}, activeTab='body', currentView='full', model, renderer, scene, camera, orbit;
 const stage=$('#stage');
 let humanReady=false,buildRequest=0;
@@ -41,6 +41,7 @@ function normalize(value){
   else if(choices[key]&&choices[key].some(c=>c[0]===v))out[key]=v;
   else if(palettes[key]&&typeof v==='string'&&/^#[0-9a-f]{6}$/i.test(v))out[key]=v;
  }
+ if(!Object.hasOwn(value,'shoeColor'))out.shoeColor=out.pants;
  // Old complete hairstyles migrate to editable sections; clothing becomes shirt + pants.
  if(!Object.hasOwn(value,'frontHair')){
   if(value.hair==='bald')Object.assign(out,{frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});

@@ -110,3 +110,7 @@ Posed trouser normals are recomputed from the actual skinned triangles each fram
 ### v26 finger tracks
 
 The same CC0 Quaternius Standard source now supplies all 30 finger-joint tracks, alongside the existing wrist/body/two aggregate toe tracks. Interact and PickUp_Table are additional authored one-shot clips. Digit reference frames use the source T-pose and target bone directions/palm normals; no replacement model or invented finger animation curves are shipped. Original source hashes and the 52 mapped humanoid bone names are recorded in motion/provenance.json.
+
+### v27 trouser knee adaptation
+
+Sakurada Fumiriya CC0 trouser topology remains the source. Conforming midpoint subdivision is limited to the knee region and preserves its original flat rest surface and UV interpolation. Thigh/shin influences inside a joint-scaled knee band are adapted to a continuous circumferential blend; original author weights outside this band are retained. The runtime continues to recalculate posed garment normals. No additional donor model is included.
