@@ -8,13 +8,13 @@ const moduleURL=path=>pathToFileURL(path).href;
 const temp=await fs.mkdtemp(path.join(os.tmpdir(),'charabuilder-modular-'));
 let hair=await fs.readFile(base+'hair.js','utf8');hair=hair.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'hair.mjs'),hair);
 let rig=await fs.readFile(base+'rig.js','utf8');rig=rig.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'rig.mjs'),rig);
-let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./rig.js?v=28'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=21'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=16'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=16'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
+let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./rig.js?v=28'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=29'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=16'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=16'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
 const requested=[];global.fetch=async url=>{requested.push(String(url));try{return new Response(await fs.readFile(new URL(url)),{status:200});}catch{return new Response('',{status:404});}};
 const {loadHumanAssets,ensureHumanPresets,createHuman,disposeHuman}=await import(moduleURL(path.join(temp,'model.mjs')));
 const {hairDefaults,hairChoices,hairRanges}=await import(moduleURL(path.join(temp,'hair.mjs')));
 const {wardrobeDefaults}=await import(moduleURL(base+'wardrobe.js'));const {parameterDefaults,faceAdjustmentKeys}=await import(moduleURL(base+'parameters.js'));
 await loadHumanAssets({textures:false});
-const defaults={...parameterDefaults,...wardrobeDefaults,...hairDefaults,gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jaw:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',shirt:'#d7c8b0',pants:'#343b50'};
+const defaults={...parameterDefaults,...wardrobeDefaults,...hairDefaults,gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jawWidth:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',shirt:'#d7c8b0',pants:'#343b50'};
 import {gunzipSync} from 'node:zlib';
 const skinIds={};
 
@@ -39,7 +39,7 @@ for(const gender of ['female','male']){
   const face=meshes.find(m=>m.name.startsWith('AnimeReferenceFace'));
   if(!face.material.gradientMap.image.data.every((v,i)=>v===[145,222,255][i]))throw Error('authored toon bands missing');
   if(extreme===50){
-   const reference=createHuman({...state,faceSource:'vroid',jaw:50});
+   const reference=createHuman({...state,faceSource:'vroid',jawWidth:50});
    const old=[];reference.traverse(m=>{if(m.isMesh&&m.name.includes('Face_00_SKIN'))old.push(m);});
    const maxY=m=>Math.max(...Array.from(m.geometry.index.array,id=>m.geometry.attributes.position.getY(id)));
    if(Math.abs(maxY(face)-maxY(old[0]))>.006)throw Error('head top not aligned to original hairstyle envelope');
@@ -58,7 +58,7 @@ for(const gender of ['female','male']){
 }
 function collect(model,needle){let m;model.traverse(o=>{if(o.isMesh&&o.name.includes(needle))m=o;});return m;}
 for(const gender of ['female','male']){
- const state={...defaults,gender,faceSource:'authored',frontHair:'none',backHair:'none',sideHair:'none',braid:'none',clothes:'underwear',jaw:50,expression:'neutral'};
+ const state={...defaults,gender,faceSource:'authored',frontHair:'none',backHair:'none',sideHair:'none',braid:'none',clothes:'underwear',jawWidth:50,expression:'neutral'};
  await ensureHumanPresets(state,{textures:false});
  for(const faceSource of ['authored','vroid'])for(const key of faceAdjustmentKeys){
   const models=[0,100].map(value=>createHuman({...state,faceSource,[key]:value}));
@@ -77,7 +77,7 @@ for(const gender of ['female','male']){
 console.log('PASS named JS anime faces, actual visible parameter displacement, original body neck/skull, outline rig, extremes, motion and colors');
 for(const gender of ['female','male'])for(const extreme of [-50,50,150]){
  const style=gender==='male'?{frontHair:'sidepart',backHair:'sidepart',sideHair:'sidepart',braid:'none'}:{frontHair:'parted',backHair:'short',sideHair:'short',braid:'none'};
- const state={...defaults,...style,gender,faceSource:'authored',clothes:'underwear',jaw:extreme,faceWidth:extreme,headSize:Math.max(0,Math.min(100,extreme)),hairVolume:Math.max(0,Math.min(100,extreme)),forehead:extreme,chinLength:extreme,noseProjection:extreme};
+ const state={...defaults,...style,gender,faceSource:'authored',clothes:'underwear',jawWidth:extreme,faceWidth:extreme,headSize:Math.max(0,Math.min(100,extreme)),hairVolume:Math.max(0,Math.min(100,extreme)),forehead:extreme,chinLength:extreme,noseProjection:extreme};
  await ensureHumanPresets(state,{textures:false});const model=createHuman(state),skin=[],hair=[];
  model.traverse(o=>{if(!o.isMesh)return;if(o.name.includes('_SKIN')){const m=new THREE.Mesh(o.geometry,new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));m.updateMatrixWorld();skin.push(m);}if(o.userData.part?.startsWith('Hair'))hair.push(o);});
  // Ray/triangle intersections check actual edited skin, not the clearance bins.
@@ -97,7 +97,7 @@ console.log('PASS runtime excludes downloaded head/neck assets');
 for(const gender of ['female','male'])for(const faceSource of ['authored','vroid']){
  const state={...defaults,gender,faceSource,frontHair:'none',backHair:'none',sideHair:'none',braid:'none',clothes:'underwear',expression:'neutral'};
  await ensureHumanPresets(state,{textures:false});const neutral=createHuman(state);
- for(const key of ['eyeSize','eyeWidth','eyeHeight','eyeSpace','eyeVertical','eyeTilt','faceWidth','faceHeight','jaw','noseProjection','browHeight'])for(const value of [-50,150]){
+ for(const key of ['eyeSize','eyeWidth','eyeHeight','eyeSpace','eyeVertical','eyeTilt','faceWidth','faceHeight','jawWidth','jawDepth','jawHeight','jawAngle','cheekboneWidth','cheekboneHeight','cheekboneDepth','chinProjection','noseProjection','browHeight'])for(const value of [-50,150]){
   const model=createHuman({...state,[key]:value});
   for(const needle of ['EyeIris','EyeHighlight']){const a=collect(neutral,needle),b=collect(model,needle),ids=[...new Set(a.geometry.index.array)];
    for(const sign of [-1,1]){const same=ids.filter(i=>Math.sign(a.geometry.attributes.position.getX(i))===sign),first=same[0],offset=[0,1,2].map(k=>b.geometry.attributes.position.array[first*3+k]-a.geometry.attributes.position.array[first*3+k]);

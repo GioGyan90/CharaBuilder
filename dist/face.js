@@ -30,7 +30,25 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
   const u=Math.max(0,Math.min(4,(t-.18)/.1925)),i=Math.min(3,Math.floor(u));const ratio=guide.jawRatios[i]*(1-(u-i))+guide.jawRatios[i+1]*(u-i);
   const shape=(Math.max(.84,Math.min(1.36,ratio))-1)*preset.jawMix;
   const jawWeight=bell(y,chin+(eyeY-chin)*.42,.055)*front;
-  x=headX+(x-headX)*(1+shape*jawWeight+bounded(state.jaw)*.24*jawWeight);
+  x=headX+(x-headX)*(1+shape*jawWeight+bounded(state.jawWidth)*.24*jawWeight);
+ }
+ // Independent skeletal silhouette controls, evaluated in the unedited face frame.
+ // MakeHuman separates cheek bones/volume/vertical position and chin prominence/
+ // width/height/angularity. Adapt those regions to the authored anime topology.
+ if(region==='Face:skin'){
+  const height=eyeY-chin,side=smooth(.012,.045,Math.abs(source[0]-headX));
+  const jawBand=bell(source[1],chin+height*.42,.038)*front*side;
+  z+=bounded(state.jawDepth)*.016*jawBand;
+  y+=bounded(state.jawHeight)*.003*jawBand;
+  // Move the jaw corner outward/downward, tapering to zero at eyes and chin.
+  x+=(source[0]-headX)*bounded(state.jawAngle)*.15*jawBand;
+  y-=bounded(state.jawAngle)*.001*jawBand;
+  const cheekBand=bell(source[1],eyeY-.030,.023)*front*side;
+  x+=(source[0]-headX)*bounded(state.cheekboneWidth)*.18*cheekBand;
+  y+=bounded(state.cheekboneHeight)*.003*cheekBand;
+  z+=bounded(state.cheekboneDepth)*.013*cheekBand;
+  const chinBand=bell(source[0],headX,.028)*bell(source[1],chin+.012,.022)*front;
+  z+=bounded(state.chinProjection)*.016*chinBand;
  }
  const eyeId=/^Face:(?:eye|brow)[01]$/.test(region)?Number(region.slice(-1)):null;
  const moveEye=(eye,i,weight)=>{

@@ -1,6 +1,6 @@
 import {bindCharacter} from './rig.js?v=28';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=21';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=29';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
 import {referenceHairMeshes,hairAssetIds} from './hair.js?v=16';
 import {createUnderwearData} from './underwear.js?v=16';
@@ -262,7 +262,7 @@ if(iris && material.map){
    {group:'brows',side:1,position:deform(...rig.brows[1],'Face:brow1')},
    {group:'nose',side:1,position:deform(...rig.nose,'Face:skin')},
    {group:'mouth',side:1,position:deform(...rig.mouth,'Face:mouth')},
-   {group:'contour',side:1,position:deform(rig.headX,rig.chin,rig.mouth[2],'Face:skin')}
+   {group:'jaw',side:1,position:deform(rig.headX,rig.chin,rig.mouth[2],'Face:skin')}
   ];
   group.userData.bodyHandles=bodyHandlePoints(base).map(h=>({...h,position:deform(...h.position,'Body')}));
   bindCharacter(group,base,deform);

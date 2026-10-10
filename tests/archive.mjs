@@ -15,10 +15,10 @@ for(const gender of ['male','female'])for(const [frontHair] of hairOptionsFor('f
  if(actual.clothes!=='shirtPants')throw Error('clothes');
 }
 for(const key of Object.keys({...parameterDefaults,...wardrobeDefaults,...hairRanges})){
- if(normalizeState({})[key]!==50)throw Error('default '+key);
+ if(normalizeState({})[key]!==(key==='jawWidth'?45:50))throw Error('default '+key);
  if(normalizeState({[key]:999})[key]!==((faceAdjustmentKeys.includes(key)||bodyAdjustmentKeys.includes(key))?150:100))throw Error('upper bound');
  if(normalizeState({[key]:-999})[key]!==((faceAdjustmentKeys.includes(key)||bodyAdjustmentKeys.includes(key))?-50:0))throw Error('lower bound');
- if(normalizeState({[key]:NaN})[key]!==50)throw Error('finite guard');
+ if(normalizeState({[key]:NaN})[key]!==(key==='jawWidth'?45:50))throw Error('finite guard');
 }
 for(const gender of ['female','male'])for(const clothes of ['shirtPants','underwear'])for(const shoes of ['shoes','barefoot']){
  const actual=normalizeState(JSON.parse(JSON.stringify({gender,clothes,shoes})));
@@ -40,3 +40,12 @@ console.log('PASS all six custom color archive fields and legacy iris default');
 
 if(normalizeState({pants:'#14a3ef'}).shoeColor!=='#14a3ef')throw Error('legacy shoe color migration');
 const independent=normalizeState({pants:'#14a3ef',shoeColor:'#aabbcc'});if(independent.pants!=='#14a3ef'||independent.shoeColor!=='#aabbcc')throw Error('independent footwear color archive');
+
+for(const jaw of [-50,22,45,50,150]){
+ const old=normalizeState({jaw});if(old.jawWidth!==jaw||Object.hasOwn(old,'jaw'))throw Error('legacy jaw migration');
+ for(const key of ['jawDepth','jawHeight','jawAngle','cheekboneWidth','cheekboneHeight','cheekboneDepth','chinProjection'])if(old[key]!==50)throw Error('legacy structural default '+key);
+ const roundtrip=normalizeState(JSON.parse(JSON.stringify({...old,jawDepth:81,cheekboneDepth:19,chinProjection:72})));
+ if(roundtrip.jawWidth!==jaw||roundtrip.jawDepth!==81||roundtrip.cheekboneDepth!==19||roundtrip.chinProjection!==72)throw Error('structure archive');
+}
+if(normalizeState({jaw:22,jawWidth:83}).jawWidth!==83)throw Error('new jaw width must take precedence');
+console.log('PASS legacy jaw migration, new-key precedence and independent face structure archive');

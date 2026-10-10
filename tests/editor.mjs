@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {faceEditorGroups,bodyEditorGroups,dragValues,bindDrag} from '../dist/editor.js';
 import {faceAdjustmentKeys,bodyAdjustmentKeys} from '../dist/parameters.js';
 assert.deepEqual(new Set(faceEditorGroups.flatMap(g=>g.keys).filter(k=>faceAdjustmentKeys.includes(k))),new Set(faceAdjustmentKeys));
-assert.equal(faceEditorGroups.flatMap(g=>g.keys).filter(k=>faceAdjustmentKeys.includes(k)).length,24);
+assert.equal(faceEditorGroups.flatMap(g=>g.keys).filter(k=>faceAdjustmentKeys.includes(k)).length,31);
 const axis=['eyeSpace','eyeVertical'],initial={eyeSpace:50,eyeVertical:50};
 assert.deepEqual(dragValues(initial,20,-40,axis),{eyeSpace:61,eyeVertical:72});
 assert.deepEqual(dragValues(initial,20,-40,axis,{fine:true}),{eyeSpace:52,eyeVertical:54});
@@ -19,7 +19,7 @@ target.send('pointermove',{clientX:140,clientY:60});assert.deepEqual(state,{eyeS
 assert.equal(begins,1);target.send('pointerup');assert.equal(ends,1);assert.equal(target.capture,null);assert.equal(target.classes.size,0);
 target.send('pointermove',{clientX:500});assert.deepEqual(state,{eyeSpace:72,eyeVertical:72});
 for(const cancel of ['pointercancel','lostpointercapture']){target.send('pointerdown',{pointerType:'touch'});target.send('pointermove',{clientX:110,shiftKey:true});target.send(cancel);assert.equal(target.capture,null);assert.equal(target.classes.size,0);}
-assert.equal(ends,3);console.log('PASS 24 grouped geometry parameters, mirrored/relative drags, free bounds, Shift micro-adjustment, touch capture and cancel cleanup');
+assert.equal(ends,3);console.log('PASS 31 grouped geometry parameters, mirrored/relative drags, free bounds, Shift micro-adjustment, touch capture and cancel cleanup');
 
 assert.deepEqual(new Set(bodyEditorGroups.flatMap(g=>g.keys).filter(k=>bodyAdjustmentKeys.includes(k))),new Set(bodyAdjustmentKeys));
 assert.equal(bodyEditorGroups.filter(g=>g.axes.length).length,8);
