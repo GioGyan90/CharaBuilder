@@ -17,6 +17,8 @@ parents={c:i for i,n in enumerate(j['nodes']) for c in n.get('children',[])}
 mapnames={'hips':'DEF-hips','spine':'DEF-spine.001','chest':'DEF-spine.002','upperChest':'DEF-spine.003','neck':'DEF-neck','head':'DEF-head'}
 for side,s in [('left','L'),('right','R')]:
  for target,source in [('Shoulder','shoulder'),('UpperArm','upper_arm'),('LowerArm','forearm'),('Hand','hand'),('UpperLeg','thigh'),('LowerLeg','shin'),('Foot','foot'),('Toes','toe')]:mapnames[side+target]=f'DEF-{source}.{s}'
+ for digit,source in [('Thumb','thumb'),('Index','f_index'),('Middle','f_middle'),('Ring','f_ring'),('Little','f_pinky')]:
+  for part,num in [('Proximal','01'),('Intermediate','02'),('Distal','03')]:mapnames[side+digit+part]=f'DEF-{source}.{num}.{s}'
 lookup={n.get('name'):i for i,n in enumerate(j['nodes'])};ids={k:lookup[v] for k,v in mapnames.items()}
 def sample(animation,times):
  count=len(times);rs=[R.from_quat(np.tile(n.get('rotation',[0,0,0,1]),(count,1))) for n in j['nodes']];ps=[np.tile(n.get('translation',[0,0,0]),(count,1)).astype(float) for n in j['nodes']]
@@ -41,7 +43,7 @@ def sample(animation,times):
   cache[i]=(q,p);return q,p
  return {k:world(i) for k,i in ids.items()}
 animations={a['name']:a for a in j['animations']};ref=sample(animations['A_TPose'],[0])
-selected={'relaxed':'Idle_Loop','talk':'Idle_Talking_Loop','walk':'Walk_Loop','formalWalk':'Walk_Formal_Loop','jog':'Jog_Fwd_Loop','dance':'Dance_Loop'}
+selected={'relaxed':'Idle_Loop','talk':'Idle_Talking_Loop','walk':'Walk_Loop','formalWalk':'Walk_Formal_Loop','jog':'Jog_Fwd_Loop','dance':'Dance_Loop','interact':'Interact','pickUp':'PickUp_Table'}
 data={'author':'Quaternius','license':'CC0-1.0','source':'https://quaternius.com/packs/universalanimationlibrary.html','fps':30,'reference':{k:v[1][0].round(7).tolist() for k,v in ref.items()},'clips':{}}
 for key,name in selected.items():
  a=animations[name];duration=float(max(accessor(s['input'])[-1,0] for s in a['samplers']));times=np.linspace(0,duration,round(duration*30)+1);frames=sample(a,times)
@@ -53,9 +55,9 @@ for key,name in selected.items():
   rotations[k]=values.round(6).ravel().tolist()
  # In-place preview removes horizontal root drift. Preserve authored hip bob.
  hipY=(frames['hips'][1][:,1]-ref['hips'][1][0,1])/ref['hips'][1][0,1]
- data['clips'][key]={'sourceName':name,'duration':duration,'frames':len(times),'rotations':rotations,'hipY':hipY.round(7).tolist()}
+ data['clips'][key]={'sourceName':name,'loop':key not in ['interact','pickUp'],'duration':duration,'frames':len(times),'rotations':rotations,'hipY':hipY.round(7).tolist()}
  print(key,name,len(times))
 (out/'quaternius.js').write_text('// Quaternius Universal Animation Library Standard, CC0-1.0.\nexport default '+json.dumps(data,separators=(',',':'))+';\n')
 (out/'LICENSE-Quaternius.txt').write_bytes((src/'LICENSE').read_bytes())
-manifest={'sourceRepository':'https://github.com/J-Ponzo/gltf-universal-animation-library','files':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in [gltf,binary]},'clips':selected,'conversion':'30 Hz sampling of authored tracks; world-space T-pose normalization; vertical hip motion only. No meshes, textures or model replacement.'}
+manifest={'sourceRepository':'https://github.com/J-Ponzo/gltf-universal-animation-library','files':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in [gltf,binary]},'clips':selected,'mappedBones':list(mapnames),'conversion':'Body, wrists, all 30 finger joints and both toe joints; 30 Hz sampling of authored tracks; world-space T-pose normalization; vertical hip motion only. No meshes, textures or model replacement.'}
 (out/'provenance.json').write_text(json.dumps(manifest,indent=2)+'\n')

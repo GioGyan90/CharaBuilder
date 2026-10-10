@@ -1,6 +1,6 @@
 import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=21';
 import {openHslPicker} from './colors.js?v=16';
-import {updateCharacterMotion,motionPresets} from './motion.js?v=25';
+import {updateCharacterMotion,motionPresets} from './motion.js?v=26';
 import {parameterDefaults,parameterRanges} from './parameters.js?v=21';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -174,3 +174,5 @@ motionSelect.onchange=()=>{finishDirectEdit();motionMode=motionSelect.value;moti
 $('#motion-speed').onchange=e=>{motionSpeed=Number(e.target.value);};
 $('#motion-pause').onclick=()=>{motionPlaying=!motionPlaying;syncMotionControls();};syncMotionControls();
 
+
+$('#motion-restart').onclick=()=>{motionTime=0;motionPlaying=true;if(model?.userData.motionPlayback)model.userData.motionPlayback.mode=null;syncMotionControls();};

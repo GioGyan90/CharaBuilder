@@ -26,7 +26,7 @@ for(const gender of ['female','male']){
 
 const {updateCharacterMotion}=await import(moduleURL(path.join(temp,'rig.mjs')));
 const THREE=await import(moduleURL(base+'vendor/three.module.js'));
-let motion=await fs.readFile(base+'motion.js','utf8');motion=motion.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./rig.js?v=25'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'./assets/motion/quaternius.js?v=23'",JSON.stringify(moduleURL(base+'assets/motion/quaternius.js')));await fs.writeFile(path.join(temp,'motion.mjs'),motion);
+let motion=await fs.readFile(base+'motion.js','utf8');motion=motion.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./rig.js?v=25'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'./assets/motion/quaternius.js?v=26'",JSON.stringify(moduleURL(base+'assets/motion/quaternius.js')));await fs.writeFile(path.join(temp,'motion.mjs'),motion);
 const {updateCharacterMotion:play,motionPresets}=await import(moduleURL(path.join(temp,'motion.mjs')));
 const {default:library}=await import(moduleURL(base+'assets/motion/quaternius.js'));
 let checks=0;
@@ -36,6 +36,13 @@ for(const gender of ['female','male'])for(const clothes of ['shirtPants','underw
  await ensureHumanPresets(state,{textures:false});const model=createHuman(state),{bones,humanoid}=model.userData.motion;
  const rest=bones.map(b=>b.position.clone()),neutralY=model.position.y;
  const meshes=[];model.traverse(m=>{if(m.isMesh)meshes.push(m)});
+ for(const side of ['left','right'])for(const digit of ['Thumb','Index','Middle','Ring','Little'])for(const part of ['Proximal','Intermediate','Distal']){
+  const key=side+digit+part,index=humanoid[key];if(index===undefined)throw Error('missing finger '+key);
+  if(!meshes.some(m=>m.geometry.attributes.skinIndex.array.some((j,i)=>j===index&&m.geometry.attributes.skinWeight.array[i]>0)))throw Error('unweighted finger '+key);
+ }
+ // Authored Interact must articulate digits relative to the wrist, not just move the arm.
+ play(model,0,'interact');play(model,.3,'interact');const finger=bones[humanoid.leftIndexIntermediate].quaternion.clone();
+ play(model,.9,'interact');if(finger.angleTo(bones[humanoid.leftIndexIntermediate].quaternion)<.05)throw Error('finger remains rigid');
  for(const preset of motionPresets){
   play(model,0,preset.id);const clip=library.clips[preset.id];
   for(const t of [.23,.43,.72,clip.duration-.001,clip.duration+.001,clip.duration*3+.71]){
@@ -45,12 +52,16 @@ for(const gender of ['female','male'])for(const clothes of ['shirtPants','underw
    const p=model.userData.motionPlayback;let min=Infinity;for(const {mesh,i} of p.soles){const v=new THREE.Vector3().fromBufferAttribute(mesh.geometry.attributes.position,i);mesh.applyBoneTransform(i,v);min=Math.min(min,v.y+model.position.y);}
    if(Math.abs(min-(neutralY+p.floor))>1e-5)throw Error('sole drift '+min);
    // Source world deltas must survive rest-pose correction and arbitrary target proportions.
-   const phase=(t%clip.duration)/clip.duration*(clip.frames-1),f=Math.floor(phase),g=Math.min(f+1,clip.frames-1);
-   for(const key of ['hips','head','leftUpperArm','rightLowerArm','leftUpperLeg']){
+   const phase=(clip.loop===false?Math.min(t,clip.duration):t%clip.duration)/clip.duration*(clip.frames-1),f=Math.floor(phase),g=Math.min(f+1,clip.frames-1);
+   for(const key of Object.keys(clip.rotations)){
     const expected=new THREE.Quaternion().fromArray(clip.rotations[key],f*4).normalize().slerp(new THREE.Quaternion().fromArray(clip.rotations[key],g*4).normalize(),phase-f);
     const actual=bones[humanoid[key]].getWorldQuaternion(new THREE.Quaternion()).multiply(p.alignment[humanoid[key]]);
     if(actual.angleTo(expected)>1e-4)throw Error('source curve mismatch '+key+' '+actual.angleTo(expected));
    }
+  }
+  if(clip.loop===false){
+   play(model,clip.duration+.5,preset.id);const end=bones.map(b=>b.quaternion.clone());
+   play(model,clip.duration+5,preset.id);for(let i=0;i<bones.length;i++)if(end[i].angleTo(bones[i].quaternion)>1e-6)throw Error('one-shot restarted');
   }
   if(!extreme&&clothes==='underwear'&&preset.id==='relaxed')console.log(gender,'relaxed hand',bones[humanoid.leftHand].getWorldPosition(new THREE.Vector3()).toArray().map(v=>v.toFixed(3)));
   play(model,0,'rest');if(model.position.y!==neutralY)throw Error('floor reset');for(let i=0;i<bones.length;i++)if(bones[i].position.distanceTo(rest[i])>1e-8||bones[i].quaternion.angleTo(new THREE.Quaternion())>1e-8)throw Error('rest reset');

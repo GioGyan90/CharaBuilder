@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import library from './assets/motion/quaternius.js?v=23';
+import library from './assets/motion/quaternius.js?v=26';
 import {updateCharacterMotion as proceduralMotion,updatePantsNormals} from './rig.js?v=25';
 export const motionPresets=[
  {id:'relaxed',label:'放松站姿',source:'Idle_Loop'},
@@ -8,9 +8,17 @@ export const motionPresets=[
  {id:'formalWalk',label:'挺拔步行',source:'Walk_Formal_Loop'},
  {id:'jog',label:'原地慢跑',source:'Jog_Fwd_Loop'},
  {id:'dance',label:'舞蹈展示',source:'Dance_Loop'},
+ {id:'interact',label:'伸手交互（单次）',source:'Interact'},
+ {id:'pickUp',label:'拿取手势（单次）',source:'PickUp_Table'},
 ];
 const next={leftUpperArm:'leftLowerArm',rightUpperArm:'rightLowerArm'};
 const q=new THREE.Quaternion(),parentQ=new THREE.Quaternion(),wanted=new THREE.Quaternion(),a=new THREE.Quaternion(),b=new THREE.Quaternion(),v=new THREE.Vector3();
+// Match digit direction AND palm normal, so thumb/finger bends retain the
+// author's plane instead of inheriting an unrelated upper-arm rest rotation.
+function digitFrame(direction,normal){
+ const x=direction.clone().normalize(),y=normal.clone().addScaledVector(x,-normal.dot(x)).normalize(),z=new THREE.Vector3().crossVectors(x,y).normalize();
+ return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
+}
 function setup(group){
  if(group.userData.motionPlayback)return group.userData.motionPlayback;
  const {bones,humanoid}=group.userData.motion,rest=bones.map(b=>b.position.clone()),alignment=bones.map(()=>new THREE.Quaternion());
@@ -22,6 +30,19 @@ function setup(group){
   a.setFromUnitVectors(sourceDir,targetDir);
   const side=key.startsWith('left')?'left':'right';
   for(const k of ['UpperArm','LowerArm','Hand'])if(humanoid[side+k]!==undefined)alignment[humanoid[side+k]].copy(a);
+ }
+ for(const side of ['left','right']){
+  const source=k=>new THREE.Vector3(...library.reference[side+k]);
+  const target=k=>bones[humanoid[side+k]].getWorldPosition(new THREE.Vector3());
+  const palm=get=>new THREE.Vector3().crossVectors(get('MiddleProximal').sub(get('Hand')),get('IndexProximal').sub(get('LittleProximal'))).normalize();
+  const sourceNormal=palm(source),targetNormal=palm(target);
+  for(const digit of ['Thumb','Index','Middle','Ring','Little'])for(const [part,child,previous] of [['Proximal','Intermediate',null],['Intermediate','Distal',null],['Distal',null,'Intermediate']]){
+   const key=side+digit+part,i=humanoid[key];if(i===undefined)continue;
+   const sourceDir=child?source(digit+child).sub(source(digit+part)):source(digit+part).sub(source(digit+previous));
+   const end=bones[i].children.find(b=>b.isBone);
+   const targetDir=child?target(digit+child).sub(target(digit+part)):end?end.getWorldPosition(new THREE.Vector3()).sub(target(digit+part)):target(digit+part).sub(target(digit+previous));
+   alignment[i].copy(digitFrame(targetDir,targetNormal)).multiply(digitFrame(sourceDir,sourceNormal).invert());
+  }
  }
  const byIndex=new Map(Object.entries(humanoid).map(([key,i])=>[i,key])),index=new Map(bones.map((b,i)=>[b,i]));
  const depth=b=>b.parent?.isBone?1+depth(b.parent):0,order=bones.map((_,i)=>i).sort((i,j)=>depth(bones[i])-depth(bones[j]));
@@ -40,7 +61,8 @@ export function updateCharacterMotion(group,time,mode='idle'){
  if(p.mode!==mode){p.from=bones.map(b=>b.quaternion.clone());p.fromHip=bones[humanoid.hips]?.position.y-p.rest[humanoid.hips]?.y||0;p.mode=mode;p.start=time;}
  group.position.y=p.baseY;for(let i=0;i<bones.length;i++){bones[i].position.copy(p.rest[i]);bones[i].scale.set(1,1,1);}
  if(!clip){proceduralMotion(group,time,mode);return;}
- const phase=((time%clip.duration)+clip.duration)%clip.duration/clip.duration*(clip.frames-1),f=Math.floor(phase),g=Math.min(f+1,clip.frames-1),fraction=phase-f;
+ const clipTime=clip.loop===false?THREE.MathUtils.clamp(time,0,clip.duration):((time%clip.duration)+clip.duration)%clip.duration;
+ const phase=clipTime/clip.duration*(clip.frames-1),f=Math.floor(phase),g=Math.min(f+1,clip.frames-1),fraction=phase-f;
  // World deltas from the author's T-pose, then compensate our baked relaxed arms.
  // Reconstruct local rotations through the actual target hierarchy; body lengths stay editable.
  for(const i of p.order){const key=p.byIndex.get(i),track=clip.rotations[key],parent=p.index.get(bones[i].parent);
