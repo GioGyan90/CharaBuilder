@@ -1,7 +1,7 @@
-import {bindCharacter} from './rig.js?v=16';
+import {bindCharacter} from './rig.js?v=25';
 import * as THREE from 'three';
 import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=21';
-import {clothingMesh,shirtButtonPoints} from './wardrobe.js?v=16';
+import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
 import {referenceHairMeshes,hairAssetIds} from './hair.js?v=16';
 import {createUnderwearData} from './underwear.js?v=16';
 
@@ -207,6 +207,7 @@ if(iris && material.map){
       p.set(q,i);
       normals.set(deformNormal(deform,(source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,...sourceNormals.slice(i,i+3).map(v=>v/32767),deformPart),i);
     }
+    if(source.name==='Pants')normals.set(smoothGarmentNormals(p,source.groups));
     if(data.landmarks.faceRig){
       if(source.name==='Face'||source.name==='Body'){
         const offset=envelopePoints.length/3;envelopePoints.push(...p);

@@ -29,33 +29,16 @@ const THREE=await import(moduleURL(base+'vendor/three.module.js'));
 let motion=await fs.readFile(base+'motion.js','utf8');motion=motion.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./rig.js?v=25'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'./assets/motion/quaternius.js?v=23'",JSON.stringify(moduleURL(base+'assets/motion/quaternius.js')));await fs.writeFile(path.join(temp,'motion.mjs'),motion);
 const {updateCharacterMotion:play,motionPresets}=await import(moduleURL(path.join(temp,'motion.mjs')));
 const {default:library}=await import(moduleURL(base+'assets/motion/quaternius.js'));
-let checks=0;
-for(const gender of ['female','male'])for(const clothes of ['shirtPants','underwear'])for(const extreme of [false,true]){
- const state={...defaults,gender,clothes,shoes:clothes==='underwear'?'barefoot':'shoes'};
- if(extreme)for(const key of ['height','torsoLength','armLength','upperArm','thigh','calf','footLength'])state[key]=150;
- await ensureHumanPresets(state,{textures:false});const model=createHuman(state),{bones,humanoid}=model.userData.motion;
- const rest=bones.map(b=>b.position.clone()),neutralY=model.position.y;
- const meshes=[];model.traverse(m=>{if(m.isMesh)meshes.push(m)});
- for(const preset of motionPresets){
-  play(model,0,preset.id);const clip=library.clips[preset.id];
-  for(const t of [.23,.43,.72,clip.duration-.001,clip.duration+.001,clip.duration*3+.71]){
-   play(model,t,preset.id);
-   for(const bone of bones){if(!bone.matrixWorld.elements.every(Number.isFinite))throw Error('nonfinite bone');if(Math.abs(bone.quaternion.length()-1)>1e-5)throw Error('unnormalized bone');}
-   for(const mesh of meshes)for(const i of [...new Set(mesh.geometry.index.array)].filter((_,i)=>i%151===0)){const v=new THREE.Vector3().fromBufferAttribute(mesh.geometry.attributes.position,i);mesh.applyBoneTransform(i,v);if(!v.toArray().every(Number.isFinite))throw Error('nonfinite vertex');}
-   const p=model.userData.motionPlayback;let min=Infinity;for(const {mesh,i} of p.soles){const v=new THREE.Vector3().fromBufferAttribute(mesh.geometry.attributes.position,i);mesh.applyBoneTransform(i,v);min=Math.min(min,v.y+model.position.y);}
-   if(Math.abs(min-(neutralY+p.floor))>1e-5)throw Error('sole drift '+min);
-   // Source world deltas must survive rest-pose correction and arbitrary target proportions.
-   const phase=(t%clip.duration)/clip.duration*(clip.frames-1),f=Math.floor(phase),g=Math.min(f+1,clip.frames-1);
-   for(const key of ['hips','head','leftUpperArm','rightLowerArm','leftUpperLeg']){
-    const expected=new THREE.Quaternion().fromArray(clip.rotations[key],f*4).normalize().slerp(new THREE.Quaternion().fromArray(clip.rotations[key],g*4).normalize(),phase-f);
-    const actual=bones[humanoid[key]].getWorldQuaternion(new THREE.Quaternion()).multiply(p.alignment[humanoid[key]]);
-    if(actual.angleTo(expected)>1e-4)throw Error('source curve mismatch '+key+' '+actual.angleTo(expected));
-   }
-  }
-  if(!extreme&&clothes==='underwear'&&preset.id==='relaxed')console.log(gender,'relaxed hand',bones[humanoid.leftHand].getWorldPosition(new THREE.Vector3()).toArray().map(v=>v.toFixed(3)));
-  play(model,0,'rest');if(model.position.y!==neutralY)throw Error('floor reset');for(let i=0;i<bones.length;i++)if(bones[i].position.distanceTo(rest[i])>1e-8||bones[i].quaternion.angleTo(new THREE.Quaternion())>1e-8)throw Error('rest reset');
-  checks++;
- }
- disposeHuman(model);
+const {default:pantsSkin}=await import(moduleURL(base+'assets/anime/pants-skin.js'));
+for(const gender of ['female','male'])for(const pantsWidth of [0,50,100]){
+ const state={...defaults,gender,pantsWidth,clothes:'shirtPants',shoes:'barefoot'};await ensureHumanPresets(state,{textures:false});const model=createHuman(state),pants=model.children.find(m=>m.userData.part==='Pants'),p=pants.geometry.attributes.position,n=pants.geometry.attributes.normal,used=new Set(pants.geometry.index.array),groups=new Map();
+ for(const i of used){const key=[p.getX(i),p.getY(i),p.getZ(i)].map(v=>Math.round(v*100000)).join(',');if(!groups.has(key))groups.set(key,[]);groups.get(key).push(i);if(Math.abs(new THREE.Vector3().fromBufferAttribute(n,i).length()-1)>.00001)throw Error('invalid trouser normal');}
+ for(const row of pantsSkin.rows)if(used.has(row[0])){const sum=row.slice(5).reduce((s,v)=>s+v,0);for(let a=0;a<4;a++){const bone=pants.skeleton.bones[pants.geometry.attributes.skinIndex.array[row[0]*4+a]].name;if(bone!==pantsSkin.names[row[a+1]])throw Error('author bone mapping mismatch');if(Math.abs(pants.geometry.attributes.skinWeight.array[row[0]*4+a]-row[a+5]/sum)>.000001)throw Error('author weight mismatch');}}
+ let seams=0;for(const ids of groups.values())if(ids.length>1){seams++;for(const id of ids.slice(1))if(new THREE.Vector3().fromBufferAttribute(n,id).distanceTo(new THREE.Vector3().fromBufferAttribute(n,ids[0]))>1e-6)throw Error('normal seam');}
+ for(const mode of ['walk','jog','dance']){play(model,0,mode);for(const time of [.3,.7,1.1]){play(model,time,mode);const expected=new Map([...groups.keys()].map(k=>[k,new THREE.Vector3()])),vertexKey=new Map();for(const [k,ids] of groups)for(const id of ids)vertexKey.set(id,k);
+ const idx=pants.geometry.index.array;for(let t=0;t<idx.length;t+=3){const ids=Array.from(idx.slice(t,t+3)),v=ids.map(i=>pants.applyBoneTransform(i,new THREE.Vector3().fromBufferAttribute(p,i))),area=new THREE.Vector3().subVectors(v[1],v[0]).cross(new THREE.Vector3().subVectors(v[2],v[0]));for(const id of ids)expected.get(vertexKey.get(id)).add(area);}
+ for(const i of used){const mat=new THREE.Matrix4();mat.elements.fill(0);for(let a=0;a<4;a++){const joint=pants.geometry.attributes.skinIndex.array[i*4+a],w=pants.geometry.attributes.skinWeight.array[i*4+a],bone=new THREE.Matrix4().fromArray(pants.skeleton.boneMatrices,joint*16);for(let k=0;k<16;k++)mat.elements[k]+=w*bone.elements[k];}const normal=new THREE.Vector3().fromBufferAttribute(n,i).transformDirection(mat),surface=expected.get(vertexKey.get(i)).clone().normalize();if(surface.lengthSq()>.5&&normal.dot(surface)<.99999)throw Error('GPU normal diverges from posed pants surface');}
+ for(const ids of groups.values())if(ids.length>1){const first=pants.applyBoneTransform(ids[0],new THREE.Vector3().fromBufferAttribute(p,ids[0]));for(const i of ids.slice(1))if(first.distanceTo(pants.applyBoneTransform(i,new THREE.Vector3().fromBufferAttribute(p,i)))>1e-5)throw Error('posed seam opened');}}}
+ console.log(gender,pantsWidth,seams,'seams continuous, author weights retained');disposeHuman(model);
 }
-console.log('PASS',checks,'authored clips/configurations: source rotations retained, sole contact, finite skinned poses, normal quaternions, original rest restored');
+console.log('PASS pants UV seams, unit normals, exact author weights, posed seam continuity and GPU normal/surface agreement; 6 gender/width configurations');

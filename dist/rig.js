@@ -25,10 +25,13 @@ export function bindCharacter(group,base,deform){
   const geometry=mesh.geometry,source=mesh.userData.rigSource,part=mesh.userData.part;
   let attrs=cache.get(source||mesh);
   if(!attrs){const count=geometry.attributes.position.count,indices=new Uint16Array(count*4),weights=new Float32Array(count*4);
+   const named=source?.skinBoneNames?.map(name=>{const i=rig.bones.findIndex(b=>b.name===name);if(i<0)throw Error('Missing clothing bone '+name);return i;});
    const fitted=source?.skinIndices?{indices:source.skinIndices,weights:source.skinWeights}:null;
    const original=part==='Body'?rig.meshes.Body:part==='Face'?rig.meshes.Face:null;
+   const visible=part==='Pants'?new Set(geometry.index.array):null;
    for(let i=0;i<count;i++){
-    if(fitted){for(let a=0;a<4;a++){indices[i*4+a]=fitted.indices[i*4+a];weights[i*4+a]=fitted.weights[i*4+a];}continue;}
+    if(visible&&!visible.has(i)){indices[i*4]=rig.humanoid.hips;weights[i*4]=1;continue;}
+    if(fitted){for(let a=0;a<4;a++){indices[i*4+a]=named?named[fitted.indices[i*4+a]]:fitted.indices[i*4+a];weights[i*4+a]=fitted.weights[i*4+a];}continue;}
     if(part?.startsWith('Hair')){indices[i*4]=rig.humanoid.head;weights[i*4]=1;continue;}
     const p=source?source.positions.slice(i*3,i*3+3).map(v=>v/100000):mesh.userData.rigPoints?.[i];
     const owner=original||skin,id=original?i:nearest(p||[0,base.landmarks.neck[1]-.2,0]);
@@ -67,5 +70,29 @@ export function updateCharacterMotion(group,time,mode='idle'){
    rotate('head',.2*look,.13*Math.sin(t)*look+.25*turn*direction,0);
   }
  }
- group.updateMatrixWorld(true);group.userData.skeleton.update();
+ group.updateMatrixWorld(true);group.userData.skeleton.update();updatePantsNormals(group);
+}
+
+// GPU skinning blends normal rotations; at bent knees that differs from the deformed
+// trouser surface. Rebuild smooth posed normals, then undo the skin normal transform.
+export function updatePantsNormals(group){
+ if(!group?.userData.skeleton)return;
+ let caches=group.userData.pantsNormalCache;
+ if(!caches){caches=[];group.traverse(mesh=>{if(!mesh.isSkinnedMesh||mesh.userData.part!=='Pants')return;
+  const p=mesh.geometry.attributes.position,used=[...new Set(mesh.geometry.index.array)],lookup=new Map(),canonical=new Int32Array(p.count),sums=[];
+  for(const i of used){const key=[p.getX(i),p.getY(i),p.getZ(i)].map(v=>Math.round(v*100000)).join(',');if(!lookup.has(key)){lookup.set(key,sums.length);sums.push(new THREE.Vector3());}canonical[i]=lookup.get(key);}
+  caches.push({mesh,used,canonical,sums,points:new Float32Array(p.array.length),inverse:new Map(used.map(i=>[i,new THREE.Matrix3()]))});
+ });group.userData.pantsNormalCache=caches;}
+ const point=new THREE.Vector3(),e1=new THREE.Vector3(),e2=new THREE.Vector3(),normal=new THREE.Vector3(),matrix=new THREE.Matrix4(),bone=new THREE.Matrix4();
+ for(const {mesh,used,canonical,sums,points,inverse} of caches){
+  const p=mesh.geometry.attributes.position,joints=mesh.geometry.attributes.skinIndex.array,weights=mesh.geometry.attributes.skinWeight.array,n=mesh.geometry.attributes.normal,index=mesh.geometry.index.array;
+  for(const i of used){point.fromBufferAttribute(p,i);mesh.applyBoneTransform(i,point);point.toArray(points,i*3);matrix.elements.fill(0);
+   for(let a=0;a<4;a++){bone.fromArray(mesh.skeleton.boneMatrices,joints[i*4+a]*16);const w=weights[i*4+a];for(let k=0;k<16;k++)matrix.elements[k]+=bone.elements[k]*w;}
+   inverse.get(i).setFromMatrix4(matrix).invert();
+  }
+  for(const sum of sums)sum.set(0,0,0);
+  for(let t=0;t<index.length;t+=3){const a=index[t],b=index[t+1],c=index[t+2];point.fromArray(points,a*3);e1.fromArray(points,b*3).sub(point);e2.fromArray(points,c*3).sub(point);normal.crossVectors(e1,e2);for(const i of [a,b,c])sums[canonical[i]].add(normal);}
+  for(const i of used){normal.copy(sums[canonical[i]]).applyMatrix3(inverse.get(i)).normalize();if(normal.lengthSq()>.5)n.setXYZ(i,normal.x,normal.y,normal.z);}
+  n.needsUpdate=true;
+ }
 }

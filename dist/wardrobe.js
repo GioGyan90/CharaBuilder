@@ -1,3 +1,4 @@
+import pantsSkin from './assets/anime/pants-skin.js?v=25';
 // Retain the CC0 shirt/trouser topology; JS controls its cut and fit.
 export const wardrobeDefaults={shirtLength:50,sleeveLength:50,shirtEase:50,pantsWidth:50};
 export const wardrobeRanges={shirtLength:['衬衫衣长','短','长'],sleeveLength:['袖长','短袖','长袖'],shirtEase:['衬衫宽松度','合身','宽松'],pantsWidth:['裤腿宽度','修身','宽松']};
@@ -49,7 +50,14 @@ export function clothingMesh(source,kind,state,sourceLandmarks,targetLandmarks,s
   }
   p[i]=Math.round(x*100000);p[i+1]=Math.round(y*100000);p[i+2]=Math.round(z*100000);
  }
- return {...source,name:kind==='shirt'?'Shirt':'Pants',positions:p,normals,expressions:{}};
+ const skin={};
+ if(kind==='pants'){
+  if(source.positions.length/3!==pantsSkin.vertexCount)throw Error('Pants source vertex mapping changed');
+  skin.skinBoneNames=pantsSkin.names;skin.skinIndices=new Uint16Array(source.positions.length/3*4);skin.skinWeights=new Float32Array(source.positions.length/3*4);
+  for(let i=0;i<skin.skinWeights.length;i+=4)skin.skinWeights[i]=1;
+  for(const row of pantsSkin.rows){const total=row.slice(5).reduce((s,v)=>s+v,0)||1;for(let a=0;a<4;a++){skin.skinIndices[row[0]*4+a]=row[1+a];skin.skinWeights[row[0]*4+a]=row[5+a]/total;}}
+ }
+ return {...source,...skin,name:kind==='shirt'?'Shirt':'Pants',positions:p,normals,expressions:{}};
 }
 
 // Shirt front details are independent generated geometry, not painted into a texture.
@@ -68,4 +76,17 @@ export function shirtButtonPoints(source,landmarks){
   if(Number.isFinite(z))points.push([0,y,z+.004]);
  }
  return points;
+}
+
+// Area-weighted normals across coincident UV/seam vertices. Indices and UVs stay intact.
+export function smoothGarmentNormals(positions,groups){
+ const count=positions.length/3,keys=new Array(count),sums=new Map(),normals=new Float32Array(positions.length);
+ for(const group of groups)for(const i of group.indices){if(keys[i]!==undefined)continue;const key=[positions[i*3],positions[i*3+1],positions[i*3+2]].map(v=>Math.round(v*100000)).join(',');keys[i]=key;if(!sums.has(key))sums.set(key,[0,0,0]);}
+ for(const group of groups)for(let t=0;t<group.indices.length;t+=3){
+  const [a,b,c]=group.indices.slice(t,t+3),ab=[0,1,2].map(k=>positions[b*3+k]-positions[a*3+k]),ac=[0,1,2].map(k=>positions[c*3+k]-positions[a*3+k]);
+  const n=[ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0]];
+  for(const id of [a,b,c]){const sum=sums.get(keys[id]);for(let k=0;k<3;k++)sum[k]+=n[k];}
+ }
+ for(let i=0;i<count;i++)if(keys[i]!==undefined){const n=sums.get(keys[i]),length=Math.hypot(...n)||1;normals.set(n.map(v=>v/length),i*3);}
+ return normals;
 }

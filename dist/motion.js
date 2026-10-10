@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import library from './assets/motion/quaternius.js?v=23';
-import {updateCharacterMotion as proceduralMotion} from './rig.js?v=16';
+import {updateCharacterMotion as proceduralMotion,updatePantsNormals} from './rig.js?v=25';
 export const motionPresets=[
  {id:'relaxed',label:'放松站姿',source:'Idle_Loop'},
  {id:'talk',label:'交谈手势',source:'Idle_Talking_Loop'},
@@ -57,4 +57,5 @@ export function updateCharacterMotion(group,time,mode='idle'){
  // not a full planted-foot IK solver; horizontal root motion is intentionally removed for preview.
  let lowest=Infinity;for(const {mesh,i} of p.soles){v.fromBufferAttribute(mesh.geometry.attributes.position,i);mesh.applyBoneTransform(i,v);lowest=Math.min(lowest,v.y);}
  if(Number.isFinite(lowest)){group.position.y=p.baseY+p.floor-lowest;group.updateMatrixWorld(true);group.userData.skeleton.update();}
+ updatePantsNormals(group);
 }

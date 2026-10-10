@@ -1,13 +1,13 @@
 import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=21';
 import {openHslPicker} from './colors.js?v=16';
-import {updateCharacterMotion,motionPresets} from './motion.js?v=23';
+import {updateCharacterMotion,motionPresets} from './motion.js?v=25';
 import {parameterDefaults,parameterRanges} from './parameters.js?v=21';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=21';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=25';
 
 import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=16';
-import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=16';
+import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
 const $ = s => document.querySelector(s);
 const defaults = {...parameterDefaults,...hairDefaults,...wardrobeDefaults,faceSource:'vroid',name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jaw:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',shoes:'shoes',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',eyeColor:'#806449',shirt:'#778f87',pants:'#343b50'};
 const choices = {faceSource:[['vroid','原版日漫'],['authored','参考日漫']],gender:[['female','女性'],['male','男性']],...hairChoices,hair:[['modular','分区发型']],clothes:[['shirtPants','衬衫 · 长裤'],['underwear','贴身内衣']],shoes:[['shoes','穿鞋'],['barefoot','光脚']],expression:[['neutral','自然'],['fun','微笑'],['joy','开心'],['angry','认真'],['sorrow','忧伤'],['blink','闭眼']]};
