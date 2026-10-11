@@ -1,3 +1,4 @@
+import {sculptStoneBlocks} from './stone-body.js?v=34';
 import {muscleGuide} from './muscle-guide.js?v=32';
 // Regional edits stay on the existing CC0 body topology and its bone landmarks.
 export const bodyDefaults={muscleMass:50,trapezius:50,latWidth:50,deltoid:50,torsoLength:50,shoulderSlope:50,shoulderDepth:50,chestDepth:50,bustSize:50,bustHeight:50,backDepth:50,waistHeight:50,abdomen:50,hipDepth:50,hipHeight:50,armLength:50,upperArm:50,forearm:50,handSize:50,thigh:50,calf:50,ankle:50,footLength:50,footWidth:50,legSpace:50};
@@ -87,6 +88,7 @@ export function createBodyDeformer(state,l){
   x+=sign*v[0]*extension;y+=v[1]*extension;z+=v[2]*extension;
   const hand=smooth(.86,1.06,u)*armBlend*value.handSize*.18;
   x+=sign*(p[0]-w[0])*hand;y+=(p[1]-w[1])*hand;z+=(p[2]-w[2])*hand;
+  if(burly)[x,y,z]=sculptStoneBlocks(x,y,z,source,l,a,burly);
   // Lift the head and shoulder region together when changing torso length.
   y+=value.torsoLength*.045*Math.max(smooth(hip,neck-.10,sy),armBlend);
   return [x,y,z];

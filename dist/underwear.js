@@ -1,4 +1,4 @@
-function vertexWeights(rig,id){const out={};for(let a=0;a<4;a++){const joint=rig.indices[id*4+a];out[joint]=(out[joint]||0)+rig.weights[id*4+a]/65535;}return out;}
+function vertexWeights(rig,id){const out={};for(let a=0;a<4;a++){const joint=rig.indices[id*4+a];out[joint]=(out[joint]||0)+rig.weights[id*4+a]/(rig.weightScale||65535);}return out;}
 function blendWeights(a,b,t){const out={};for(const [id,w] of Object.entries(a))out[id]=(out[id]||0)+w*(1-t);for(const [id,w] of Object.entries(b))out[id]=(out[id]||0)+w*t;return out;}
 // Clip a fitted garment out of the CC0 adult body surface, with a 4.5 mm allowance and interpolated original skin weights.
 function clip(polygon,fn){
@@ -14,10 +14,10 @@ export function createUnderwearData(base){
  const body=base.meshes.find(m=>m.name==='Body'),hip=base.landmarks.hips[1],neck=base.landmarks.neck[1],female=neck<1.40;
  const skin=body.groups.filter(g=>base.materials[g.material].name.includes('_SKIN'));
  function surface(name,conditions){
-  const p=[],fitPositions=[],n=[],uv=[],indices=[],skinIndices=[],skinWeights=[];const rig=base.rig?.meshes.Body;const arms=new Set(['leftUpperArm','leftLowerArm','leftHand','rightUpperArm','rightLowerArm','rightHand'].map(k=>base.rig?.humanoid[k]));
+  const p=[],fitPositions=[],n=[],uv=[],indices=[],skinIndices=[],skinWeights=[];const rig=body.skinIndices?{indices:body.skinIndices,weights:body.skinWeights,weightScale:1}:base.rig?.meshes.Body;const arms=new Set(['leftUpperArm','leftLowerArm','leftHand','rightUpperArm','rightLowerArm','rightHand'].map(k=>base.rig?.humanoid[k]));
   for(const group of skin)for(let i=0;i<group.indices.length;i+=3){
    // The chest-height slice crosses relaxed upper arms too; never turn those into the top.
-   if(name==='UnderwearTop'&&rig){if(group.indices.slice(i,i+3).some(id=>{let influence=0;for(let a=0;a<4;a++)if(arms.has(rig.indices[id*4+a]))influence+=rig.weights[id*4+a]/65535;return influence>.4;}))continue;}
+   if(name==='UnderwearTop'&&rig){if(group.indices.slice(i,i+3).some(id=>{let influence=0;for(let a=0;a<4;a++)if(arms.has(rig.indices[id*4+a]))influence+=rig.weights[id*4+a]/(rig.weightScale||65535);return influence>.4;}))continue;}
    let polygon=group.indices.slice(i,i+3).map(id=>({p:body.positions.slice(id*3,id*3+3).map(v=>v/100000),n:body.normals.slice(id*3,id*3+3).map(v=>v/32767),w:rig?vertexWeights(rig,id):{}}));
    for(const fn of conditions){polygon=clip(polygon,fn);if(polygon.length<3)break;}
    if(polygon.length<3)continue;

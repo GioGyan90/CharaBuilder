@@ -1,12 +1,12 @@
-import {stonePreset} from './experimental.js?v=33';
+import {stonePreset} from './experimental.js?v=34';
 import {cameraAngles,cameraYaw,anglePosition,selectedAngle,screenDragSide,moveCameraTarget} from './view.js?v=30';
 import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=31';
 import {openHslPicker} from './colors.js?v=16';
 import {updateCharacterMotion,motionPresets} from './motion.js?v=30';
-import {parameterDefaults,parameterRanges} from './parameters.js?v=33';
+import {parameterDefaults,parameterRanges} from './parameters.js?v=34';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=33';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=34';
 
 import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=32';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
@@ -104,8 +104,8 @@ function renderControls(){
  if(activeTab==='experimental'){
   const card=element('div','field'),apply=element('button','primary','载入 Stone 试验预设');
   apply.onclick=()=>{remember();finishDirectEdit();state=normalize({...defaults,...stonePreset});faceBaseline={...state};bodyBaseline={...state};motionMode='rest';motionTime=0;syncMotionControls();update();renderControls();setView('full');toast('已载入 Stone 试验版');};
-  card.append(element('h3',null,'Stone · 魁梧熟男 / 03'),element('p','reference-note','宽下颌与下巴、窄眼、粗眉；厚颈、斜方肌、背阔肌和肩部肌肉。全部继续支持 JS 参数调整。'),apply);
-  card.append(element('p','reference-note','第三轮仅调整身材：肩颈连贯、胸背厚实、腰腹更有分量，手臂与腿部同步加厚。默认内衣 / 光脚，便于从各机位查看轮廓；脸部和发型沿用第二轮。'));
+  card.append(element('h3',null,'Stone · 魁梧熟男 / 04'),element('p','reference-note','宽下颌与下巴、窄眼、粗眉；厚颈、斜方肌、背阔肌和肩部肌肉。全部继续支持 JS 参数调整。'),apply);
+  card.append(element('p','reference-note','第四轮参考三视图体块：胸肌下缘、腰腹收束、肩胛与背阔肌、大腿和小腿。局部真实网格加密，保留原骨骼权重；默认内衣 / 光脚，脸与发型沿用第二轮。'));
   const links=element('div','options');for(const [tab,text] of [['face','调整脸部'],['body','调整体型'],['hair','调整发型'],['clothes','切换服装']]){const b=element('button','option',text);b.onclick=()=>document.querySelector('[data-tab="'+tab+'"]').click();links.append(b);}card.append(links);
   const observe=element('div','options');for(const [clothes,text] of [['underwear','内衣 / 光脚看结构'],['shirtPants','衬衫 / 长裤看贴合']]){const b=element('button','option',text);b.onclick=()=>{remember();finishDirectEdit();state.clothes=clothes;state.shoes=clothes==='underwear'?'barefoot':'shoes';update();setView('full');};observe.append(b);}card.append(observe);$('#controls').append(card);
  }

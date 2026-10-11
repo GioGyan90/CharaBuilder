@@ -1,10 +1,11 @@
+import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
 import {bindCharacter} from './rig.js?v=28';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=33';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=34';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
 import {referenceHairMeshes,hairAssetIds} from './hair.js?v=32';
-import {createUnderwearData} from './underwear.js?v=33';
+import {createUnderwearData} from './underwear.js?v=34';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -80,7 +81,9 @@ function compose(state) {
   if(state.faceSource==='stone'&&state.gender==='male'){fitted.maps=[...base.maps];for(let i=0;i<fitted.materials.length;i++)if(fitted.materials[i].name.includes('FaceBrow')){fitted.materials[i]={...fitted.materials[i],texture:'stone-brow.png'};fitted.maps[i]=stoneBrowMap;}}
   data.landmarks={...base.landmarks,...fitted.landmarks,bodyRig:bodyAnchors(base)};
   for(const mesh of fitted.meshes)add(fitted,mesh,mesh.groups);
-  const body=base.meshes.find(m=>m.name==='Body');
+  const stone=state.faceSource==='stone'&&state.gender==='male';
+  const body=stone?refineStoneBody(base):base.meshes.find(m=>m.name==='Body');
+  const bodyOwner=stone?{...base,meshes:base.meshes.map(m=>m.name==='Body'?body:m)}:base;
   const neck=base.landmarks.neck[1],hip=base.landmarks.hips[1],sleeve=.124+Math.max(0,Math.min(100,state.sleeveLength??50))*(state.gender==='female'?.00276:.00316);
   const skinGroups=body.groups.filter(g=>base.materials[g.material].name.includes('_SKIN')||(state.shoes!=='barefoot'&&base.materials[g.material].name.includes('Shoes')));
   const filtered=skinGroups.map(g=>{
@@ -98,7 +101,7 @@ function compose(state) {
     return {...g,indices};
   });add(base,body,filtered);
   if(state.clothes==='underwear'){
-    for(const mesh of createUnderwearData(base)){
+    for(const mesh of createUnderwearData(bodyOwner)){
       const bottom=mesh.name==='UnderwearBottom';
       const owner={materials:[{name:bottom?'Underwear_Bottoms_CLOTH':'Underwear_Tops_CLOTH',color:[1,1,1,1],double:true,blend:0,texture:null}],maps:[]};
       add(owner,mesh,mesh.groups);
@@ -228,6 +231,12 @@ if(iris && material.map){
       for(const id of new Set(groups.flatMap(g=>g.indices)))normals.set(smooth.subarray(id*3,id*3+3),id*3);
     }
     if(source.name==='Pants')normals.set(smoothGarmentNormals(p,source.groups));
+    if(source.name==='Body'&&state.faceSource==='stone'&&state.gender==='male'){
+      relaxStoneShoulders(p,source,data.landmarks);
+      const groups=source.groups.filter(g=>data.materials[g.material].name.includes('_SKIN')),smooth=smoothGarmentNormals(p,groups);
+      for(const id of new Set(groups.flatMap(g=>g.indices)))normals.set(smooth.subarray(id*3,id*3+3),id*3);
+      group.userData.bodyRefinement=source.refinement;
+    }
     if(data.landmarks.faceRig){
       if(source.name==='Face'||source.name==='Body'){
         const offset=envelopePoints.length/3;envelopePoints.push(...p);
