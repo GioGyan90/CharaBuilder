@@ -69,8 +69,10 @@ export function createBodyDeformer(state,l){
   y+=value.hipHeight*.014*bell(sy,hip-.025,.10)*axial;
   const legBlend=(1-smooth(hip-.12,hip+.025,sy))*(1-smooth(.15,.24,ax)),legX=a.knee[0];
   const thigh=bell(sy,(hip+a.knee[1])*.5,.16)*legBlend,calf=bell(sy,(a.knee[1]+a.foot[1])*.5,.14)*legBlend,ankle=bell(sy,a.foot[1]+.025,.055)*legBlend;
-  const legScale=((value.thigh*.18+value.muscleMass*.07+burly*.065)*thigh+(value.calf*.20+value.muscleMass*.06+burly*.025)*calf+value.ankle*.15*ankle)*smooth(.006,.025,ax);
-  x+=(sx-sign*legX)*legScale;z*=1+legScale;
+  const legScale=((value.thigh*(.18+.12*Math.min(1,burly))+value.muscleMass*.07+burly*.065)*thigh+(value.calf*(.20+.08*Math.min(1,burly))+value.muscleMass*.06+burly*.025)*calf+value.ankle*.15*ankle)*smooth(.006,.025,ax);
+  // Preserve the medial gap while adding lateral muscle volume in the Stone build.
+  const innerGuard=1-Math.min(1,burly)*.75*(1-smooth(.012,.070,ax));
+  x+=(sx-sign*legX)*legScale*innerGuard;z*=1+legScale;
   const feet=(1-smooth(a.foot[1]-.025,a.foot[1]+.05,sy))*legBlend;
   x+=(sx-sign*a.foot[0])*value.footWidth*.15*feet;
   z+=(sz-a.foot[2])*value.footLength*.18*feet;

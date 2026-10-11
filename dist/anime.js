@@ -2,7 +2,7 @@ import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
 import {bindCharacter} from './rig.js?v=28';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=34';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=35';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
 import {referenceHairMeshes,hairAssetIds} from './hair.js?v=32';
 import {createUnderwearData} from './underwear.js?v=34';

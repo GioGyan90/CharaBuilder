@@ -8,7 +8,7 @@ const moduleURL=path=>pathToFileURL(path).href;
 const temp=await fs.mkdtemp(path.join(os.tmpdir(),'charabuilder-modular-'));
 let hair=await fs.readFile(base+'hair.js','utf8');hair=hair.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'hair.mjs'),hair);
 let rig=await fs.readFile(base+'rig.js','utf8');rig=rig.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'rig.mjs'),rig);
-let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./stone-body.js?v=34'",JSON.stringify(moduleURL(base+'stone-body.js'))).replace("'./stone-detail.js?v=32'",JSON.stringify(moduleURL(base+'stone-detail.js'))).replace("'./rig.js?v=28'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=34'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=34'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=32'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
+let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./stone-body.js?v=34'",JSON.stringify(moduleURL(base+'stone-body.js'))).replace("'./stone-detail.js?v=32'",JSON.stringify(moduleURL(base+'stone-detail.js'))).replace("'./rig.js?v=28'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=35'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=34'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=32'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
 global.fetch=async url=>{try{return new Response(await fs.readFile(new URL(url)),{status:200});}catch{return new Response('',{status:404});}};
 const {loadHumanAssets,ensureHumanPresets,createHuman,disposeHuman}=await import(moduleURL(path.join(temp,'model.mjs')));
 const {hairDefaults,hairChoices,hairRanges}=await import(moduleURL(path.join(temp,'hair.mjs')));
@@ -36,6 +36,13 @@ const {createDeformer}=await import(moduleURL(base+'parameters.js'));
 const landmarks={head:[0,1.42,0],neck:[0,1.35,0],hips:[0,.94,0],leftEye:[.021,1.48,.02],rightEye:[-.021,1.48,.02]};
 const neutral=createDeformer(defaults,landmarks,1);
 const muscleKeys=['muscleMass','trapezius','latWidth','deltoid'];
+// The wider Stone legs must preserve the medial gap rather than cross x=0.
+for(const mass of [50,80,140,150]){
+ const d=createDeformer({...defaults,...stonePreset,muscleMass:mass},landmarks,1);
+ for(const x of [.012,.018,.025,.035])for(const y of [.62,.70,.78])for(const sign of [-1,1]){
+  assert.ok(d(sign*x,y,.035,'Body')[0]*sign>0,'wider inner thigh crossed the centreline');
+ }
+}
 for(const key of muscleKeys){
  const edit=createDeformer({...defaults,[key]:150},landmarks,1);
  for(const p of [[0,1.48,.1],[.03,1.55,.08]])assert.deepEqual(edit(...p,'Body'),neutral(...p,'Body'),key+' changed skull');
