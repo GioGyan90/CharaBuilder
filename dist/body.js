@@ -21,6 +21,9 @@ export function createBodyDeformer(state,l){
  const hip=l.hips[1],neck=l.neck[1],a=l.bodyRig||bodyAnchors({landmarks:l});
  const value=Object.fromEntries(Object.keys(bodyDefaults).map(k=>[k,norm(state[k])]));
  if(Object.values(value).every(v=>v===0))return (x,y,z)=>[x,y,z];
+ // Stone keeps the author's muscle profile and adds a broad, stocky silhouette.
+ // Strength remains coupled to the existing muscle slider; other presets are unchanged.
+ const burly=state.faceSource==='stone'&&state.gender==='male'?Math.max(0,value.muscleMass):0;
  const waistY=hip+.12+value.waistHeight*.020,hipY=hip-.025+value.hipHeight*.018,bustY=neck-.19+value.bustHeight*.018;
  return (x,y,z,source)=>{
   const [sx,sy,sz]=source,sign=Math.sign(sx)||1,ax=Math.abs(sx);
@@ -40,6 +43,17 @@ export function createBodyDeformer(state,l){
   y+=value.trapezius*.016*trap;
   x+=sign*value.deltoid*.010*shoulderMuscle;
   z*=1+value.deltoid*.22*shoulderMuscle;
+  if(burly){
+   // Continuous rib cage / oblique mass, rather than isolated chest balloons.
+   const rib=bell(sy,neck-.20,.145)*axial*belowHead;
+   const core=bell(sy,hip+.13,.12)*axial*belowHead;
+   x*=1+burly*(.105*rib+.045*core);
+   z=l.hips[2]+(z-l.hips[2])*(1+burly*(.13*rib+.055*core));
+   // Raise the broad shoulder-to-neck saddle and fill the upper-back silhouette.
+   const saddle=bell(sy,neck-.085,.060)*bell(ax,.055,.055)*belowHead;
+   y+=burly*.025*saddle;
+   z-=burly*.018*saddle*back;
+  }
   const chest=bell(sy,neck-.22,.10)*axial*belowHead;
   z*=1+value.chestDepth*.17*chest;
   z+=value.bustSize*.022*bell(sy,bustY,.065)*axial*front*belowHead;
@@ -54,7 +68,7 @@ export function createBodyDeformer(state,l){
   y+=value.hipHeight*.014*bell(sy,hip-.025,.10)*axial;
   const legBlend=(1-smooth(hip-.12,hip+.025,sy))*(1-smooth(.15,.24,ax)),legX=a.knee[0];
   const thigh=bell(sy,(hip+a.knee[1])*.5,.16)*legBlend,calf=bell(sy,(a.knee[1]+a.foot[1])*.5,.14)*legBlend,ankle=bell(sy,a.foot[1]+.025,.055)*legBlend;
-  const legScale=((value.thigh*.18+value.muscleMass*.07)*thigh+(value.calf*.20+value.muscleMass*.06)*calf+value.ankle*.15*ankle)*smooth(.006,.025,ax);
+  const legScale=((value.thigh*.18+value.muscleMass*.07+burly*.065)*thigh+(value.calf*.20+value.muscleMass*.06+burly*.025)*calf+value.ankle*.15*ankle)*smooth(.006,.025,ax);
   x+=(sx-sign*legX)*legScale;z*=1+legScale;
   const feet=(1-smooth(a.foot[1]-.025,a.foot[1]+.05,sy))*legBlend;
   x+=(sx-sign*a.foot[0])*value.footWidth*.15*feet;
@@ -67,7 +81,7 @@ export function createBodyDeformer(state,l){
   const line=s.map((q,i)=>q+u*v[i]),distance=Math.hypot(...p.map((q,i)=>q-line[i]));
   const armBlend=smooth(s[0]-.025,s[0]+.065,ax)*smooth(-.1,.15,u)*(1-smooth(.08,.16,distance));
   const upper=1-smooth(.40,.65,u),lower=smooth(.35,.65,u)*(1-smooth(.85,1.12,u));
-  const radial=((value.upperArm*.20+value.muscleMass*.12)*upper+(value.forearm*.20+value.muscleMass*.08)*lower)*armBlend;
+  const radial=((value.upperArm*.20+value.muscleMass*.12+burly*.22)*upper+(value.forearm*.20+value.muscleMass*.08+burly*.025)*lower)*armBlend;
   x+=sign*(p[0]-axis[0])*radial;y+=(p[1]-axis[1])*radial;z+=(p[2]-axis[2])*radial;
   const extension=value.armLength*.10*Math.max(0,Math.min(1,u))*armBlend;
   x+=sign*v[0]*extension;y+=v[1]*extension;z+=v[2]*extension;

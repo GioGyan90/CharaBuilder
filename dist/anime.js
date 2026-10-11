@@ -1,10 +1,10 @@
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
 import {bindCharacter} from './rig.js?v=28';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=32';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=33';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
 import {referenceHairMeshes,hairAssetIds} from './hair.js?v=32';
-import {createUnderwearData} from './underwear.js?v=16';
+import {createUnderwearData} from './underwear.js?v=33';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -215,6 +215,13 @@ if(iris && material.map){
       const q=deform((source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,deformPart);
       p.set(q,i);
       normals.set(deformNormal(deform,(source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,...sourceNormals.slice(i,i+3).map(v=>v/32767),deformPart),i);
+      if(source.fitPositions&&state.faceSource==='stone'&&state.gender==='male'){
+        // Fit clearance after the large body edit. A pre-edit offset can cross the
+        // inner-thigh deformation field and expose skin through the crotch.
+        const anchor=source.fitPositions.slice(i,i+3).map(v=>v/100000);
+        const n=deformNormal(deform,...anchor,...sourceNormals.slice(i,i+3).map(v=>v/32767),'Body');
+        const q=deform(...anchor,'Body');p.set(q.map((v,j)=>v+n[j]*.0065*scale),i);normals.set(n,i);
+      }
     }
     if(source.name==='Face'&&state.faceSource==='stone'){
       const groups=source.groups.filter(g=>data.materials[g.material].name.includes('_SKIN')),smooth=smoothGarmentNormals(p,groups);
