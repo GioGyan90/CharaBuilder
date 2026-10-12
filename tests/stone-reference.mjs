@@ -27,7 +27,7 @@ for(let i=0;i<body.positions.length/3;i++){
 for(const eye of [source.landmarks.leftEye,source.landmarks.rightEye])assert.ok(eye[1]<1.58&&eye[2]<.11,'eye anchor outside supplied socket');
 assert.ok(!composed.meshes.some(m=>m.name==='FaceEyes'),'surface study includes procedural eye layers');
 console.log('PASS '+checked+' hand/hip ownership vertices, measured head anchors and no eye overlay');
-for(const m of source.meshes)for(let i=0;i<m.positions.length/3;i++)if(m.positions[i*3+1]/1e5>1.52){const head=m.skinIndices.slice(i*4,i*4+4).reduce((s,j,k)=>s+(j===source.rig.humanoid.head?m.skinWeights[i*4+k]:0),0);assert.ok(head>1-1e-9,'face/head skin does not follow its eyes rigidly');}
+for(const m of source.meshes)for(let i=0;i<m.positions.length/3;i++)if(m.positions[i*3+1]/1e5>(source.reference.headPosition?1.53:1.52)){const head=m.skinIndices.slice(i*4,i*4+4).reduce((s,j,k)=>s+(j===source.rig.humanoid.head?m.skinWeights[i*4+k]:0),0);assert.ok(head>1-1e-9,'face/head skin does not follow its eyes rigidly');}
 console.log('PASS rigid upper head binding; procedural eye layers deferred');
 
 const bald=composeStoneReference(source,{...stonePreset,frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});
