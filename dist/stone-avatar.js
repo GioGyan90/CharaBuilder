@@ -1,4 +1,4 @@
-import {createUnderwearData} from './underwear.js?v=43';
+import {createUnderwearData} from './underwear.js?v=44';
 // Independent user-reference foundation. No old Stone morph/sculpt data is applied.
 const clamp=v=>Math.max(-2,Math.min(2,((v??50)-50)/50));
 function eyeMesh(base,name,region,c,width,height,color,materialIndex){
@@ -47,7 +47,7 @@ export function composeStoneReference(base,state){
   data.meshes.push({...hair,positions,name:'Hair'+part,groups:[{material:2,indices:tri}]});
  }
  const cloth=(name)=>({name,color:[1,1,1,1],double:true,blend:0,texture:null});
- if(state.clothes==='underwear')for(const mesh of createUnderwearData(base))add(mesh,cloth('Underwear_Bottoms_CLOTH'));
+ if(state.clothes==='underwear')for(const mesh of createUnderwearData(base,state.gender))add(mesh,cloth('Underwear_Bottoms_CLOTH'));
  else{
   const legBones=new Set(Object.entries(base.rig.humanoid).filter(([k])=>/Leg|Foot|Toes/.test(k)).map(([,i])=>i));
   const armBones=new Set(Object.entries(base.rig.humanoid).filter(([k])=>/Arm|Hand|Thumb|Index|Middle|Ring|Little/.test(k)).map(([,i])=>i));

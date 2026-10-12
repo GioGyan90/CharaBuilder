@@ -20,14 +20,14 @@ const armBones=new Set(Object.entries(source.rig.humanoid).filter(([k])=>/Arm|Ha
 const body=source.meshes.find(m=>m.name==='Body');let checked=0;
 for(let i=0;i<body.positions.length/3;i++){
  const x=Math.abs(body.positions[i*3]/1e5),y=body.positions[i*3+1]/1e5;
- if(y>=1.04||y<=.59)continue;
+ if(y>=1.04*(source.reference.turnaroundFit?.bodyScale[1]??1)||y<=.59*(source.reference.turnaroundFit?.bodyScale[1]??1))continue;
  const arm=body.skinIndices.slice(i*4,i*4+4).reduce((s,j,k)=>s+(armBones.has(j)?body.skinWeights[i*4+k]:0),0);
- assert.ok(x<.25*(source.reference.bodyWidthScale??1)?arm<1e-8:arm>1-1e-8,'hand/hip skin ownership crossed the anatomical gap');checked++;
+ assert.ok(x<.25*(source.reference.bodyWidthScale??1)*(source.reference.turnaroundFit?.bodyScale[0]??1)?arm<1e-8:arm>1-1e-8,'hand/hip skin ownership crossed the anatomical gap');checked++;
 }
-for(const eye of [source.landmarks.leftEye,source.landmarks.rightEye])assert.ok(eye[1]<1.58&&eye[2]<.11,'eye anchor outside supplied socket');
+for(const eye of [source.landmarks.leftEye,source.landmarks.rightEye])assert.ok(eye[1]>source.landmarks.faceGuide.chin&&eye[1]<source.landmarks.faceGuide.top&&eye[2]>source.landmarks.head[2]&&eye[2]<source.landmarks.head[2]+.14,'eye anchor outside supplied socket');
 assert.ok(!composed.meshes.some(m=>m.name==='FaceEyes'),'surface study includes procedural eye layers');
 console.log('PASS '+checked+' hand/hip ownership vertices, measured head anchors and no eye overlay');
-for(const m of source.meshes)for(let i=0;i<m.positions.length/3;i++)if(m.positions[i*3+1]/1e5>(source.reference.headPosition?1.53:1.52)){const head=m.skinIndices.slice(i*4,i*4+4).reduce((s,j,k)=>s+(j===source.rig.humanoid.head?m.skinWeights[i*4+k]:0),0);assert.ok(head>1-1e-9,'face/head skin does not follow its eyes rigidly');}
+for(const m of source.meshes)for(let i=0;i<m.positions.length/3;i++)if(m.positions[i*3+1]/1e5>(source.reference.turnaroundFit?source.landmarks.head[1]+(1.53-1.556)*source.reference.turnaroundFit.headScale:source.reference.headPosition?1.53:1.52)){const head=m.skinIndices.slice(i*4,i*4+4).reduce((s,j,k)=>s+(j===source.rig.humanoid.head?m.skinWeights[i*4+k]:0),0);assert.ok(head>1-1e-9,'face/head skin does not follow its eyes rigidly');}
 console.log('PASS rigid upper head binding; procedural eye layers deferred');
 
 const bald=composeStoneReference(source,{...stonePreset,frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});
@@ -37,5 +37,5 @@ assert.deepEqual(bald.meshes.find(m=>m.name==='Face').positions,composed.meshes.
 assert.deepEqual(bald.meshes.find(m=>m.name==='Face').groups,composed.meshes.find(m=>m.name==='Face').groups);
 const cap=headEnvelope(face.positions.map(v=>v/1e5),face.groups.flatMap(g=>g.indices),0,source.landmarks.head[2],1.52);
 for(const band of [267,274,280])for(let sector=0;sector<96;sector++)assert.ok(cap.bins.get(band+','+sector)>0,'bare cranium has an uncovered angular sector');
-let shelf=0;for(let i=0;i<body.positions.length/3;i++){const x=Math.abs(body.positions[i*3]/1e5),y=body.positions[i*3+1]/1e5;if(x<=.11||y<1.418)continue;for(let k=0;k<4;k++)if(body.skinWeights[i*4+k]>1e-6)assert.notEqual(body.skinIndices[i*4+k],source.rig.humanoid.head,'head rotation still pulls the shoulder shelf');shelf++;}
+let shelf=0;for(let i=0;i<body.positions.length/3;i++){const x=Math.abs(body.positions[i*3]/1e5),y=body.positions[i*3+1]/1e5;if(x<=.14*(source.reference.turnaroundFit?.bodyScale[0]??1)||y<1.418*(source.reference.turnaroundFit?.bodyScale[1]??1))continue;for(let k=0;k<4;k++)if(body.skinWeights[i*4+k]>1e-6)assert.notEqual(body.skinIndices[i*4+k],source.rig.humanoid.head,'head rotation still pulls the shoulder shelf');shelf++;}
 assert.ok(shelf>10);console.log('PASS independent bald face, complete cranium at 288 polar sectors and '+shelf+' shoulder shelf weights');

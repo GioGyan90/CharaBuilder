@@ -1,14 +1,14 @@
-import {stonePreset} from './experimental.js?v=43';
+import {stonePreset} from './experimental.js?v=44';
 import {cameraAngles,cameraYaw,anglePosition,selectedAngle,screenDragSide,moveCameraTarget} from './view.js?v=30';
-import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=43';
+import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=44';
 import {openHslPicker} from './colors.js?v=16';
-import {updateCharacterMotion,motionPresets} from './motion.js?v=43';
-import {parameterDefaults,parameterRanges} from './parameters.js?v=43';
+import {updateCharacterMotion,motionPresets} from './motion.js?v=44';
+import {parameterDefaults,parameterRanges} from './parameters.js?v=44';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=43';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=44';
 
-import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=43';
+import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=44';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
 const $ = s => document.querySelector(s);
 const defaults = {stoneView:'clay',...parameterDefaults,...hairDefaults,...wardrobeDefaults,faceSource:'vroid',name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jawWidth:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',shoes:'shoes',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',eyeColor:'#806449',shirt:'#778f87',pants:'#343b50',shoeColor:'#343b50'};
@@ -104,8 +104,8 @@ function renderControls(){
  if(activeTab==='experimental'){
   const card=element('div','field'),apply=element('button','primary','载入 Stone 试验预设');
   apply.onclick=()=>{remember();finishDirectEdit();state=normalize({...defaults,...stonePreset});faceBaseline={...state};bodyBaseline={...state};motionMode='rest';motionTime=0;syncMotionControls();update();renderControls();setView('full');toast('已载入 Stone 试验版');};
-  card.append(element('h3',null,'Stone · 低模体型 / 13'),element('p','reference-note','先检查身体与头部的连续曲面。默认白模、内衣 / 光脚，暂停眼睛和发型组件。'),apply);
-  card.append(element('p','reference-note','身体横向收窄约 9%，简化肌肉细节；素体约 1.17 万面，头部大小、位置和造型保持不变。'));
+  card.append(element('h3',null,'Stone · 三视图比例 / 14'),element('p','reference-note','先检查身体与头部的连续曲面。默认白模、内衣 / 光脚，暂停眼睛和发型组件。'),apply);
+  card.append(element('p','reference-note','按照三视图缩小身体体量，头部增大约 7.5%，增加颈部露出并收整颈根；素体约 1.17 万面。'));
   const views=element('div','options');for(const [value,text] of choices.stoneView){const b=element('button','option',text);b.classList.toggle('selected',state.stoneView===value);b.onclick=()=>{remember();state.stoneView=value;update();renderControls();};views.append(b);}card.append(views);
   const links=element('div','options');for(const [tab,text] of [['face','调整脸部'],['body','调整体型'],['hair','调整发型'],['clothes','切换服装']]){const b=element('button','option',text);b.onclick=()=>document.querySelector('[data-tab="'+tab+'"]').click();links.append(b);}card.append(links);
   const observe=element('div','options');for(const [clothes,text] of [['underwear','内衣 / 光脚看结构'],['shirtPants','衬衫 / 长裤看贴合']]){const b=element('button','option',text);b.onclick=()=>{remember();finishDirectEdit();state.clothes=clothes;state.shoes=clothes==='underwear'?'barefoot':'shoes';update();setView('full');};observe.append(b);}card.append(observe);$('#controls').append(card);

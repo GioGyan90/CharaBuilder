@@ -10,8 +10,8 @@ function clip(polygon,fn){
   }
  }return out;
 }
-export function createUnderwearData(base){
- const body=base.meshes.find(m=>m.name==='Body'),hip=base.landmarks.hips[1],neck=base.landmarks.neck[1],female=neck<1.40;
+export function createUnderwearData(base,gender){
+ const body=base.meshes.find(m=>m.name==='Body'),hip=base.landmarks.hips[1],neck=base.landmarks.neck[1],female=gender?gender==='female':base.stoneRebuilt?false:neck<1.40;
  const skin=body.groups.filter(g=>base.materials[g.material].name.includes('_SKIN'));
  function surface(name,conditions){
   const p=[],fitPositions=[],n=[],uv=[],indices=[],skinIndices=[],skinWeights=[];const rig=body.skinIndices?{indices:body.skinIndices,weights:body.skinWeights,weightScale:1}:base.rig?.meshes.Body;const arms=new Set(Object.entries(base.rig?.humanoid||{}).filter(([k])=>/Arm|Hand|Thumb|Index|Middle|Ring|Little/.test(k)).map(([,id])=>id));

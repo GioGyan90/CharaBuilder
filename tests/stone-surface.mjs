@@ -27,9 +27,11 @@ for(const result of [plain,selected])assert.ok(!result.meshes.some(m=>m.name.sta
 assert.equal(stonePreset.stoneView,'clay');assert.equal(data.materials[1].double,false,'double-sided rendering masks topology faults');
 console.log(`PASS ${faces} skin triangles: closed manifold, consistent winding, no duplicate faces, identical seam normals/weights; clay study hides eyes and hair`);
 
-if(data.reference.bodyWidthScale){
+if(data.reference.bodyWidthScale&&!data.reference.turnaroundFit){
  const head=data.meshes.find(m=>m.name==='Face');
  assert.equal(createHash('sha256').update(JSON.stringify(head.positions)).digest('hex'),'b89e02d632a177b1144519c652f351aae9286674e4ba75a14cb27458a9f9fdce','narrowing or simplification moved the v42 head');
  assert.equal(head.groups[0].indices.length/3,2239);assert.ok(faces<13000,'low-poly skin budget exceeded');
  console.log('PASS v42 head positions unchanged and low-poly skin budget below 13000 triangles');
 }
+
+if(data.reference.turnaroundFit){assert.equal(data.meshes.find(m=>m.name==='Face').groups[0].indices.length/3,2239);assert.ok(faces<13000);assert.ok(!plain.meshes.some(m=>m.name==='UnderwearTop'),'proportion fit misclassifies male underwear');console.log('PASS turnaround fit preserves low-poly budget and male underwear');}
