@@ -1,7 +1,7 @@
-import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=48';
-export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=48';
-import {deformAnimeFace} from './face.js?v=48';
-export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=48';
+import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=49';
+export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=49';
+import {deformAnimeFace} from './face.js?v=49';
+export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=49';
 // Parameters deform the original topology; source vertices are never mutated.
 export const parameterDefaults = {
   ...bodyDefaults,
@@ -42,7 +42,7 @@ export function createDeformer(input,landmarks,scale) {
       return [c[0]+(x-eye[0])*uniform,c[1]+(y-eye[1])*uniform,c[2]+(z-eye[2])*uniform];
     }
     const source=[x,y,z],oldY = y;
-    if(name.startsWith('Face:')&&landmarks.faceRig)[x,y,z]=deformAnimeFace(x,y,z,state,landmarks.faceRig,name);
+    if(name.startsWith('Face:')&&landmarks.faceRig){const edited=deformAnimeFace(x,y,z,state,landmarks.faceRig,name),blend=landmarks.headJoinY===undefined?1:smooth(landmarks.headJoinY,landmarks.headJoinY+.055,y);[x,y,z]=source.map((v,k)=>v+(edited[k]-v)*blend);}
     const headScale=1+(state.headSize-50)*.002;
     const headBlend=smooth(neck[1]-.025,neck[1]+.07,y);
     x*=1+(headScale-1)*headBlend;
@@ -76,7 +76,7 @@ export function createDeformer(input,landmarks,scale) {
     const neckBand=gaussian(oldY,neck[1]-.025,.045)*(1-headWeight);
     x*=1+(state.neckWidth-50)*.002*neckBand;
     z*=1+(state.neckWidth-50)*.002*neckBand;
-    if(state.faceSource==='stone'&&state.gender==='male'&&!landmarks.stoneRebuilt){
+    if(state.bodySource==='stone'&&state.gender==='male'&&!landmarks.stoneRebuilt){
       // Long muscular neck, continuous with the upper back and lower head.
       const adultNeck=gaussian(oldY,neck[1]-.016,.065)*(1-smooth(neck[1]+.010,neck[1]+.048,oldY))*(1-smooth(.07,.14,Math.abs(source[0])));
       const strength=Math.max(0,Math.min(2,(state.muscleMass-50)/50));

@@ -8,7 +8,7 @@ const moduleURL=path=>pathToFileURL(path).href;
 const temp=await fs.mkdtemp(path.join(os.tmpdir(),'charabuilder-modular-'));
 let hair=await fs.readFile(base+'hair.js','utf8');hair=hair.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'hair.mjs'),hair);
 let rig=await fs.readFile(base+'rig.js','utf8');rig=rig.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'rig.mjs'),rig);
-let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./stone-avatar.js?v=48'",JSON.stringify(moduleURL(base+'stone-avatar.js'))).replace("'./stone-body.js?v=34'",JSON.stringify(moduleURL(base+'stone-body.js'))).replace("'./stone-detail.js?v=32'",JSON.stringify(moduleURL(base+'stone-detail.js'))).replace("'./rig.js?v=48'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=48'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=48'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=48'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
+let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./stone-avatar.js?v=49'",JSON.stringify(moduleURL(base+'stone-avatar.js'))).replace("'./stone-body.js?v=34'",JSON.stringify(moduleURL(base+'stone-body.js'))).replace("'./stone-detail.js?v=32'",JSON.stringify(moduleURL(base+'stone-detail.js'))).replace("'./rig.js?v=49'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=49'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=49'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=49'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
 global.fetch=async url=>{try{return new Response(await fs.readFile(new URL(url)),{status:200});}catch{return new Response('',{status:404});}};
 const {loadHumanAssets,ensureHumanPresets,createHuman,disposeHuman}=await import(moduleURL(path.join(temp,'model.mjs')));
 const {hairDefaults,hairChoices,hairRanges}=await import(moduleURL(path.join(temp,'hair.mjs')));
@@ -56,7 +56,7 @@ for(const gender of ['female','male']){
  disposeHuman(initial);disposeHuman(restored);
 }
 console.log('PASS all garment and hair controls affect visible geometry; resetting preserves source data');
-for(const gender of ['female','male']){
+if(process.env.FULL_HAIR_MATRIX!=='0')for(const gender of ['female','male']){
  for(const [frontHair] of hairChoices.frontHair)for(const [backHair] of hairChoices.backHair)for(const [sideHair] of hairChoices.sideHair)for(const [braid] of hairChoices.braid)await check({...defaults,gender,frontHair,backHair,sideHair,braid});
  console.log('PASS all modular hair combinations for',gender);
 }
@@ -76,7 +76,11 @@ for(const gender of ['female','male']){
    const body=meshes.find(o=>o.userData.part==='Body'&&o.name.includes('_SKIN'));
    if(body.geometry.index.count!==skinIds[gender].length)throw Error('underwear body still cropped');
   }
-  if(!Number.isFinite(model.userData.height)||Math.abs(new (await import(moduleURL(base+'vendor/three.module.js'))).Box3().setFromObject(model).min.y)>.015)throw Error('floor alignment');
+  // Sparse source buffers retain hidden shoe vertices. Sample rendered indices,
+  // including skinning, rather than treating unused positions as visible feet.
+  const {Vector3}=await import(moduleURL(base+'vendor/three.module.js'));model.updateMatrixWorld(true);let floor=Infinity;
+  for(const mesh of meshes)for(const i of new Set(mesh.geometry.index.array)){const p=new Vector3().fromBufferAttribute(mesh.geometry.attributes.position,i);if(mesh.isSkinnedMesh)mesh.applyBoneTransform(i,p);floor=Math.min(floor,p.applyMatrix4(mesh.matrixWorld).y);}
+  if(!Number.isFinite(model.userData.height)||!Number.isFinite(floor)||Math.abs(floor)>.015)throw Error('floor alignment');
   disposeHuman(model);count++;
  }
 

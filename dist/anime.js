@@ -1,12 +1,12 @@
-import {composeStoneReference} from './stone-avatar.js?v=48';
+import {composeStoneReference,graftHead} from './stone-avatar.js?v=49';
 import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
-import {bindCharacter} from './rig.js?v=48';
+import {bindCharacter} from './rig.js?v=49';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=48';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=49';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=48';
-import {createUnderwearData} from './underwear.js?v=48';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=49';
+import {createUnderwearData} from './underwear.js?v=49';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -23,9 +23,9 @@ async function loadAsset(id, textures = true) {
   if (assets[id]) return assets[id];
   if (pending.has(id)) return pending.get(id);
   const promise = (async () => {
-    const manifest = await json(new URL(`${id}-manifest.json${id==='stone-ref'?'?v=48':''}`, root));
+    const manifest = await json(new URL(`${id}-manifest.json${id==='stone-ref'?'?v=49':''}`, root));
     const parts = await Promise.all(manifest.parts.map(async path => {
-      const response = await fetch(new URL(path+(id==='stone-ref'?'?v=48':''), root));
+      const response = await fetch(new URL(path+(id==='stone-ref'?'?v=49':''), root));
       if (!response.ok) throw Error(`模型分片加载失败: ${path}`);
       return response.text();
     }));
@@ -66,15 +66,28 @@ export async function loadHumanAssets({textures = true} = {}) {
 }
 export async function ensureHumanPresets(state, {textures = true} = {}) {
   if(state.faceSource==='stone'&&textures&&!stoneBrowMap){stoneBrowMap=await new THREE.TextureLoader().loadAsync(new URL('stone-brow.png',root).href);stoneBrowMap.flipY=false;stoneBrowMap.colorSpace=THREE.SRGBColorSpace;}
-  if(state.faceSource==='stone'&&state.gender==='male')await loadAsset('stone-ref',textures);
+  if((state.bodySource==='stone'||state.faceSource==='stone')&&state.gender==='male')await loadAsset('stone-ref',textures);
   const ids=hairAssetIds(state);if(state.clothes!=='underwear')ids.push(...(state.gender==='female'?['long','uniform']:['uniform']));
   await Promise.all([...new Set(ids)].map(id=>loadAsset(id,textures)));
 }
 function compose(state) {
-  if(state.faceSource==='stone'&&state.gender==='male'&&assets['stone-ref']){
-    const data=composeStoneReference(assets['stone-ref'],state),other={...state};for(const key of ['frontHair','backHair','sideHair'])if(other[key]==='stoneRef')other[key]='none';
-    for(const {owner,mesh} of data.landmarks.surfaceStage?[]:referenceHairMeshes({...assets,male:assets['stone-ref']},other)){const offset=data.materials.length;data.materials.push(...owner.materials);data.maps.push(...owner.materials.map((_,i)=>owner.maps[i]||null));data.meshes.push({...mesh,groups:mesh.groups.map(g=>({...g,material:g.material+offset}))});}return data;
-  }
+ const stoneBody=state.gender==='male'&&(state.bodySource==='stone'||(!state.bodySource&&state.faceSource==='stone'));
+ const stoneHead=state.gender==='male'&&state.faceSource==='stone';
+ if(!stoneBody&&!stoneHead)return composeAnime(state);
+ const reference=assets['stone-ref'];if(!reference)throw Error('Stone 预设尚未载入');
+ const stone=composeStoneReference(reference,state);
+ let data;
+ if(stoneBody&&stoneHead)data=stone;
+ else{
+  const anime=composeAnime({...state,faceSource:stoneHead?'vroid':state.faceSource,frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});
+  data=stoneBody?graftHead(stone,anime,reference,assets[state.gender]):graftHead(anime,stone,assets[state.gender],reference);
+ }
+ const other={...state};for(const key of ['frontHair','backHair','sideHair'])if(other[key]==='stoneRef')other[key]='none';
+ const target={...assets[state.gender],landmarks:data.landmarks};
+ for(const {owner,mesh} of referenceHairMeshes({...assets,[state.gender]:target},other)){const offset=data.materials.length;data.materials.push(...owner.materials);data.maps.push(...owner.materials.map((_,i)=>owner.maps[i]||null));data.meshes.push({...mesh,groups:mesh.groups.map(g=>({...g,material:g.material+offset}))});}
+ return data;
+}
+function composeAnime(state) {
   const base=assets[state.gender],shirt=assets[state.gender==='female'?'long':'uniform'],pants=assets.uniform;
   if(!base||(state.clothes!=='underwear'&&(!shirt||!pants)))throw Error('服装基础网格未载入');
   const data={...base,materials:[],maps:[],meshes:[]};
@@ -87,7 +100,7 @@ function compose(state) {
   if(state.faceSource==='stone'&&state.gender==='male'){fitted.maps=[...base.maps];for(let i=0;i<fitted.materials.length;i++)if(fitted.materials[i].name.includes('FaceBrow')){fitted.materials[i]={...fitted.materials[i],texture:'stone-brow.png'};fitted.maps[i]=stoneBrowMap;}}
   data.landmarks={...base.landmarks,...fitted.landmarks,bodyRig:bodyAnchors(base)};
   for(const mesh of fitted.meshes)add(fitted,mesh,mesh.groups);
-  const stone=state.faceSource==='stone'&&state.gender==='male';
+  const stone=false;
   const body=stone?refineStoneBody(base):base.meshes.find(m=>m.name==='Body');
   const bodyOwner=stone?{...base,meshes:base.meshes.map(m=>m.name==='Body'?body:m)}:base;
   const neck=base.landmarks.neck[1],hip=base.landmarks.hips[1],sleeve=.124+Math.max(0,Math.min(100,state.sleeveLength??50))*(state.gender==='female'?.00276:.00316);
@@ -145,7 +158,7 @@ export function createHuman(state) {
     if (iris) color.set(state.eyeColor||'#806449');
     if (clothes) color.set(name.includes('Shoes')?(state.shoeColor||state.pants):name.includes('Bottoms')||name.includes('AccessoryNeck')?state.pants:state.shirt);
     const overlay = /Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(name);
-    const clay=data.stoneRebuilt&&state.stoneView!=='skin';if(clay)color.set(skin?'#c6c8ce':clothes?'#747984':'#c6c8ce');
+    const clay=(data.stoneRebuilt||data.mixedHead)&&state.stoneView==='clay';if(clay)color.set(skin?'#c6c8ce':clothes?'#747984':'#c6c8ce');
     const Material=clay?THREE.MeshStandardMaterial:THREE.MeshToonMaterial;
     const material = new Material({
       color, map:clothes || (skin && name.includes('Body')) ? null : data.maps[i] || null,
@@ -201,11 +214,11 @@ if(iris && material.map){
       material.customProgramCacheKey = () => name.startsWith('AnimeReference')?'parametric-anime-face-v18':'neutral-face-skin-v11';
       material.userData.faceSkinReference = reference;
     }
-    if(state.faceSource==='stone'&&state.gender==='male'&&skin&&name.includes('Face')&&!data.stoneRebuilt){
+    if(state.faceSource==='stone'&&state.gender==='male'&&skin&&name.includes('Face')&&!data.stoneRebuilt&&!data.mixedHead){
       const r=data.landmarks.faceRig,mouth=deform(...r.mouth,'Face:mouth'),chin=deform(r.headX,r.chin,r.nose[2],'Face:skin'),c=deform(...base.landmarks.head,'Body');
       installStoneDetail(material,new THREE.Vector3(c[0],mouth[1],chin[1]),scale,c[2],deform(...r.eyes[0],'Face:eye0')[1]);
     }
-    if(state.faceSource==='stone'&&state.gender==='male'&&hair&&!data.stoneRebuilt){const r=data.landmarks.faceRig,c=deform(...base.landmarks.head,'Body');installStoneTemples(material,new THREE.Vector3(...c),deform(...r.eyes[0],'Face:eye0')[1],scale);}
+    if(state.faceSource==='stone'&&state.gender==='male'&&hair&&!data.stoneRebuilt&&!data.mixedHead){const r=data.landmarks.faceRig,c=deform(...base.landmarks.head,'Body');installStoneTemples(material,new THREE.Vector3(...c),deform(...r.eyes[0],'Face:eye0')[1],scale);}
     // A broad light band keeps the face soft, while painted iris/eyelash detail remains crisp.
     const gradient = new THREE.DataTexture(new Uint8Array(name.startsWith('AnimeReference')?[145,222,255]:[155,224,255]),3,1,THREE.RedFormat);
     gradient.minFilter=gradient.magFilter=THREE.NearestFilter;gradient.needsUpdate=true;
@@ -232,7 +245,7 @@ if(iris && material.map){
       const q=deform((source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,deformPart,legSide);
       p.set(q,i);
       normals.set(deformNormal(deform,(source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,...sourceNormals.slice(i,i+3).map(v=>v/32767),deformPart,legSide),i);
-      if(source.fitPositions&&state.faceSource==='stone'&&state.gender==='male'&&!data.stoneRebuilt){
+      if(source.fitPositions&&state.faceSource==='stone'&&state.gender==='male'&&!data.stoneRebuilt&&!data.mixedHead){
         // Fit clearance after the large body edit. A pre-edit offset can cross the
         // inner-thigh deformation field and expose skin through the crotch.
         const anchor=source.fitPositions.slice(i,i+3).map(v=>v/100000);
@@ -244,15 +257,16 @@ if(iris && material.map){
       const groups=source.groups.filter(g=>data.materials[g.material].name.includes('_SKIN')),smooth=smoothGarmentNormals(p,groups);
       for(const id of new Set(groups.flatMap(g=>g.indices)))normals.set(smooth.subarray(id*3,id*3+3),id*3);
     }
+    if(data.mixedHead&&['Body','Face','FaceScalp'].includes(source.name))normals.set(smoothGarmentNormals(p,source.groups));
     if(source.name==='Pants')normals.set(smoothGarmentNormals(p,source.groups));
-    if(source.name==='Body'&&state.faceSource==='stone'&&state.gender==='male'&&!data.stoneRebuilt){
+    if(source.name==='Body'&&state.faceSource==='stone'&&state.gender==='male'&&!data.stoneRebuilt&&!data.mixedHead){
       relaxStoneShoulders(p,source,data.landmarks);
       const groups=source.groups.filter(g=>data.materials[g.material].name.includes('_SKIN')),smooth=smoothGarmentNormals(p,groups);
       for(const id of new Set(groups.flatMap(g=>g.indices)))normals.set(smooth.subarray(id*3,id*3+3),id*3);
       group.userData.bodyRefinement=source.refinement;
     }
     if(data.landmarks.faceRig){
-      if(source.name==='Face'||source.name==='Body'){
+      if(source.name==='Face'||source.name==='Body'||source.name==='FaceScalp'){
         const offset=envelopePoints.length/3;envelopePoints.push(...p);
         for(const g of source.groups)if(data.materials[g.material].name.includes('_SKIN')){envelopeIndices.push(...g.indices.map(id=>id+offset));if(source.name==='Face')for(const id of g.indices)editedChin=Math.min(editedChin,p[id*3+1]);}
       }else if(source.name.startsWith('Hair')){
@@ -279,7 +293,7 @@ if(iris && material.map){
       mesh.castShadow=!/Face|Eye|Hair/.test(description);mesh.receiveShadow=false;
       mesh.renderOrder=/Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(description)?2:0;
       group.add(mesh);
-      if(description.startsWith('AnimeReferenceFace')&&description.includes('_SKIN')&&!data.stoneRebuilt){
+      if(description.startsWith('AnimeReferenceFace')&&description.includes('_SKIN')&&!data.stoneRebuilt&&!data.mixedHead){
         const outlineGeometry=geometry.clone(),op=outlineGeometry.attributes.position;
         for(let id=0;id<op.count;id++){const taper=Math.max(0,Math.min(1,(source.positions[id*3+1]/100000-base.landmarks.neck[1]-.025)/.04)),width=.00085*scale*taper;op.setXYZ(id,op.getX(id)+normals[id*3]*width,op.getY(id)+normals[id*3+1]*width,op.getZ(id)+normals[id*3+2]*width);}
         const outlineMaterial=new THREE.MeshBasicMaterial({color:'#47352e',side:THREE.BackSide});materials.push(outlineMaterial);
@@ -317,6 +331,7 @@ if(iris && material.map){
   group.userData.height=new THREE.Box3().setFromObject(group).max.y;
   group.userData.faceY=deform(0,eyeY,data.landmarks.head[2],'Face')[1]+group.position.y;
   group.userData.model='vroid-beta-parametric';
+  group.userData.bodySource=state.bodySource||((state.faceSource==='stone'&&state.gender==='male')?'stone':'vroid');group.userData.mixedHead=!!data.mixedHead;
   group.userData.parameterVersion=2;group.userData.facePresetName=data.landmarks.faceRig?.preset.name||'原版日漫';group.userData.faceSource=state.faceSource||'vroid';
   return group;
 }

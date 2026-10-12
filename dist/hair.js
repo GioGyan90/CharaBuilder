@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 // Authored CC0 meshes: preserve polygons, locks, UVs and normals; only fit/split them.
 export const hairDefaults={frontHair:'straight',backHair:'bob',sideHair:'short',braid:'none',frontLength:50,backLength:50,sideLength:50,braidLength:50,hairVolume:50};
-export const hairChoices={frontHair:[['stoneRef','Stone · 参考前发'],['none','无前发'],['straight','齐刘海'],['parted','中分刘海'],['swept','层次斜刘海'],['soft','柔顺刘海'],['curtain','弧形刘海'],['sidepart','侧分短发 · 原模型'],['upcomb','上梳短发 · 原模型'],['layered06','分层短发 · culturalibre']],backHair:[['stoneRef','Stone · 参考后发'],['none','无后发'],['short','层次短发'],['bob','波波后发'],['long','直长后发'],['curled','卷曲后发'],['sidepart','侧分短后发'],['upcomb','上梳短后发'],['layered06','分层短后发']],sideHair:[['stoneRef','Stone · 参考侧发'],['none','无侧发'],['short','波波侧发'],['layered','层次鬓发'],['long','长鬓发'],['curled','弧形侧发'],['sidepart','侧分短侧发'],['upcomb','上梳短侧发'],['layered06','分层短侧发']],braid:[['none','无发辫'],['single','侧卷马尾'],['double','双马尾']]};
+export const hairChoices={frontHair:[['none','无前发'],['straight','齐刘海'],['parted','中分刘海'],['swept','层次斜刘海'],['soft','柔顺刘海'],['curtain','弧形刘海'],['sidepart','侧分短发 · 原模型'],['upcomb','上梳短发 · 原模型'],['layered06','分层短发 · culturalibre']],backHair:[['none','无后发'],['short','层次短发'],['bob','波波后发'],['long','直长后发'],['curled','卷曲后发'],['sidepart','侧分短后发'],['upcomb','上梳短后发'],['layered06','分层短后发']],sideHair:[['none','无侧发'],['short','波波侧发'],['layered','层次鬓发'],['long','长鬓发'],['curled','弧形侧发'],['sidepart','侧分短侧发'],['upcomb','上梳短侧发'],['layered06','分层短侧发']],braid:[['none','无发辫'],['single','侧卷马尾'],['double','双马尾']]};
 export const hairRanges={frontLength:['前发长度','短','长'],backLength:['后发长度','短','长'],sideLength:['侧发长度','短','长'],braidLength:['马尾长度','短','长'],hairVolume:['蓬松度','贴合','蓬松']};
 export const classicHairPresets=[
  {label:'作者分层短发',gender:'male',reference:'https://www.makehumancommunity.org/node/2479',values:{frontHair:'layered06',backHair:'layered06',sideHair:'layered06',braid:'none'}},
@@ -14,9 +14,10 @@ export const classicHairPresets=[
  {label:'侧卷马尾',gender:'female',values:{frontHair:'curtain',backHair:'curled',sideHair:'curled',braid:'single'}}
 ];
 // Product selection policy, not a statement about who may wear a real hairstyle.
-export const genderHairValues={male:{frontHair:['stoneRef','none','swept','sidepart','upcomb','layered06'],backHair:['stoneRef','none','short','sidepart','upcomb','layered06'],sideHair:['stoneRef','none','layered','sidepart','upcomb','layered06'],braid:['none']},female:{frontHair:['none','straight','parted','swept','soft','curtain'],backHair:['none','short','bob','long','curled'],sideHair:['none','short','layered','long','curled'],braid:['none','single','double']}};
-export function hairOptionsFor(key,gender,faceSource){const allowed=genderHairValues[gender]?.[key];return allowed?hairChoices[key].filter(([value])=>allowed.includes(value)&&(value!=='stoneRef'||faceSource==='stone')):hairChoices[key];}
+export const genderHairValues={male:{frontHair:['none','swept','sidepart','upcomb','layered06'],backHair:['none','short','sidepart','upcomb','layered06'],sideHair:['none','layered','sidepart','upcomb','layered06'],braid:['none']},female:{frontHair:['none','straight','parted','swept','soft','curtain'],backHair:['none','short','bob','long','curled'],sideHair:['none','short','layered','long','curled'],braid:['none','single','double']}};
+export function hairOptionsFor(key,gender,faceSource){const allowed=genderHairValues[gender]?.[key];return allowed?hairChoices[key].filter(([value])=>allowed.includes(value)&&value!=='stoneRef'):hairChoices[key];}
 export function filterHairForGender(input){const out={...input},gender=out.gender==='male'?'male':'female';const fallback=gender==='male'?{frontHair:'sidepart',backHair:'sidepart',sideHair:'sidepart',braid:'none'}:hairDefaults;
+ for(const key of ['frontHair','backHair','sideHair'])if(out[key]==='stoneRef')out[key]='none';
  for(const key of ['frontHair','backHair','sideHair','braid'])if(!hairOptionsFor(key,gender,out.faceSource).some(([value])=>value===out[key]))out[key]=fallback[key];return out;}
 const skullCache=new WeakMap();
 const frontOwners={straight:'bob',parted:'female',swept:'uniform',soft:'long',curtain:'classic',sidepart:'sidepart',upcomb:'upcomb',layered06:'layered06'};

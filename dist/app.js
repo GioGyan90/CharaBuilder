@@ -1,31 +1,32 @@
-import {stonePreset} from './experimental.js?v=48';
+import {stonePreset} from './presets.js?v=49';
 import {cameraAngles,cameraYaw,anglePosition,selectedAngle,screenDragSide,moveCameraTarget} from './view.js?v=30';
-import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=48';
+import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=49';
 import {openHslPicker} from './colors.js?v=16';
-import {updateCharacterMotion,motionPresets} from './motion.js?v=48';
-import {parameterDefaults,parameterRanges} from './parameters.js?v=48';
+import {updateCharacterMotion,motionPresets} from './motion.js?v=49';
+import {parameterDefaults,parameterRanges} from './parameters.js?v=49';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=48';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=49';
 
-import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=48';
+import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=49';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
 const $ = s => document.querySelector(s);
-const defaults = {stoneView:'clay',...parameterDefaults,...hairDefaults,...wardrobeDefaults,faceSource:'vroid',name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jawWidth:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',shoes:'shoes',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',eyeColor:'#806449',shirt:'#778f87',pants:'#343b50',shoeColor:'#343b50'};
-const choices = {stoneView:[['clay','素体白模'],['skin','肤色检查']],faceSource:[['vroid','原版日漫'],['authored','参考日漫'],['stone','Stone · 硬朗熟男']],gender:[['female','女性'],['male','男性']],...hairChoices,hair:[['modular','分区发型']],clothes:[['shirtPants','衬衫 · 长裤'],['underwear','贴身内衣']],shoes:[['shoes','穿鞋'],['barefoot','光脚']],expression:[['neutral','自然'],['fun','微笑'],['joy','开心'],['angry','认真'],['sorrow','忧伤'],['blink','闭眼']]};
+const defaults = {bodySource:'vroid',stoneView:'skin',...parameterDefaults,...hairDefaults,...wardrobeDefaults,faceSource:'vroid',name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jawWidth:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',shoes:'shoes',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',eyeColor:'#806449',shirt:'#778f87',pants:'#343b50',shoeColor:'#343b50'};
+const choices = {bodySource:[['vroid','日漫标准身材'],['stone','Stone · 魁梧肌肉']],stoneView:[['clay','素体白模'],['skin','肤色检查']],faceSource:[['vroid','原版日漫'],['authored','参考日漫'],['stone','Stone · 硬朗熟男']],gender:[['female','女性'],['male','男性']],...hairChoices,hair:[['modular','分区发型']],clothes:[['shirtPants','衬衫 · 长裤'],['underwear','贴身内衣']],shoes:[['shoes','穿鞋'],['barefoot','光脚']],expression:[['neutral','自然'],['fun','微笑'],['joy','开心'],['angry','认真'],['sorrow','忧伤'],['blink','闭眼']]};
 const palettes = {eyeColor:['#806449','#427b99','#538368','#a67845','#8773a1','#8f454a'],skin:['#f1cbb2','#d6a17e','#b87c55','#86543c','#51372c'],hairColor:['#201d20','#332821','#815137','#c5a15e','#b7b9c4','#854d67'],shirt:['#778f87','#d7c8b0','#a24d54','#537892','#373c49','#bca0c2'],pants:['#343b50','#292c31','#a09380','#655850'],shoeColor:['#292c31','#343b50','#655850','#a09380','#e0ded7']};
 const ranges = {...parameterRanges,...hairRanges,...wardrobeRanges,height:['身高','较矮','较高'],weight:['体型','纤细','丰满'],shoulders:['肩宽','窄','宽'],legs:['腿长比例','短','长'],faceWidth:['脸部宽度','窄','宽'],eyeSize:['眼睛大小','小','大'],eyeSpace:['眼间距','近','远'],nose:['鼻子大小','小','大'],mouth:['嘴部宽度','窄','宽']};
-const tabs = {experimental:['05 / EXPERIMENTAL','Stone · 魁梧熟男','独立试验类别 · 本轮打磨魁梧身材，默认内衣 / 光脚。',[]],body:['01 / FOUNDATION','创造独一无二的你','保留日漫基础结构，用参数调整身体比例。',['name','gender','height','weight','shoulders','legs','headSize','neckWidth','chest','waist','hips','legThickness','torsoLength','shoulderSlope','shoulderDepth','chestDepth','bustSize','bustHeight','backDepth','muscleMass','trapezius','latWidth','deltoid','waistHeight','abdomen','hipDepth','hipHeight','armLength','upperArm','forearm','handSize','thigh','calf','ankle','footLength','footWidth','legSpace','ribWidth','pecVolume','scapulaVolume','gluteVolume','thighDepth','calfDepth','kneeWidth','skin']],face:['02 / FEATURES','每一面，都有个性','眼形与瞳孔分开处理，瞳孔保留原始比例。',['faceWidth','faceHeight','jawWidth','jawDepth','jawHeight','jawAngle','cheekboneWidth','cheekboneHeight','cheekboneDepth','chinProjection','cheek','chinWidth','chinLength','forehead','eyeSize','eyeWidth','eyeHeight','eyeSpace','eyeVertical','eyeTilt','browHeight','browAngle','browThickness','browRidge','nose','noseWidth','noseHeight','noseProjection','mouth','mouthHeight','mouthThickness','mouthProjection','mouthCorner','expression','eyeColor']],hair:['03 / HAIRSTYLE','从头开始的风格','从经典发型出发，分别调整前发、后发、侧发和马尾。',['frontHair','frontLength','backHair','backLength','sideHair','sideLength','braid','braidLength','hairVolume','hairColor']],clothes:['04 / WARDROBE','穿出你的日常','选择衬衫长裤或贴身内衣，可独立切换鞋履。',['clothes','shoes','shirtLength','sleeveLength','shirtEase','pantsWidth','shirt','pants','shoeColor']]};
+const tabs = {body:['01 / FOUNDATION','创造独一无二的你','选择基础身材，独立搭配脸型，再调整身体比例。',['name','gender','height','weight','shoulders','legs','headSize','neckWidth','chest','waist','hips','legThickness','torsoLength','shoulderSlope','shoulderDepth','chestDepth','bustSize','bustHeight','backDepth','muscleMass','trapezius','latWidth','deltoid','waistHeight','abdomen','hipDepth','hipHeight','armLength','upperArm','forearm','handSize','thigh','calf','ankle','footLength','footWidth','legSpace','ribWidth','pecVolume','scapulaVolume','gluteVolume','thighDepth','calfDepth','kneeWidth','skin']],face:['02 / FEATURES','每一面，都有个性','眼形与瞳孔分开处理，瞳孔保留原始比例。',['faceWidth','faceHeight','jawWidth','jawDepth','jawHeight','jawAngle','cheekboneWidth','cheekboneHeight','cheekboneDepth','chinProjection','cheek','chinWidth','chinLength','forehead','eyeSize','eyeWidth','eyeHeight','eyeSpace','eyeVertical','eyeTilt','browHeight','browAngle','browThickness','browRidge','nose','noseWidth','noseHeight','noseProjection','mouth','mouthHeight','mouthThickness','mouthProjection','mouthCorner','expression','eyeColor']],hair:['03 / HAIRSTYLE','从头开始的风格','从经典发型出发，分别调整前发、后发、侧发和马尾。',['frontHair','frontLength','backHair','backLength','sideHair','sideLength','braid','braidLength','hairVolume','hairColor']],clothes:['04 / WARDROBE','穿出你的日常','选择衬衫长裤或贴身内衣，可独立切换鞋履。',['clothes','shoes','shirtLength','sleeveLength','shirtEase','pantsWidth','shirt','pants','shoeColor']]};
 const bounds=key=>tabs.body[3].includes(key)&&ranges[key]?[-100,200]:tabs.face[3].includes(key)&&ranges[key]?[-50,150]:[0,100];
 const faceNeutral=Object.fromEntries(tabs.face[3].filter(k=>ranges[k]).map(k=>[k,50]));
 const facePresets=[
+ {label:'Stone · 硬朗熟男脸',gender:'male',values:{faceSource:'stone',...faceNeutral,expression:'neutral'}},
  {label:'绫 · 成女脸',gender:'female',values:{faceSource:'authored',...faceNeutral,faceWidth:50,jawWidth:50,eyeSize:50,eyeSpace:50,nose:50,mouth:50,expression:'neutral'}},
  {label:'隼 · 熟男脸',gender:'male',values:{faceSource:'authored',...faceNeutral,faceWidth:50,jawWidth:50,eyeSize:50,eyeSpace:50,nose:50,mouth:50,expression:'neutral'}},
   {label:'柔和日漫',values:{faceSource:'vroid',faceWidth:45,jawWidth:22,eyeSize:88,eyeSpace:54,nose:15,mouth:30}},
   {label:'清爽青年',values:{faceSource:'vroid',faceWidth:42,jawWidth:38,eyeSize:73,eyeSpace:50,nose:27,mouth:36}},
   {label:'原版日漫',values:{faceSource:'vroid',faceWidth:50,jawWidth:50,eyeSize:50,eyeSpace:50,nose:50,mouth:50,forehead:50,chinLength:50,noseProjection:50,mouthHeight:50}}
 ];
-const labels={frontHair:'前发',backHair:'后发',sideHair:'侧发',braid:'发辫 / 马尾',expression:'表情',gender:'性别',hair:'发型',clothes:'服饰',shoes:'鞋履',skin:'肤色',eyeColor:'瞳孔颜色',hairColor:'发色',shirt:'上装颜色',pants:'下装颜色',shoeColor:'鞋履颜色'};
+const labels={frontHair:'前发',backHair:'后发',sideHair:'侧发',braid:'发辫 / 马尾',expression:'表情',gender:'性别',bodySource:'身材预设',stoneView:'预览材质',hair:'发型',clothes:'服饰',shoes:'鞋履',skin:'肤色',eyeColor:'瞳孔颜色',hairColor:'发色',shirt:'上装颜色',pants:'下装颜色',shoeColor:'鞋履颜色'};
 let cameraAnchorY=null;
 let state={...defaults}, activeTab='body', currentView='full', model, renderer, scene, camera, orbit;
 const stage=$('#stage');
@@ -46,6 +47,9 @@ function normalize(value){
   else if(choices[key]&&choices[key].some(c=>c[0]===v))out[key]=v;
   else if(palettes[key]&&typeof v==='string'&&/^#[0-9a-f]{6}$/i.test(v))out[key]=v;
  }
+ // Earlier Stone archives selected the entire foundation with faceSource.
+ if(!Object.hasOwn(value,'bodySource')&&value.faceSource==='stone'&&out.gender==='male')out.bodySource='stone';
+ if(out.gender!=='male'){out.bodySource='vroid';if(out.faceSource==='stone')out.faceSource='vroid';}
  if(!Object.hasOwn(value,'shoeColor'))out.shoeColor=out.pants;
  // Old complete hairstyles migrate to editable sections; clothing becomes shirt + pants.
  if(!Object.hasOwn(value,'frontHair')){
@@ -55,6 +59,7 @@ function normalize(value){
   else if(value.hair==='wavePreset')Object.assign(out,{frontHair:'swept',backHair:'bob',braid:'single'});
   else if(value.gender==='female'&&value.hair==='source')Object.assign(out,{frontHair:'parted',backHair:'short',braid:'double'});
  }
+ for(const key of ['frontHair','backHair','sideHair'])if(value[key]==='stoneRef')out[key]='none';
  return filterHairForGender(out);
 }
 function element(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;}
@@ -93,7 +98,7 @@ function renderField(key){
  }else{
   const box=element('div',palettes[key]?'swatches':key==='gender'?'segmented':'options');for(const [value,text] of palettes[key]?.map(c=>[c,c])||choicesFor(key)){
    const button=element('button',palettes[key]?'swatch':'option',palettes[key]?undefined:text);button.classList.toggle('selected',state[key]===value);button.setAttribute('aria-label',labels[key]+' '+text);button.setAttribute('aria-pressed',String(state[key]===value));if(palettes[key])button.style.setProperty('--color',value);
-   button.onclick=()=>{remember();state[key]=value;if(key==='gender'){state=normalize(state);finishDirectEdit();faceBaseline={...state};bodyBaseline={...state};}if(palettes[key])applyHumanColors(model,state);else update();renderControls();};box.append(button);
+   button.onclick=()=>{remember();state[key]=value;if(key==='bodySource'){for(const k of tabs.body[3])if(ranges[k]&&k!=='headSize')state[k]=defaults[k];bodyBaseline={...state};}if(key==='gender'){state=normalize(state);finishDirectEdit();faceBaseline={...state};bodyBaseline={...state};}if(palettes[key])applyHumanColors(model,state);else update();renderControls();};box.append(button);
   }
   if(palettes[key]){const custom=element('button','custom-color','HSL '+state[key].toUpperCase());custom.style.setProperty('--color',state[key]);custom.setAttribute('aria-label','打开'+labels[key]+' HSL 色板');custom.onclick=()=>{remember();openHslPicker(labels[key],state[key],color=>{state[key]=color;applyHumanColors(model,state);custom.textContent='HSL '+color.toUpperCase();custom.style.setProperty('--color',color);box.querySelectorAll('.swatch').forEach(b=>{const selected=b.getAttribute('aria-label')===labels[key]+' '+color;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));});});};box.append(custom);}wrap.append(box);
  }
@@ -101,26 +106,21 @@ function renderField(key){
 }
 function renderControls(){
  const [num,title,desc,fields]=tabs[activeTab];$('#section-number').textContent=num;$('#section-title').textContent=title;$('#section-desc').textContent=desc;$('#controls').replaceChildren();$('#controls').classList.toggle('face-control-panel',['face','body'].includes(activeTab));
- if(activeTab==='experimental'){
-  const card=element('div','field'),apply=element('button','primary','载入 Stone 试验预设');
-  apply.onclick=()=>{remember();finishDirectEdit();state=normalize({...defaults,...stonePreset});faceBaseline={...state};bodyBaseline={...state};motionMode='rest';motionTime=0;syncMotionControls();update();renderControls();setView('full');toast('已载入 Stone 试验版');};
-  card.append(element('h3',null,'Stone · 头身与下颌 / 18'),element('p','reference-note','先检查身体与头部的连续曲面。默认白模、内衣 / 光脚，暂停眼睛和发型组件。'),apply);
-  card.append(element('p','reference-note','身体横向再收约 4.5%，头部增大约 4%；补整下颌转角与腮帮体块，素体约 1.17 万面。'));
-  const views=element('div','options');for(const [value,text] of choices.stoneView){const b=element('button','option',text);b.classList.toggle('selected',state.stoneView===value);b.onclick=()=>{remember();state.stoneView=value;update();renderControls();};views.append(b);}card.append(views);
-  const links=element('div','options');for(const [tab,text] of [['face','调整脸部'],['body','调整体型'],['hair','调整发型'],['clothes','切换服装']]){const b=element('button','option',text);b.onclick=()=>document.querySelector('[data-tab="'+tab+'"]').click();links.append(b);}card.append(links);
-  const observe=element('div','options');for(const [clothes,text] of [['underwear','内衣 / 光脚看结构'],['shirtPants','衬衫 / 长裤看贴合']]){const b=element('button','option',text);b.onclick=()=>{remember();finishDirectEdit();state.clothes=clothes;state.shoes=clothes==='underwear'?'barefoot':'shoes';update();setView('full');};observe.append(b);}card.append(observe);$('#controls').append(card);
- }
- if(activeTab==='hair'&&state.faceSource==='stone'&&state.gender==='male'){
-  $('#controls').append(element('p','reference-note','当前为 Stone 素体检查版，发型组件暂不显示。请先检查头皮、脸部和肩颈结构。'));syncHandleVisibility();return;
- }
  if(activeTab==='hair'){
   const wrap=element('div','field'),box=element('div','options');wrap.append(element('div','field-title','经典发型组合'));for(const preset of classicHairPresets.filter(p=>!p.gender||p.gender===state.gender)){const b=element('button','option',preset.label);b.classList.toggle('selected',Object.entries(preset.values).every(([k,v])=>state[k]===v));b.onclick=()=>{remember();Object.assign(state,preset.values,{frontLength:50,backLength:50,sideLength:50,braidLength:50,hairVolume:50});update();renderControls();setView('face');};box.append(b);}wrap.append(box);const note=element('p','reference-note','基于作者原模型分区。 ');for(const preset of classicHairPresets.filter(p=>p.reference&&p.gender===state.gender)){const a=element('a',null,preset.label+'来源 ');a.href=preset.reference;a.target='_blank';a.rel='noopener';note.append(a);}const allRefs=element('a',null,'全部模型来源');allRefs.href='https://github.com/GioGyan90/CharaBuilder/blob/main/HAIR_REFERENCES.md';allRefs.target='_blank';allRefs.rel='noopener';note.append(allRefs);wrap.append(note);$('#controls').append(wrap);
  }
  if(activeTab==='face'){
-  const wrap=element('div','field face-presets'),box=element('div','options');wrap.append(element('div','field-title','脸型预设'));for(const preset of facePresets.filter(p=>!p.gender||p.gender===state.gender)){const b=element('button','option',preset.label);b.classList.toggle('selected',Object.entries(preset.values).every(([k,v])=>state[k]===v));b.onclick=()=>{remember();Object.assign(state,faceNeutral,preset.values);faceBaseline={...state};update();renderControls();setView('face');};box.append(b);}wrap.append(box);$('#controls').append(wrap);
+  const wrap=element('div','field face-presets'),box=element('div','options');wrap.append(element('div','field-title','脸型预设'));for(const preset of facePresets.filter(p=>!p.gender||p.gender===state.gender)){const b=element('button','option',preset.label);b.classList.toggle('selected',Object.entries(preset.values).every(([k,v])=>state[k]===v));b.onclick=()=>{remember();Object.assign(state,faceNeutral,preset.values);faceBaseline={...state};update();renderControls();setView('face');};box.append(b);}wrap.append(box);if(state.faceSource==='stone')wrap.append(element('p','reference-note','Stone 头部保留素体中性面部，暂不支持瞳孔与表情组件。'));$('#controls').append(wrap);
  }
  if(activeTab==='body'||activeTab==='face'){
-  if(activeTab==='body')$('#controls').append(renderField('name'),renderField('gender'));
+  if(activeTab==='body'){
+   $('#controls').append(renderField('name'),renderField('gender'));
+   if(state.gender==='male'){
+    $('#controls').append(renderField('bodySource'));
+    const load=element('button','option','载入完整 Stone 预设');load.onclick=()=>{remember();finishDirectEdit();state=normalize({...defaults,...stonePreset});faceBaseline={...state};bodyBaseline={...state};motionMode='rest';motionTime=0;syncMotionControls();update();renderControls();setView('full');};$('#controls').append(load);
+   }
+   if(state.bodySource==='stone'||state.faceSource==='stone')$('#controls').append(renderField('stoneView'));
+  }
   const toolbar=element('div','face-toolbar'),drag=element('button',directFaceEdit?'selected':'','直接拖拽');drag.id='direct-face';drag.setAttribute('aria-pressed',String(directFaceEdit));drag.onclick=()=>directFaceEdit?finishDirectEdit():beginDirectEdit();
   const undo=element('button',null,'撤销'),redo=element('button',null,'重做');undo.id='face-undo';redo.id='face-redo';undo.onclick=()=>{if(!undoStates.length)return;redoStates.push({...state});state=undoStates.pop();update();renderControls();};redo.onclick=()=>{if(!redoStates.length)return;undoStates.push({...state});state=redoStates.pop();update();renderControls();};toolbar.append(drag,undo,redo);
   $('#controls').append(toolbar,element('p','face-help',activeTab==='face'?'自由范围 −50～150 · 双侧同步调整\n拖动卡片或脸部点位，Shift 微调；瞳孔保持原始比例；空白处可旋转查看。':'42 项体型参数 · 自由范围 −100～200\n拖动卡片或身体点位，Shift 微调；空白处旋转/缩放，右键平移；可随时切换机位。'));
