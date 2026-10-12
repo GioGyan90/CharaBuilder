@@ -11,7 +11,7 @@ export const faceEditorGroups=[
 ];
 export const clampValue=(v,min=-50,max=150)=>Math.max(min,Math.min(max,v));
 export function dragValues(initial,dx,dy,axis,{fine=false,side=1,sensitivity=.55}={}){
- const speed=sensitivity*(fine ? .2 : 1);return {[axis[0]]:Math.round(clampValue(initial[axis[0]]+dx*speed*side)),[axis[1]]:Math.round(clampValue(initial[axis[1]]-dy*speed))};
+ const limits=bodyEditorGroups.some(g=>g.keys.includes(axis[0]))?[-100,200]:[-50,150];const speed=sensitivity*(fine ? .2 : 1);return {[axis[0]]:Math.round(clampValue(initial[axis[0]]+dx*speed*side,...limits)),[axis[1]]:Math.round(clampValue(initial[axis[1]]-dy*speed,...limits))};
 }
 // Pointer capture keeps both mouse and touch drags working beyond the pad edges.
 export function bindDrag(target,{read,axis,write,begin=()=>{},end=()=>{},side=()=>1,paint=()=>{}}){
@@ -24,12 +24,12 @@ export function bindDrag(target,{read,axis,write,begin=()=>{},end=()=>{},side=()
 
 export const bodyEditorGroups=[
  {id:'proportions',title:'整体比例',keys:['height','weight','legs','torsoLength','headSize','neckWidth','muscleMass'],axes:[['weight','height','体型','身高'],['legs','torsoLength','腿长比例','躯干长度']]},
- {id:'shoulderBody',title:'肩部与背部',keys:['shoulders','shoulderSlope','shoulderDepth','backDepth','trapezius','latWidth','deltoid'],axes:[['shoulders','shoulderSlope','肩宽','肩部倾斜'],['shoulderDepth','backDepth','肩部厚度','背部厚度'],['latWidth','trapezius','背阔肌宽度','斜方肌体积'],['deltoid','muscleMass','肩部肌肉','肌肉量']]},
- {id:'chestBody',title:'胸部',keys:['chest','chestDepth','bustSize','bustHeight'],axes:[['chest','chestDepth','胸廓尺寸','胸廓厚度'],['bustSize','bustHeight','胸部丰满度','胸部位置']]},
+ {id:'shoulderBody',title:'肩部与背部',keys:['shoulders','shoulderSlope','shoulderDepth','backDepth','scapulaVolume','trapezius','latWidth','deltoid'],axes:[['shoulders','shoulderSlope','肩宽','肩部倾斜'],['shoulderDepth','backDepth','肩部厚度','背部厚度'],['latWidth','trapezius','背阔肌宽度','斜方肌体积'],['scapulaVolume','backDepth','肩胛体积','背部厚度'],['deltoid','muscleMass','肩部肌肉','肌肉量']]},
+ {id:'chestBody',title:'胸部',keys:['ribWidth','pecVolume','chest','chestDepth','bustSize','bustHeight'],axes:[['chest','chestDepth','胸廓尺寸','胸廓厚度'],['ribWidth','pecVolume','肋廓宽度','胸肌体积'],['bustSize','bustHeight','胸部丰满度','胸部位置']]},
  {id:'waistBody',title:'腰部与腹部',keys:['waist','waistHeight','abdomen'],axes:[['waist','waistHeight','腰围','腰线位置'],['waist','abdomen','腰围','腹部丰满度']]},
- {id:'pelvisBody',title:'臀部与胯部',keys:['hips','hipDepth','hipHeight','legSpace'],axes:[['hips','hipHeight','臀围','臀部位置'],['legSpace','hipDepth','双腿间距','臀部厚度']]},
+ {id:'pelvisBody',title:'臀部与胯部',keys:['hips','hipDepth','hipHeight','gluteVolume','legSpace'],axes:[['hips','hipHeight','臀围','臀部位置'],['legSpace','hipDepth','双腿间距','臀部厚度'],['gluteVolume','hipDepth','臀肌体积','臀部厚度']]},
  {id:'armsBody',title:'手臂与手掌',keys:['armLength','upperArm','forearm','handSize'],axes:[['upperArm','armLength','上臂粗细','手臂长度'],['forearm','handSize','前臂粗细','手掌大小']]},
- {id:'legsBody',title:'腿部',keys:['legThickness','thigh','calf','ankle'],axes:[['thigh','calf','大腿粗细','小腿粗细'],['legThickness','ankle','腿部粗细','脚踝粗细']]},
+ {id:'legsBody',title:'腿部',keys:['legThickness','thigh','thighDepth','calf','calfDepth','kneeWidth','ankle'],axes:[['thigh','calf','大腿粗细','小腿粗细'],['thigh','thighDepth','大腿宽度','大腿厚度'],['calf','calfDepth','小腿宽度','小腿厚度'],['kneeWidth','ankle','膝盖宽度','脚踝粗细'],['legThickness','ankle','腿部粗细','脚踝粗细']]},
  {id:'feetBody',title:'脚掌',keys:['footLength','footWidth'],axes:[['footWidth','footLength','脚掌宽度','脚掌长度']]},
  {id:'bodyColor',title:'肤色',keys:['skin'],axes:[]}
 ];

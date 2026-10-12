@@ -1,18 +1,18 @@
-// Independent mature male foundation; authored culturalibre CC0 layered hair.
+// Independent foundation reconstructed from the user-supplied ComfyUI GLB.
 export const stonePreset={
  expression:'neutral',name:'Stone · 魁梧熟男（试验）',gender:'male',faceSource:'stone',
- height:55,weight:53,shoulders:145,legs:-30,headSize:38,neckWidth:130,
- muscleMass:140,trapezius:145,latWidth:145,deltoid:145,
- torsoLength:130,shoulderSlope:30,shoulderDepth:108,backDepth:130,chest:118,chestDepth:90,
- waist:0,abdomen:30,hips:55,hipDepth:105,upperArm:145,forearm:110,handSize:95,thigh:100,calf:118,legSpace:120,ankle:70,footWidth:65,
- faceWidth:75,faceHeight:54,jawWidth:60,jawDepth:54,jawAngle:65,jawHeight:48,
- cheekboneWidth:58,cheekboneHeight:55,cheekboneDepth:66,cheek:28,
- chinWidth:90,chinLength:50,chinProjection:60,
- eyeSize:42,eyeWidth:72,eyeHeight:-15,eyeVertical:112,eyeTilt:54,eyeSpace:52,
- browHeight:22,browAngle:80,browThickness:110,browRidge:88,
- nose:58,noseWidth:70,noseProjection:58,mouth:95,mouthThickness:25,mouthCorner:40,
+ height:50,weight:45,shoulders:45,legs:50,headSize:50,neckWidth:50,
+ muscleMass:50,trapezius:50,latWidth:50,deltoid:50,
+ torsoLength:50,shoulderSlope:50,shoulderDepth:50,backDepth:50,chest:50,chestDepth:50,
+ waist:50,abdomen:50,hips:50,hipDepth:50,upperArm:50,forearm:50,handSize:50,thigh:50,calf:50,legSpace:50,ankle:50,footWidth:50,
+ faceWidth:50,faceHeight:50,jawWidth:50,jawDepth:50,jawAngle:50,jawHeight:50,
+ cheekboneWidth:50,cheekboneHeight:50,cheekboneDepth:50,cheek:50,
+ chinWidth:50,chinLength:50,chinProjection:50,
+ eyeSize:50,eyeWidth:50,eyeHeight:50,eyeVertical:50,eyeTilt:50,eyeSpace:50,
+ browHeight:50,browAngle:50,browThickness:50,browRidge:50,
+ nose:50,noseWidth:50,noseProjection:50,mouth:50,mouthThickness:50,mouthCorner:50,
  skin:'#c18e6c',eyeColor:'#718078',hairColor:'#373238',
- // Retains the authored Hair06 mesh; this is not an exact replica of the portrait.
- hair:'modular',frontHair:'layered06',backHair:'layered06',sideHair:'layered06',braid:'none',frontLength:40,backLength:15,sideLength:10,
+ // Crown sections come from the same simplified reference surface.
+ hair:'modular',frontHair:'stoneRef',backHair:'stoneRef',sideHair:'stoneRef',braid:'none',frontLength:50,backLength:50,sideLength:50,
  clothes:'underwear',shoes:'barefoot',shirt:'#373c49',pants:'#292c31',shoeColor:'#292c31',shirtEase:65
 };

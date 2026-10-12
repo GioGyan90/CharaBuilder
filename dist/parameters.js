@@ -1,7 +1,7 @@
-import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=37';
-export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=37';
-import {deformAnimeFace} from './face.js?v=32';
-export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=32';
+import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=38';
+export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=38';
+import {deformAnimeFace} from './face.js?v=38';
+export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=38';
 // Parameters deform the original topology; source vertices are never mutated.
 export const parameterDefaults = {
   ...bodyDefaults,
@@ -28,7 +28,7 @@ const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3
 const gaussian=(v,c,s)=>Math.exp(-(((v-c)/s)**2));
 export function createDeformer(input,landmarks,scale) {
   const state={...input};
-  for(const [key,value] of Object.entries(parameterDefaults))state[key]=Number.isFinite(input[key])?Math.max((faceAdjustmentKeys.includes(key)||bodyAdjustmentKeys.includes(key))?-50:0,Math.min((faceAdjustmentKeys.includes(key)||bodyAdjustmentKeys.includes(key))?150:100,input[key])):value;
+  for(const [key,value] of Object.entries(parameterDefaults))state[key]=Number.isFinite(input[key])?Math.max(bodyAdjustmentKeys.includes(key)?-100:faceAdjustmentKeys.includes(key)?-50:0,Math.min(bodyAdjustmentKeys.includes(key)?200:faceAdjustmentKeys.includes(key)?150:100,input[key])):value;
   // Legacy coarse jaw maps to width only; never apply both controls.
   if(!Object.hasOwn(input,'jawWidth')&&Number.isFinite(input.jaw))state.jawWidth=Math.max(-50,Math.min(150,input.jaw));
   const head=landmarks.head,neck=landmarks.neck,hip=landmarks.hips[1];
@@ -76,7 +76,7 @@ export function createDeformer(input,landmarks,scale) {
     const neckBand=gaussian(oldY,neck[1]-.025,.045)*(1-headWeight);
     x*=1+(state.neckWidth-50)*.002*neckBand;
     z*=1+(state.neckWidth-50)*.002*neckBand;
-    if(state.faceSource==='stone'&&state.gender==='male'){
+    if(state.faceSource==='stone'&&state.gender==='male'&&!landmarks.stoneRebuilt){
       // Long muscular neck, continuous with the upper back and lower head.
       const adultNeck=gaussian(oldY,neck[1]-.016,.065)*(1-smooth(neck[1]+.010,neck[1]+.048,oldY))*(1-smooth(.07,.14,Math.abs(source[0])));
       const strength=Math.max(0,Math.min(2,(state.muscleMass-50)/50));

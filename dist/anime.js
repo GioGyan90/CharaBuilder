@@ -1,11 +1,12 @@
+import {composeStoneReference} from './stone-avatar.js?v=38';
 import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
 import {bindCharacter} from './rig.js?v=28';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=37';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=38';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=32';
-import {createUnderwearData} from './underwear.js?v=34';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=38';
+import {createUnderwearData} from './underwear.js?v=38';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -65,10 +66,15 @@ export async function loadHumanAssets({textures = true} = {}) {
 }
 export async function ensureHumanPresets(state, {textures = true} = {}) {
   if(state.faceSource==='stone'&&textures&&!stoneBrowMap){stoneBrowMap=await new THREE.TextureLoader().loadAsync(new URL('stone-brow.png',root).href);stoneBrowMap.flipY=false;stoneBrowMap.colorSpace=THREE.SRGBColorSpace;}
+  if(state.faceSource==='stone'&&state.gender==='male')await loadAsset('stone-ref',textures);
   const ids=hairAssetIds(state);if(state.clothes!=='underwear')ids.push(...(state.gender==='female'?['long','uniform']:['uniform']));
   await Promise.all([...new Set(ids)].map(id=>loadAsset(id,textures)));
 }
 function compose(state) {
+  if(state.faceSource==='stone'&&state.gender==='male'&&assets['stone-ref']){
+    const data=composeStoneReference(assets['stone-ref'],state),other={...state};for(const key of ['frontHair','backHair','sideHair'])if(other[key]==='stoneRef')other[key]='none';
+    for(const {owner,mesh} of referenceHairMeshes({...assets,male:assets['stone-ref']},other)){const offset=data.materials.length;data.materials.push(...owner.materials);data.maps.push(...owner.materials.map((_,i)=>owner.maps[i]||null));data.meshes.push({...mesh,groups:mesh.groups.map(g=>({...g,material:g.material+offset}))});}return data;
+  }
   const base=assets[state.gender],shirt=assets[state.gender==='female'?'long':'uniform'],pants=assets.uniform;
   if(!base||(state.clothes!=='underwear'&&(!shirt||!pants)))throw Error('服装基础网格未载入');
   const data={...base,materials:[],maps:[],meshes:[]};
@@ -120,13 +126,13 @@ function compose(state) {
 
 export function createHuman(state) {
   const data = compose(state);
-  const base=assets[state.gender];
+  const base=data.stoneRebuilt?assets['stone-ref']:assets[state.gender];
   if (!data) throw Error('日漫模型未载入');
   const group = new THREE.Group();
   const eyeY = (data.landmarks.leftEye[1] + data.landmarks.rightEye[1])/2;
   const bodyBase=base.meshes.find(m=>m.name==='Body');
   const skinGroups=bodyBase.groups.filter(g=>base.materials[g.material].name.includes('_SKIN'));
-  const top=Math.max(...skinGroups.flatMap(g=>g.indices.map(i=>bodyBase.positions[i*3+1])))/100000+.012;
+  const top=data.stoneRebuilt?1.712:Math.max(...skinGroups.flatMap(g=>g.indices.map(i=>bodyBase.positions[i*3+1])))/100000+.012;
   const scale = 2.22/top * (.92 + state.height*.0016);
   const deform=createDeformer(state,data.landmarks,scale);
   const materials = data.materials.map((m,i) => {
@@ -145,6 +151,7 @@ export function createHuman(state) {
       alphaTest: m.blend ? .35 : 0,
       transparent: overlay, depthWrite: !overlay,
     });
+    if(data.stoneRebuilt&&clothes){material.polygonOffset=true;material.polygonOffsetFactor=-1;material.polygonOffsetUnits=-1;}
     material.userData.colorRole=skin?'skin':hair||brow?'hairColor':iris?'eyeColor':clothes?(name.includes('Shoes')?'shoeColor':name.includes('Bottoms')||name.includes('AccessoryNeck')?'pants':'shirt'):null;
     if(hair && material.map){
       material.onBeforeCompile=shader=>{
@@ -191,11 +198,11 @@ if(iris && material.map){
       material.customProgramCacheKey = () => name.startsWith('AnimeReference')?'parametric-anime-face-v18':'neutral-face-skin-v11';
       material.userData.faceSkinReference = reference;
     }
-    if(state.faceSource==='stone'&&state.gender==='male'&&skin&&name.includes('Face')){
+    if(state.faceSource==='stone'&&state.gender==='male'&&skin&&name.includes('Face')&&!data.stoneRebuilt){
       const r=data.landmarks.faceRig,mouth=deform(...r.mouth,'Face:mouth'),chin=deform(r.headX,r.chin,r.nose[2],'Face:skin'),c=deform(...base.landmarks.head,'Body');
       installStoneDetail(material,new THREE.Vector3(c[0],mouth[1],chin[1]),scale,c[2],deform(...r.eyes[0],'Face:eye0')[1]);
     }
-    if(state.faceSource==='stone'&&state.gender==='male'&&hair){const r=data.landmarks.faceRig,c=deform(...base.landmarks.head,'Body');installStoneTemples(material,new THREE.Vector3(...c),deform(...r.eyes[0],'Face:eye0')[1],scale);}
+    if(state.faceSource==='stone'&&state.gender==='male'&&hair&&!data.stoneRebuilt){const r=data.landmarks.faceRig,c=deform(...base.landmarks.head,'Body');installStoneTemples(material,new THREE.Vector3(...c),deform(...r.eyes[0],'Face:eye0')[1],scale);}
     // A broad light band keeps the face soft, while painted iris/eyelash detail remains crisp.
     const gradient = new THREE.DataTexture(new Uint8Array(name.startsWith('AnimeReference')?[145,222,255]:[155,224,255]),3,1,THREE.RedFormat);
     gradient.minFilter=gradient.magFilter=THREE.NearestFilter;gradient.needsUpdate=true;
@@ -222,7 +229,7 @@ if(iris && material.map){
       const q=deform((source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,deformPart,legSide);
       p.set(q,i);
       normals.set(deformNormal(deform,(source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,...sourceNormals.slice(i,i+3).map(v=>v/32767),deformPart,legSide),i);
-      if(source.fitPositions&&state.faceSource==='stone'&&state.gender==='male'){
+      if(source.fitPositions&&state.faceSource==='stone'&&state.gender==='male'&&!data.stoneRebuilt){
         // Fit clearance after the large body edit. A pre-edit offset can cross the
         // inner-thigh deformation field and expose skin through the crotch.
         const anchor=source.fitPositions.slice(i,i+3).map(v=>v/100000);
@@ -235,7 +242,7 @@ if(iris && material.map){
       for(const id of new Set(groups.flatMap(g=>g.indices)))normals.set(smooth.subarray(id*3,id*3+3),id*3);
     }
     if(source.name==='Pants')normals.set(smoothGarmentNormals(p,source.groups));
-    if(source.name==='Body'&&state.faceSource==='stone'&&state.gender==='male'){
+    if(source.name==='Body'&&state.faceSource==='stone'&&state.gender==='male'&&!data.stoneRebuilt){
       relaxStoneShoulders(p,source,data.landmarks);
       const groups=source.groups.filter(g=>data.materials[g.material].name.includes('_SKIN')),smooth=smoothGarmentNormals(p,groups);
       for(const id of new Set(groups.flatMap(g=>g.indices)))normals.set(smooth.subarray(id*3,id*3+3),id*3);
@@ -245,7 +252,7 @@ if(iris && material.map){
       if(source.name==='Face'||source.name==='Body'){
         const offset=envelopePoints.length/3;envelopePoints.push(...p);
         for(const g of source.groups)if(data.materials[g.material].name.includes('_SKIN')){envelopeIndices.push(...g.indices.map(id=>id+offset));if(source.name==='Face')for(const id of g.indices)editedChin=Math.min(editedChin,p[id*3+1]);}
-      }else if(source.name.startsWith('Hair')){
+      }else if(source.name.startsWith('Hair')&&!source.stoneRebuilt){
         if(!envelope){const c=deform(...base.landmarks.head,'Body');envelope=headEnvelope(envelopePoints,envelopeIndices,c[0],c[2],editedChin);}
         clearHair(p,envelope,source.name);
         const fitted=new THREE.BufferGeometry();fitted.setAttribute('position',new THREE.BufferAttribute(p,3));fitted.setIndex(source.groups.flatMap(g=>g.indices));fitted.computeVertexNormals();normals.set(fitted.attributes.normal.array);fitted.dispose();
@@ -299,6 +306,7 @@ if(iris && material.map){
   ];
   group.userData.bodyHandles=bodyHandlePoints(base).map(h=>({...h,position:deform(...h.position,'Body')}));
   bindCharacter(group,base,deform);
+  if(data.stoneRebuilt){group.userData.bodyRefinement={originalVertices:base.reference.vertices,addedVertices:0,referenceFaces:base.reference.faces};group.userData.stoneRebuilt=true;}
   group.userData.materials=materials;
   const bodySource=data.meshes.find(m=>m.name==='Body');
   let floorY=Infinity;for(const part of bodySource.groups)for(const id of part.indices)floorY=Math.min(floorY,bodySource.positions[id*3+1]/100000);

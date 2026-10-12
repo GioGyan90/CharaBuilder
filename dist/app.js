@@ -1,22 +1,22 @@
-import {stonePreset} from './experimental.js?v=37';
+import {stonePreset} from './experimental.js?v=38';
 import {cameraAngles,cameraYaw,anglePosition,selectedAngle,screenDragSide,moveCameraTarget} from './view.js?v=30';
-import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=31';
+import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=38';
 import {openHslPicker} from './colors.js?v=16';
 import {updateCharacterMotion,motionPresets} from './motion.js?v=30';
-import {parameterDefaults,parameterRanges} from './parameters.js?v=37';
+import {parameterDefaults,parameterRanges} from './parameters.js?v=38';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=37';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=38';
 
-import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=32';
+import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=38';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
 const $ = s => document.querySelector(s);
 const defaults = {...parameterDefaults,...hairDefaults,...wardrobeDefaults,faceSource:'vroid',name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jawWidth:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',shoes:'shoes',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',eyeColor:'#806449',shirt:'#778f87',pants:'#343b50',shoeColor:'#343b50'};
 const choices = {faceSource:[['vroid','原版日漫'],['authored','参考日漫'],['stone','Stone · 硬朗熟男']],gender:[['female','女性'],['male','男性']],...hairChoices,hair:[['modular','分区发型']],clothes:[['shirtPants','衬衫 · 长裤'],['underwear','贴身内衣']],shoes:[['shoes','穿鞋'],['barefoot','光脚']],expression:[['neutral','自然'],['fun','微笑'],['joy','开心'],['angry','认真'],['sorrow','忧伤'],['blink','闭眼']]};
 const palettes = {eyeColor:['#806449','#427b99','#538368','#a67845','#8773a1','#8f454a'],skin:['#f1cbb2','#d6a17e','#b87c55','#86543c','#51372c'],hairColor:['#201d20','#332821','#815137','#c5a15e','#b7b9c4','#854d67'],shirt:['#778f87','#d7c8b0','#a24d54','#537892','#373c49','#bca0c2'],pants:['#343b50','#292c31','#a09380','#655850'],shoeColor:['#292c31','#343b50','#655850','#a09380','#e0ded7']};
 const ranges = {...parameterRanges,...hairRanges,...wardrobeRanges,height:['身高','较矮','较高'],weight:['体型','纤细','丰满'],shoulders:['肩宽','窄','宽'],legs:['腿长比例','短','长'],faceWidth:['脸部宽度','窄','宽'],eyeSize:['眼睛大小','小','大'],eyeSpace:['眼间距','近','远'],nose:['鼻子大小','小','大'],mouth:['嘴部宽度','窄','宽']};
-const tabs = {experimental:['05 / EXPERIMENTAL','Stone · 魁梧熟男','独立试验类别 · 本轮打磨魁梧身材，默认内衣 / 光脚。',[]],body:['01 / FOUNDATION','创造独一无二的你','保留日漫基础结构，用参数调整身体比例。',['name','gender','height','weight','shoulders','legs','headSize','neckWidth','chest','waist','hips','legThickness','torsoLength','shoulderSlope','shoulderDepth','chestDepth','bustSize','bustHeight','backDepth','muscleMass','trapezius','latWidth','deltoid','waistHeight','abdomen','hipDepth','hipHeight','armLength','upperArm','forearm','handSize','thigh','calf','ankle','footLength','footWidth','legSpace','skin']],face:['02 / FEATURES','每一面，都有个性','眼形与瞳孔分开处理，瞳孔保留原始比例。',['faceWidth','faceHeight','jawWidth','jawDepth','jawHeight','jawAngle','cheekboneWidth','cheekboneHeight','cheekboneDepth','chinProjection','cheek','chinWidth','chinLength','forehead','eyeSize','eyeWidth','eyeHeight','eyeSpace','eyeVertical','eyeTilt','browHeight','browAngle','browThickness','browRidge','nose','noseWidth','noseHeight','noseProjection','mouth','mouthHeight','mouthThickness','mouthProjection','mouthCorner','expression','eyeColor']],hair:['03 / HAIRSTYLE','从头开始的风格','从经典发型出发，分别调整前发、后发、侧发和马尾。',['frontHair','frontLength','backHair','backLength','sideHair','sideLength','braid','braidLength','hairVolume','hairColor']],clothes:['04 / WARDROBE','穿出你的日常','选择衬衫长裤或贴身内衣，可独立切换鞋履。',['clothes','shoes','shirtLength','sleeveLength','shirtEase','pantsWidth','shirt','pants','shoeColor']]};
-const bounds=key=>(tabs.face[3].includes(key)||tabs.body[3].includes(key))&&ranges[key]?[-50,150]:[0,100];
+const tabs = {experimental:['05 / EXPERIMENTAL','Stone · 魁梧熟男','独立试验类别 · 本轮打磨魁梧身材，默认内衣 / 光脚。',[]],body:['01 / FOUNDATION','创造独一无二的你','保留日漫基础结构，用参数调整身体比例。',['name','gender','height','weight','shoulders','legs','headSize','neckWidth','chest','waist','hips','legThickness','torsoLength','shoulderSlope','shoulderDepth','chestDepth','bustSize','bustHeight','backDepth','muscleMass','trapezius','latWidth','deltoid','waistHeight','abdomen','hipDepth','hipHeight','armLength','upperArm','forearm','handSize','thigh','calf','ankle','footLength','footWidth','legSpace','ribWidth','pecVolume','scapulaVolume','gluteVolume','thighDepth','calfDepth','kneeWidth','skin']],face:['02 / FEATURES','每一面，都有个性','眼形与瞳孔分开处理，瞳孔保留原始比例。',['faceWidth','faceHeight','jawWidth','jawDepth','jawHeight','jawAngle','cheekboneWidth','cheekboneHeight','cheekboneDepth','chinProjection','cheek','chinWidth','chinLength','forehead','eyeSize','eyeWidth','eyeHeight','eyeSpace','eyeVertical','eyeTilt','browHeight','browAngle','browThickness','browRidge','nose','noseWidth','noseHeight','noseProjection','mouth','mouthHeight','mouthThickness','mouthProjection','mouthCorner','expression','eyeColor']],hair:['03 / HAIRSTYLE','从头开始的风格','从经典发型出发，分别调整前发、后发、侧发和马尾。',['frontHair','frontLength','backHair','backLength','sideHair','sideLength','braid','braidLength','hairVolume','hairColor']],clothes:['04 / WARDROBE','穿出你的日常','选择衬衫长裤或贴身内衣，可独立切换鞋履。',['clothes','shoes','shirtLength','sleeveLength','shirtEase','pantsWidth','shirt','pants','shoeColor']]};
+const bounds=key=>tabs.body[3].includes(key)&&ranges[key]?[-100,200]:tabs.face[3].includes(key)&&ranges[key]?[-50,150]:[0,100];
 const faceNeutral=Object.fromEntries(tabs.face[3].filter(k=>ranges[k]).map(k=>[k,50]));
 const facePresets=[
  {label:'绫 · 成女脸',gender:'female',values:{faceSource:'authored',...faceNeutral,faceWidth:50,jawWidth:50,eyeSize:50,eyeSpace:50,nose:50,mouth:50,expression:'neutral'}},
@@ -31,7 +31,7 @@ let state={...defaults}, activeTab='body', currentView='full', model, renderer, 
 const stage=$('#stage');
 let humanReady=false,buildRequest=0;
 const presetLoading=element('div','model-loading','正在生成角色…');
-function choicesFor(key){return hairChoices[key]?hairOptionsFor(key,state.gender):choices[key];}
+function choicesFor(key){return hairChoices[key]?hairOptionsFor(key,state.gender,state.faceSource):choices[key];}
 let toastTimer;
 function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),2400);}
 function normalize(value){
@@ -70,7 +70,7 @@ function syncFields(){for(const key of Object.keys(ranges)){const input=$('#cont
 function selectGroup(id){selectedFaceGroup=id;document.querySelectorAll('.part-card').forEach(card=>card.classList.toggle('editing',card.dataset.group===id));}
 function beginDirectEdit(){if(!['face','body'].includes(activeTab))return;directFaceEdit=true;motionMode='rest';motionTime=0;motionPlaying=false;syncMotionControls();if(orbit){orbit.autoRotate=false;$('#rotate').classList.remove('selected');$('#rotate').setAttribute('aria-pressed','false');orbit.enabled=true;}const view=activeTab==='face'?'face':'full';if(currentView!==view)setView(view);const b=$('#direct-face');if(b){b.classList.add('selected');b.setAttribute('aria-pressed','true');}syncHandleVisibility();}
 function finishDirectEdit(){directFaceEdit=false;if(orbit)orbit.enabled=true;const b=$('#direct-face');if(b){b.classList.remove('selected');b.setAttribute('aria-pressed','false');}syncHandleVisibility();}
-function paintPad(pad){const group=[...faceEditorGroups,...bodyEditorGroups].find(g=>g.id===pad.dataset.group),axis=group.axes[dragModes.get(group.id)||0],dot=pad.querySelector('.pad-dot');dot.style.left=(15+(state[axis[0]]+50)/200*70)+'%';dot.style.top=(85-(state[axis[1]]+50)/200*70)+'%';pad.querySelector('.pad-value').textContent=axis[2]+' '+state[axis[0]]+' / '+axis[3]+' '+state[axis[1]];}
+function paintPad(pad){const group=[...faceEditorGroups,...bodyEditorGroups].find(g=>g.id===pad.dataset.group),axis=group.axes[dragModes.get(group.id)||0],dot=pad.querySelector('.pad-dot');const bx=bounds(axis[0]),by=bounds(axis[1]);dot.style.left=(15+(state[axis[0]]-bx[0])/(bx[1]-bx[0])*70)+'%';dot.style.top=(85-(state[axis[1]]-by[0])/(by[1]-by[0])*70)+'%';pad.querySelector('.pad-value').textContent=axis[2]+' '+state[axis[0]]+' / '+axis[3]+' '+state[axis[1]];}
 function makePad(group){
  const wrap=element('div','part-drag'),switches=element('div','axis-switch');
  const pad=element('div','drag-pad');pad.dataset.group=group.id;pad.tabIndex=0;pad.setAttribute('role','group');pad.setAttribute('aria-label',group.title+'二维拖拽调整');pad.append(element('span','pad-cross'),element('span','pad-dot'),element('span','pad-value'));
@@ -104,8 +104,8 @@ function renderControls(){
  if(activeTab==='experimental'){
   const card=element('div','field'),apply=element('button','primary','载入 Stone 试验预设');
   apply.onclick=()=>{remember();finishDirectEdit();state=normalize({...defaults,...stonePreset});faceBaseline={...state};bodyBaseline={...state};motionMode='rest';motionTime=0;syncMotionControls();update();renderControls();setView('full');toast('已载入 Stone 试验版');};
-  card.append(element('h3',null,'Stone · 魁梧熟男 / 07'),element('p','reference-note','宽下颌与下巴、窄眼、粗眉；厚颈、斜方肌、背阔肌和肩部肌肉。全部继续支持 JS 参数调整。'),apply);
-  card.append(element('p','reference-note','第七轮对照上传白模：加长躯干、扩大肩胸、调整髋腿过渡与膝盖位置，并按原骨骼归属扩大站距。默认内衣 / 光脚，可继续用体型参数调整。'));
+  card.append(element('h3',null,'Stone · 白模重建 / 08'),element('p','reference-note','宽下颌与下巴、窄眼、粗眉；厚颈、斜方肌、背阔肌和肩部肌肉。全部继续支持 JS 参数调整。'),apply);
+  card.append(element('p','reference-note','独立重建网格：直接以上传白模进行几何简化，约 2.2 万三角面。默认参数对应参考体型，并新增胸肌、肋廓、臀肌及腿部厚度控制。默认内衣 / 光脚，可继续用体型参数调整。'));
   const links=element('div','options');for(const [tab,text] of [['face','调整脸部'],['body','调整体型'],['hair','调整发型'],['clothes','切换服装']]){const b=element('button','option',text);b.onclick=()=>document.querySelector('[data-tab="'+tab+'"]').click();links.append(b);}card.append(links);
   const observe=element('div','options');for(const [clothes,text] of [['underwear','内衣 / 光脚看结构'],['shirtPants','衬衫 / 长裤看贴合']]){const b=element('button','option',text);b.onclick=()=>{remember();finishDirectEdit();state.clothes=clothes;state.shoes=clothes==='underwear'?'barefoot':'shoes';update();setView('full');};observe.append(b);}card.append(observe);$('#controls').append(card);
  }
@@ -119,7 +119,7 @@ function renderControls(){
   if(activeTab==='body')$('#controls').append(renderField('name'),renderField('gender'));
   const toolbar=element('div','face-toolbar'),drag=element('button',directFaceEdit?'selected':'','直接拖拽');drag.id='direct-face';drag.setAttribute('aria-pressed',String(directFaceEdit));drag.onclick=()=>directFaceEdit?finishDirectEdit():beginDirectEdit();
   const undo=element('button',null,'撤销'),redo=element('button',null,'重做');undo.id='face-undo';redo.id='face-redo';undo.onclick=()=>{if(!undoStates.length)return;redoStates.push({...state});state=undoStates.pop();update();renderControls();};redo.onclick=()=>{if(!redoStates.length)return;undoStates.push({...state});state=redoStates.pop();update();renderControls();};toolbar.append(drag,undo,redo);
-  $('#controls').append(toolbar,element('p','face-help',activeTab==='face'?'自由范围 −50～150 · 双侧同步调整\n拖动卡片或脸部点位，Shift 微调；瞳孔保持原始比例；空白处可旋转查看。':'35 项体型参数 · 自由范围 −50～150\n拖动卡片或身体点位，Shift 微调；空白处旋转/缩放，右键平移；可随时切换机位。'));
+  $('#controls').append(toolbar,element('p','face-help',activeTab==='face'?'自由范围 −50～150 · 双侧同步调整\n拖动卡片或脸部点位，Shift 微调；瞳孔保持原始比例；空白处可旋转查看。':'42 项体型参数 · 自由范围 −100～200\n拖动卡片或身体点位，Shift 微调；空白处旋转/缩放，右键平移；可随时切换机位。'));
   const groups=activeTab==='face'?faceEditorGroups:bodyEditorGroups,baseline=activeTab==='face'?faceBaseline:bodyBaseline;
   for(const group of groups){const keys=group.keys.filter(k=>fields.includes(k)&&!(k==='expression'&&['authored','stone'].includes(state.faceSource)));if(!keys.length)continue;
    const card=element('details','part-card');card.dataset.group=group.id;card.open=openCards.has(group.id);card.classList.toggle('editing',selectedFaceGroup===group.id);const summary=element('summary');summary.append(element('span',null,group.title),element('small',null,keys.length+' 项'));

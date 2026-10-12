@@ -103,7 +103,7 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
    y+=(source[1]-b[1])*.15;
   }
  }
- if(source[1]<eyeY-.09)y=Math.max(rig.neckY+.022,y);
+ if(!rig.rebuilt&&source[1]<eyeY-.09)y=Math.max(rig.neckY+.022,y);
  return [x,y,z];
 }
 // Keep hair outside the actual edited head rather than the imported donor skull.

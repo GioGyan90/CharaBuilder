@@ -24,4 +24,6 @@ assert.equal(ends,3);console.log('PASS 33 grouped geometry parameters, mirrored/
 assert.deepEqual(new Set(bodyEditorGroups.flatMap(g=>g.keys).filter(k=>bodyAdjustmentKeys.includes(k))),new Set(bodyAdjustmentKeys));
 assert.equal(bodyEditorGroups.filter(g=>g.axes.length).length,8);
 assert.deepEqual(dragValues({weight:45,height:50},40,-20,bodyEditorGroups[0].axes[0]),{weight:67,height:61});
-console.log('PASS 35 body parameters in eight drag groups, plus independent skin color card');
+console.log('PASS 42 body parameters in eight drag groups, plus independent skin color card');
+
+assert.deepEqual(dragValues({weight:45,height:50},1000,1000,bodyEditorGroups[0].axes[0]),{weight:200,height:-100});
