@@ -1,10 +1,10 @@
 // Independent mature male foundation; authored culturalibre CC0 layered hair.
 export const stonePreset={
  expression:'neutral',name:'Stone · 魁梧熟男（试验）',gender:'male',faceSource:'stone',
- height:55,weight:53,shoulders:128,legs:38,headSize:47,neckWidth:140,
+ height:55,weight:53,shoulders:128,legs:45,headSize:47,neckWidth:140,
  muscleMass:140,trapezius:145,latWidth:132,deltoid:145,
- torsoLength:45,shoulderSlope:30,shoulderDepth:108,backDepth:130,chest:102,chestDepth:88,
- waist:-10,abdomen:30,hips:76,hipDepth:65,upperArm:145,forearm:110,handSize:95,thigh:138,calf:128,legSpace:70,ankle:70,footWidth:65,
+ torsoLength:48,shoulderSlope:30,shoulderDepth:108,backDepth:130,chest:102,chestDepth:105,
+ waist:-25,abdomen:30,hips:68,hipDepth:93,upperArm:145,forearm:110,handSize:95,thigh:145,calf:118,legSpace:70,ankle:70,footWidth:65,
  faceWidth:75,faceHeight:54,jawWidth:60,jawDepth:54,jawAngle:65,jawHeight:48,
  cheekboneWidth:58,cheekboneHeight:55,cheekboneDepth:66,cheek:28,
  chinWidth:90,chinLength:50,chinProjection:60,

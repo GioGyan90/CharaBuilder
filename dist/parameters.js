@@ -1,5 +1,5 @@
-import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=35';
-export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=35';
+import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=36';
+export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=36';
 import {deformAnimeFace} from './face.js?v=32';
 export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=32';
 // Parameters deform the original topology; source vertices are never mutated.
@@ -80,8 +80,8 @@ export function createDeformer(input,landmarks,scale) {
       // Long muscular neck, continuous with the upper back and lower head.
       const adultNeck=gaussian(oldY,neck[1]-.016,.065)*(1-smooth(neck[1]+.010,neck[1]+.048,oldY))*(1-smooth(.07,.14,Math.abs(source[0])));
       const strength=Math.max(0,Math.min(2,(state.muscleMass-50)/50));
-      x*=1+(.28+.09*strength)*adultNeck;
-      z=neck[2]+(z-neck[2])*(1+(.34+.12*strength)*adultNeck);
+      x*=1+(.18+.06*strength)*adultNeck;
+      z=neck[2]+(z-neck[2])*(1+(.12+.04*strength)*adultNeck);
     }
     const central=gaussian(x,0,.20);
     const chest=gaussian(oldY,neck[1]-.22,.115)*central*(1-headWeight);

@@ -40,8 +40,8 @@ export function createBodyDeformer(state,l){
   const t=(sy-hip)/(neck-hip),sculpt=(authoredMuscleRatio(t,Math.atan2(sz-l.hips[2],sx))-1)*value.muscleMass*.85*axial*belowHead*smooth(.01,.10,t);
   x*=1+sculpt+value.latWidth*.16*lat;
   z=l.hips[2]+(z-l.hips[2])*(1+sculpt);
-  z-=value.latWidth*.014*lat*back+value.trapezius*.018*trap*back;
-  y+=value.trapezius*.016*trap;
+  z-=value.latWidth*.014*lat*back+value.trapezius*(burly?.007:.018)*trap*back;
+  y+=value.trapezius*(burly?.006:.016)*trap;
   x+=sign*value.deltoid*.010*shoulderMuscle;
   z*=1+value.deltoid*.22*shoulderMuscle;
   if(burly){
@@ -52,14 +52,14 @@ export function createBodyDeformer(state,l){
    z=l.hips[2]+(z-l.hips[2])*(1+burly*(.13*rib+.055*core));
    // Raise the broad shoulder-to-neck saddle and fill the upper-back silhouette.
    const saddle=bell(sy,neck-.085,.060)*bell(ax,.055,.055)*belowHead;
-   y+=burly*.025*saddle;
-   z-=burly*.018*saddle*back;
+   y+=burly*.007*saddle;
+   z-=burly*.005*saddle*back;
   }
   const chest=bell(sy,neck-.22,.10)*axial*belowHead;
   z*=1+value.chestDepth*.17*chest;
   z+=value.bustSize*.022*bell(sy,bustY,.065)*axial*front*belowHead;
   y+=value.bustHeight*.012*bell(sy,neck-.19,.065)*axial*front*belowHead;
-  z-=value.backDepth*.016*bell(sy,neck-.24,.14)*axial*back*belowHead;
+  z-=value.backDepth*(burly?.009:.016)*bell(sy,neck-.24,.14)*axial*back*belowHead;
   // Move the waist's continuous envelope rather than a hard band of vertices.
   const originalWaist=bell(sy,hip+.12,.10),movedWaist=bell(sy,waistY,.10);
   const waistShift=(originalWaist-movedWaist)*.12*axial;
@@ -68,11 +68,18 @@ export function createBodyDeformer(state,l){
   z-=value.hipDepth*.024*bell(sy,hipY,.105)*axial*back;
   y+=value.hipHeight*.014*bell(sy,hip-.025,.10)*axial;
   const legBlend=(1-smooth(hip-.12,hip+.025,sy))*(1-smooth(.15,.24,ax)),legX=a.knee[0];
-  const thigh=bell(sy,(hip+a.knee[1])*.5,.16)*legBlend,calf=bell(sy,(a.knee[1]+a.foot[1])*.5,.14)*legBlend,ankle=bell(sy,a.foot[1]+.025,.055)*legBlend;
+  const thigh=bell(sy,(hip+a.knee[1])*.5,.16)*legBlend,calf=bell(sy,(a.knee[1]+a.foot[1])*.5+(burly?.045:0),burly?.12:.14)*legBlend,ankle=bell(sy,a.foot[1]+.025,.055)*legBlend;
   const legScale=((value.thigh*(.18+.12*Math.min(1,burly))+value.muscleMass*.07+burly*.065)*thigh+(value.calf*(.20+.08*Math.min(1,burly))+value.muscleMass*.06+burly*.025)*calf+value.ankle*.15*ankle)*smooth(.006,.025,ax);
   // Preserve the medial gap while adding lateral muscle volume in the Stone build.
   const innerGuard=1-Math.min(1,burly)*.75*(1-smooth(.012,.070,ax));
-  x+=(sx-sign*legX)*legScale*innerGuard;z*=1+legScale;
+  x+=(sx-sign*legX)*legScale*innerGuard;z*=1+legScale*(burly?.60:1);
+  if(burly){
+   // Side study: quadriceps carry into the middle thigh, the knee stays ahead
+   // of the shin, and calf fullness sits high instead of forming a low bulb.
+   const kneeLine=bell(sy,a.knee[1],.105)*legBlend;
+   const thighPlane=bell(sy,(hip+a.knee[1])*.5-.025,.115)*legBlend;
+   z+=burly*(.009*kneeLine+.010*thighPlane*front-.006*thighPlane*back);
+  }
   const feet=(1-smooth(a.foot[1]-.025,a.foot[1]+.05,sy))*legBlend;
   x+=(sx-sign*a.foot[0])*value.footWidth*.15*feet;
   z+=(sz-a.foot[2])*value.footLength*.18*feet;
