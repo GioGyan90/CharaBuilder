@@ -1,12 +1,12 @@
-import {composeStoneReference,graftHead} from './stone-avatar.js?v=49';
+import {composeStoneReference,graftHead} from './stone-avatar.js?v=50';
 import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
-import {bindCharacter} from './rig.js?v=49';
+import {bindCharacter} from './rig.js?v=50';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=49';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=50';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=49';
-import {createUnderwearData} from './underwear.js?v=49';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=50';
+import {createUnderwearData} from './underwear.js?v=50';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -23,9 +23,9 @@ async function loadAsset(id, textures = true) {
   if (assets[id]) return assets[id];
   if (pending.has(id)) return pending.get(id);
   const promise = (async () => {
-    const manifest = await json(new URL(`${id}-manifest.json${id==='stone-ref'?'?v=49':''}`, root));
+    const manifest = await json(new URL(`${id}-manifest.json${id.startsWith('stone-')?'?v=50':''}`, root));
     const parts = await Promise.all(manifest.parts.map(async path => {
-      const response = await fetch(new URL(path+(id==='stone-ref'?'?v=49':''), root));
+      const response = await fetch(new URL(path+(id.startsWith('stone-')?'?v=50':''), root));
       if (!response.ok) throw Error(`模型分片加载失败: ${path}`);
       return response.text();
     }));
@@ -65,7 +65,7 @@ export async function loadHumanAssets({textures = true} = {}) {
   await Promise.all(['female','male'].map(id=>loadAsset(id,textures)));
 }
 export async function ensureHumanPresets(state, {textures = true} = {}) {
-  if(state.faceSource==='stone'&&textures&&!stoneBrowMap){stoneBrowMap=await new THREE.TextureLoader().loadAsync(new URL('stone-brow.png',root).href);stoneBrowMap.flipY=false;stoneBrowMap.colorSpace=THREE.SRGBColorSpace;}
+  if(state.faceSource==='stone'&&state.gender==='male')await loadAsset('stone-head',textures);
   if((state.bodySource==='stone'||state.faceSource==='stone')&&state.gender==='male')await loadAsset('stone-ref',textures);
   const ids=hairAssetIds(state);if(state.clothes!=='underwear')ids.push(...(state.gender==='female'?['long','uniform']:['uniform']));
   await Promise.all([...new Set(ids)].map(id=>loadAsset(id,textures)));
@@ -77,10 +77,15 @@ function compose(state) {
  const reference=assets['stone-ref'];if(!reference)throw Error('Stone 预设尚未载入');
  const stone=composeStoneReference(reference,state);
  let data;
- if(stoneBody&&stoneHead)data=stone;
- else{
-  const anime=composeAnime({...state,faceSource:stoneHead?'vroid':state.faceSource,frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});
-  data=stoneBody?graftHead(stone,anime,reference,assets[state.gender]):graftHead(anime,stone,assets[state.gender],reference);
+ if(stoneHead){
+  const headBase=assets['stone-head'];if(!headBase)throw Error('Stone 头部预设尚未载入');
+  const fitted=buildAnimeFace(headBase,'male',true),donor={...headBase,...fitted,meshes:[...fitted.meshes,headBase.meshes.find(m=>m.name==='Body')]};
+  const body=stoneBody?stone:composeAnime({...state,faceSource:'vroid',frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});
+  data=graftHead(body,donor,stoneBody?reference:assets[state.gender],headBase);
+  data.headReference=headBase.reference;data.landmarks.faceRig.preset={...data.landmarks.faceRig.preset,name:'Stone · 硬朗熟男脸'};
+ }else{
+  const anime=composeAnime({...state,frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});
+  data=graftHead(stone,anime,reference,assets[state.gender]);
  }
  const other={...state};for(const key of ['frontHair','backHair','sideHair'])if(other[key]==='stoneRef')other[key]='none';
  const target={...assets[state.gender],landmarks:data.landmarks};
@@ -331,6 +336,7 @@ if(iris && material.map){
   group.userData.height=new THREE.Box3().setFromObject(group).max.y;
   group.userData.faceY=deform(0,eyeY,data.landmarks.head[2],'Face')[1]+group.position.y;
   group.userData.model='vroid-beta-parametric';
+  group.userData.headReference=data.headReference;
   group.userData.bodySource=state.bodySource||((state.faceSource==='stone'&&state.gender==='male')?'stone':'vroid');group.userData.mixedHead=!!data.mixedHead;
   group.userData.parameterVersion=2;group.userData.facePresetName=data.landmarks.faceRig?.preset.name||'原版日漫';group.userData.faceSource=state.faceSource||'vroid';
   return group;

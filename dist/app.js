@@ -1,14 +1,14 @@
-import {stonePreset} from './presets.js?v=49';
+import {stonePreset} from './presets.js?v=50';
 import {cameraAngles,cameraYaw,anglePosition,selectedAngle,screenDragSide,moveCameraTarget} from './view.js?v=30';
-import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=49';
+import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=50';
 import {openHslPicker} from './colors.js?v=16';
-import {updateCharacterMotion,motionPresets} from './motion.js?v=49';
-import {parameterDefaults,parameterRanges} from './parameters.js?v=49';
+import {updateCharacterMotion,motionPresets} from './motion.js?v=50';
+import {parameterDefaults,parameterRanges} from './parameters.js?v=50';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=49';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=50';
 
-import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=49';
+import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=50';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
 const $ = s => document.querySelector(s);
 const defaults = {bodySource:'vroid',stoneView:'skin',...parameterDefaults,...hairDefaults,...wardrobeDefaults,faceSource:'vroid',name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jawWidth:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',shoes:'shoes',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',eyeColor:'#806449',shirt:'#778f87',pants:'#343b50',shoeColor:'#343b50'};
@@ -110,7 +110,7 @@ function renderControls(){
   const wrap=element('div','field'),box=element('div','options');wrap.append(element('div','field-title','经典发型组合'));for(const preset of classicHairPresets.filter(p=>!p.gender||p.gender===state.gender)){const b=element('button','option',preset.label);b.classList.toggle('selected',Object.entries(preset.values).every(([k,v])=>state[k]===v));b.onclick=()=>{remember();Object.assign(state,preset.values,{frontLength:50,backLength:50,sideLength:50,braidLength:50,hairVolume:50});update();renderControls();setView('face');};box.append(b);}wrap.append(box);const note=element('p','reference-note','基于作者原模型分区。 ');for(const preset of classicHairPresets.filter(p=>p.reference&&p.gender===state.gender)){const a=element('a',null,preset.label+'来源 ');a.href=preset.reference;a.target='_blank';a.rel='noopener';note.append(a);}const allRefs=element('a',null,'全部模型来源');allRefs.href='https://github.com/GioGyan90/CharaBuilder/blob/main/HAIR_REFERENCES.md';allRefs.target='_blank';allRefs.rel='noopener';note.append(allRefs);wrap.append(note);$('#controls').append(wrap);
  }
  if(activeTab==='face'){
-  const wrap=element('div','field face-presets'),box=element('div','options');wrap.append(element('div','field-title','脸型预设'));for(const preset of facePresets.filter(p=>!p.gender||p.gender===state.gender)){const b=element('button','option',preset.label);b.classList.toggle('selected',Object.entries(preset.values).every(([k,v])=>state[k]===v));b.onclick=()=>{remember();Object.assign(state,faceNeutral,preset.values);faceBaseline={...state};update();renderControls();setView('face');};box.append(b);}wrap.append(box);if(state.faceSource==='stone')wrap.append(element('p','reference-note','Stone 头部保留素体中性面部，暂不支持瞳孔与表情组件。'));$('#controls').append(wrap);
+  const wrap=element('div','field face-presets'),box=element('div','options');wrap.append(element('div','field-title','脸型预设'));for(const preset of facePresets.filter(p=>!p.gender||p.gender===state.gender)){const b=element('button','option',preset.label);b.classList.toggle('selected',Object.entries(preset.values).every(([k,v])=>state[k]===v));b.onclick=()=>{remember();Object.assign(state,faceNeutral,preset.values);faceBaseline={...state};update();renderControls();setView('face');};box.append(b);}wrap.append(box);if(state.faceSource==='stone')wrap.append(element('p','reference-note','Stone 使用低模熟男脸与预设眼球，可独立调整眼形和瞳孔颜色。'));$('#controls').append(wrap);
  }
  if(activeTab==='body'||activeTab==='face'){
   if(activeTab==='body'){
@@ -125,7 +125,7 @@ function renderControls(){
   const undo=element('button',null,'撤销'),redo=element('button',null,'重做');undo.id='face-undo';redo.id='face-redo';undo.onclick=()=>{if(!undoStates.length)return;redoStates.push({...state});state=undoStates.pop();update();renderControls();};redo.onclick=()=>{if(!redoStates.length)return;undoStates.push({...state});state=redoStates.pop();update();renderControls();};toolbar.append(drag,undo,redo);
   $('#controls').append(toolbar,element('p','face-help',activeTab==='face'?'自由范围 −50～150 · 双侧同步调整\n拖动卡片或脸部点位，Shift 微调；瞳孔保持原始比例；空白处可旋转查看。':'42 项体型参数 · 自由范围 −100～200\n拖动卡片或身体点位，Shift 微调；空白处旋转/缩放，右键平移；可随时切换机位。'));
   const groups=activeTab==='face'?faceEditorGroups:bodyEditorGroups,baseline=activeTab==='face'?faceBaseline:bodyBaseline;
-  for(const group of groups){const keys=group.keys.filter(k=>fields.includes(k)&&!(k==='expression'&&['authored','stone'].includes(state.faceSource))&&!(k==='eyeColor'&&state.faceSource==='stone'&&state.gender==='male'));if(!keys.length)continue;
+  for(const group of groups){const keys=group.keys.filter(k=>fields.includes(k)&&!(k==='expression'&&['authored','stone'].includes(state.faceSource)));if(!keys.length)continue;
    const card=element('details','part-card');card.dataset.group=group.id;card.open=openCards.has(group.id);card.classList.toggle('editing',selectedFaceGroup===group.id);const summary=element('summary');summary.append(element('span',null,group.title),element('small',null,keys.length+' 项'));
    const reset=element('button','part-reset','重置');reset.setAttribute('aria-label','重置'+group.title);reset.onclick=e=>{e.preventDefault();e.stopPropagation();remember();for(const key of keys)state[key]=baseline[key]??defaults[key];applyHumanColors(model,state);syncFields();update();renderControls();};summary.append(reset);card.append(summary);
    card.ontoggle=()=>{if(card.open){openCards.add(group.id);selectGroup(group.id);}else openCards.delete(group.id);};const content=element('div','part-content');if(group.axes.length)content.append(makePad(group));keys.forEach(k=>content.append(renderField(k)));card.append(content);$('#controls').append(card);
