@@ -1,7 +1,7 @@
-import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=40';
-export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=40';
-import {deformAnimeFace} from './face.js?v=40';
-export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=40';
+import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=41';
+export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=41';
+import {deformAnimeFace} from './face.js?v=41';
+export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=41';
 // Parameters deform the original topology; source vertices are never mutated.
 export const parameterDefaults = {
   ...bodyDefaults,

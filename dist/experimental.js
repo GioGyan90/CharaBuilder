@@ -1,6 +1,6 @@
 // Independent foundation reconstructed from the user-supplied ComfyUI GLB.
 export const stonePreset={
- expression:'neutral',name:'Stone · 魁梧熟男（试验）',gender:'male',faceSource:'stone',
+ stoneView:'clay',expression:'neutral',name:'Stone · 魁梧熟男（试验）',gender:'male',faceSource:'stone',
  height:50,weight:45,shoulders:45,legs:50,headSize:50,neckWidth:50,
  muscleMass:50,trapezius:50,latWidth:50,deltoid:50,
  torsoLength:50,shoulderSlope:50,shoulderDepth:50,backDepth:50,chest:50,chestDepth:50,
@@ -13,6 +13,6 @@ export const stonePreset={
  nose:50,noseWidth:50,noseProjection:50,mouth:50,mouthThickness:50,mouthCorner:50,
  skin:'#c18e6c',eyeColor:'#718078',hairColor:'#373238',
  // Crown sections come from the same simplified reference surface.
- hair:'modular',frontHair:'stoneRef',backHair:'stoneRef',sideHair:'stoneRef',braid:'none',frontLength:50,backLength:50,sideLength:50,
+ hair:'modular',frontHair:'none',backHair:'none',sideHair:'none',braid:'none',frontLength:50,backLength:50,sideLength:50,
  clothes:'underwear',shoes:'barefoot',shirt:'#373c49',pants:'#292c31',shoeColor:'#292c31',shirtEase:65
 };

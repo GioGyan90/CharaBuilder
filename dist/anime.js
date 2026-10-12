@@ -1,12 +1,12 @@
-import {composeStoneReference} from './stone-avatar.js?v=40';
+import {composeStoneReference} from './stone-avatar.js?v=41';
 import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
-import {bindCharacter} from './rig.js?v=40';
+import {bindCharacter} from './rig.js?v=41';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=40';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=41';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=40';
-import {createUnderwearData} from './underwear.js?v=40';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=41';
+import {createUnderwearData} from './underwear.js?v=41';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -23,9 +23,9 @@ async function loadAsset(id, textures = true) {
   if (assets[id]) return assets[id];
   if (pending.has(id)) return pending.get(id);
   const promise = (async () => {
-    const manifest = await json(new URL(`${id}-manifest.json${id==='stone-ref'?'?v=40':''}`, root));
+    const manifest = await json(new URL(`${id}-manifest.json${id==='stone-ref'?'?v=41':''}`, root));
     const parts = await Promise.all(manifest.parts.map(async path => {
-      const response = await fetch(new URL(path+(id==='stone-ref'?'?v=40':''), root));
+      const response = await fetch(new URL(path+(id==='stone-ref'?'?v=41':''), root));
       if (!response.ok) throw Error(`模型分片加载失败: ${path}`);
       return response.text();
     }));
@@ -73,7 +73,7 @@ export async function ensureHumanPresets(state, {textures = true} = {}) {
 function compose(state) {
   if(state.faceSource==='stone'&&state.gender==='male'&&assets['stone-ref']){
     const data=composeStoneReference(assets['stone-ref'],state),other={...state};for(const key of ['frontHair','backHair','sideHair'])if(other[key]==='stoneRef')other[key]='none';
-    for(const {owner,mesh} of referenceHairMeshes({...assets,male:assets['stone-ref']},other)){const offset=data.materials.length;data.materials.push(...owner.materials);data.maps.push(...owner.materials.map((_,i)=>owner.maps[i]||null));data.meshes.push({...mesh,groups:mesh.groups.map(g=>({...g,material:g.material+offset}))});}return data;
+    for(const {owner,mesh} of data.landmarks.surfaceStage?[]:referenceHairMeshes({...assets,male:assets['stone-ref']},other)){const offset=data.materials.length;data.materials.push(...owner.materials);data.maps.push(...owner.materials.map((_,i)=>owner.maps[i]||null));data.meshes.push({...mesh,groups:mesh.groups.map(g=>({...g,material:g.material+offset}))});}return data;
   }
   const base=assets[state.gender],shirt=assets[state.gender==='female'?'long':'uniform'],pants=assets.uniform;
   if(!base||(state.clothes!=='underwear'&&(!shirt||!pants)))throw Error('服装基础网格未载入');
@@ -145,12 +145,15 @@ export function createHuman(state) {
     if (iris) color.set(state.eyeColor||'#806449');
     if (clothes) color.set(name.includes('Shoes')?(state.shoeColor||state.pants):name.includes('Bottoms')||name.includes('AccessoryNeck')?state.pants:state.shirt);
     const overlay = /Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(name);
-    const material = new THREE.MeshToonMaterial({
+    const clay=data.stoneRebuilt&&state.stoneView!=='skin';if(clay)color.set(skin?'#c6c8ce':clothes?'#747984':'#c6c8ce');
+    const Material=clay?THREE.MeshStandardMaterial:THREE.MeshToonMaterial;
+    const material = new Material({
       color, map:clothes || (skin && name.includes('Body')) ? null : data.maps[i] || null,
       side: m.double || hair || overlay ? THREE.DoubleSide : THREE.FrontSide,
       alphaTest: m.blend ? .35 : 0,
       transparent: overlay, depthWrite: !overlay,
     });
+    if(clay){material.roughness=.85;material.metalness=0;material.userData.stoneClay=true;}
     if(data.stoneRebuilt&&clothes){material.polygonOffset=true;material.polygonOffsetFactor=-1;material.polygonOffsetUnits=-1;}
     material.userData.colorRole=skin?'skin':hair||brow?'hairColor':iris?'eyeColor':clothes?(name.includes('Shoes')?'shoeColor':name.includes('Bottoms')||name.includes('AccessoryNeck')?'pants':'shirt'):null;
     if(hair && material.map){
@@ -326,7 +329,7 @@ export function disposeHuman(group) {
 // Color changes update shared materials immediately, without rebuilding geometry or poses.
 export function applyHumanColors(group,state){
  if(!group)return;
- for(const material of group.userData.materials||[]){const role=material.userData.colorRole;if(!role)continue;
+ for(const material of group.userData.materials||[]){const role=material.userData.colorRole;if(!role||material.userData.stoneClay)continue;
   material.color.set(role==='shirtButton'?state.shirt:(state[role]||(role==='shoeColor'?state.pants:'#806449')));
   if(role==='skin')material.color.multiplyScalar(1.07);
   if(role==='shirtButton')material.color.multiplyScalar(.73);

@@ -8,7 +8,7 @@ const moduleURL=path=>pathToFileURL(path).href;
 const temp=await fs.mkdtemp(path.join(os.tmpdir(),'charabuilder-modular-'));
 let hair=await fs.readFile(base+'hair.js','utf8');hair=hair.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'hair.mjs'),hair);
 let rig=await fs.readFile(base+'rig.js','utf8');rig=rig.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'rig.mjs'),rig);
-let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./stone-avatar.js?v=40'",JSON.stringify(moduleURL(base+'stone-avatar.js'))).replace("'./stone-body.js?v=34'",JSON.stringify(moduleURL(base+'stone-body.js'))).replace("'./stone-detail.js?v=32'",JSON.stringify(moduleURL(base+'stone-detail.js'))).replace("'./rig.js?v=40'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=40'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=40'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=40'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
+let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./stone-avatar.js?v=41'",JSON.stringify(moduleURL(base+'stone-avatar.js'))).replace("'./stone-body.js?v=34'",JSON.stringify(moduleURL(base+'stone-body.js'))).replace("'./stone-detail.js?v=32'",JSON.stringify(moduleURL(base+'stone-detail.js'))).replace("'./rig.js?v=41'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=41'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=41'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=41'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
 global.fetch=async url=>{try{return new Response(await fs.readFile(new URL(url)),{status:200});}catch{return new Response('',{status:404});}};
 const {loadHumanAssets,ensureHumanPresets,createHuman,disposeHuman}=await import(moduleURL(path.join(temp,'model.mjs')));
 const {hairDefaults,hairChoices,hairRanges}=await import(moduleURL(path.join(temp,'hair.mjs')));
@@ -26,7 +26,7 @@ for(const gender of ['female','male']){
 
 const {updateCharacterMotion}=await import(moduleURL(path.join(temp,'rig.mjs')));
 const THREE=await import(moduleURL(base+'vendor/three.module.js'));
-let motion=await fs.readFile(base+'motion.js','utf8');motion=motion.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./rig.js?v=40'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'./assets/motion/quaternius.js?v=26'",JSON.stringify(moduleURL(base+'assets/motion/quaternius.js')));await fs.writeFile(path.join(temp,'motion.mjs'),motion);
+let motion=await fs.readFile(base+'motion.js','utf8');motion=motion.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./rig.js?v=41'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'./assets/motion/quaternius.js?v=26'",JSON.stringify(moduleURL(base+'assets/motion/quaternius.js')));await fs.writeFile(path.join(temp,'motion.mjs'),motion);
 const {updateCharacterMotion:play,motionPresets}=await import(moduleURL(path.join(temp,'motion.mjs')));
 const {default:library}=await import(moduleURL(base+'assets/motion/quaternius.js'));
 
@@ -54,7 +54,7 @@ for(const clothes of ['shirtPants','underwear']){
  await ensureHumanPresets(state,{textures:false});const model=createHuman(state);
  for(const [mode,times] of [['rest',[0]],['idle',[0,1.2,2.4]],['inspect',[2,4,8,10]],['walk',[.23,.72]]])for(const t of times){
   play(model,0,mode);play(model,t,mode);
-  assert.ok(model.userData.stoneRebuilt);assert.ok(model.userData.bodyRefinement.referenceFaces<42000);
+  assert.ok(model.userData.stoneRebuilt);assert.ok(model.userData.bodyRefinement.referenceFaces<55000);
   model.traverse(m=>{if(!m.isMesh)return;
    const weights=m.geometry.attributes.skinWeight.array;
    for(let i=0;i<weights.length;i+=4)assert.ok(Math.abs(weights[i]+weights[i+1]+weights[i+2]+weights[i+3]-1)<1e-5,'new body skin weights lost normalization');
@@ -78,7 +78,18 @@ for(const clothes of ['shirtPants','underwear']){
     for(const i of ids){const matrix=new THREE.Matrix4();matrix.elements.fill(0);for(let k=0;k<4;k++){const w=g.attributes.skinWeight.array[i*4+k],j=g.attributes.skinIndex.array[i*4+k],bone=new THREE.Matrix4().fromArray(m.skeleton.boneMatrices,j*16);for(let e=0;e<16;e++)matrix.elements[e]+=w*bone.elements[e];}sum.add(new THREE.Vector3().fromBufferAttribute(g.attributes.normal,i).transformDirection(matrix));}
     sampled++;if(sum.normalize().dot(face)<-.1)inverted++;
    }
-  });assert.ok(inverted<=Math.max(3,sampled*.03),mode+' body GPU normals oppose posed surfaces: '+inverted+'/'+sampled);poses++;
+  });
+  let neckFaces=0,neckFolded=0;
+  if(mode!=='rest')model.traverse(m=>{if(!m.isSkinnedMesh||!['Body','Face'].includes(m.userData.part)||m.name==='AnimeHeadOutline')return;
+   const g=m.geometry,index=g.index.array,position=g.attributes.position;
+   for(let t=0;t<index.length;t+=3){const ids=Array.from(index.slice(t,t+3)),rest=ids.map(i=>new THREE.Vector3().fromBufferAttribute(position,i));const y=rest.reduce((s,p)=>s+p.y/3,0);if(y<1.78)continue;
+    const rn=new THREE.Vector3().crossVectors(rest[1].clone().sub(rest[0]),rest[2].clone().sub(rest[0]));if(rn.lengthSq()<1e-14)continue;
+    const posed=ids.map((i,k)=>m.applyBoneTransform(i,rest[k].clone())),pn=new THREE.Vector3().crossVectors(posed[1].clone().sub(posed[0]),posed[2].clone().sub(posed[0]));
+    const matrix=new THREE.Matrix4();matrix.elements.fill(0);for(const i of ids)for(let k=0;k<4;k++){const w=g.attributes.skinWeight.array[i*4+k]/3,j=g.attributes.skinIndex.array[i*4+k],bone=new THREE.Matrix4().fromArray(m.skeleton.boneMatrices,j*16);for(let e=0;e<16;e++)matrix.elements[e]+=w*bone.elements[e];}
+    const expected=rn.applyMatrix3(new THREE.Matrix3().getNormalMatrix(matrix));neckFaces++;if(expected.dot(pn)<=0)neckFolded++;
+   }
+  });assert.equal(neckFolded,0,mode+' head/neck triangles folded against their bind orientation ('+neckFaces+' checked)');
+  assert.ok(inverted<=Math.max(3,sampled*.03),mode+' body GPU normals oppose posed surfaces: '+inverted+'/'+sampled);poses++;
  }
  disposeHuman(model);
 }

@@ -1,4 +1,4 @@
-import {createUnderwearData} from './underwear.js?v=40';
+import {createUnderwearData} from './underwear.js?v=41';
 // Independent user-reference foundation. No old Stone morph/sculpt data is applied.
 const clamp=v=>Math.max(-2,Math.min(2,((v??50)-50)/50));
 function eyeMesh(base,name,region,c,width,height,color,materialIndex){
@@ -38,10 +38,10 @@ export function composeStoneReference(base,state){
  const rig={neckY:l.neck[1],rebuilt:true,reference:false,eyes:[l.rightEye,l.leftEye],eyeY,chin:l.faceGuide?.chin??1.452,top:l.faceGuide?.top??1.62,mouth:l.faceGuide?.mouth??[0,1.486,.108],nose:l.faceGuide?.nose??[0,1.545,.130],brows:l.faceGuide?.brows??[[-.028,1.586,.117],[.028,1.586,.117]],headX:0,headZ:l.head[2],gender:'male',preset:{name:'Stone · 参考头部重建脸',eyeScale:1,jawMix:0,adult:false},guide:{jawRatios:[1,1,1,1,1]}};
  data.landmarks={...l,faceRig:rig};
  const body=base.meshes.find(m=>m.name==='Body');const face=base.meshes.find(m=>m.name==='Face');data.meshes.push(body,{...face,faceRegions:Array(face.positions.length/3).fill('Face:skin')});
- for(let i=0;i<2;i++){const c=[...rig.eyes[i]];const blink=state.expression==='blink'?.12:1;for(const [name,region,width,height,z,color] of [['StoneEyeWhite','Face:eye'+i,.014,.0050*blink,0,[.93,.93,.93,1]],['StoneEyeIris','Face:iris'+i,.0035,.0035*blink,.0022,[1,1,1,1]]]){const e=eyeMesh(base,name,region,[c[0],c[1],c[2]+z],width,height,color,data.materials.length);add(e.mesh,e.material);}for(const e of socketMeshes(base,c,i))add(e.mesh,e.material);}
+ if(!l.surfaceStage)for(let i=0;i<2;i++){const c=[...rig.eyes[i]];const blink=state.expression==='blink'?.12:1;for(const [name,region,width,height,z,color] of [['StoneEyeWhite','Face:eye'+i,.014,.0050*blink,0,[.93,.93,.93,1]],['StoneEyeIris','Face:iris'+i,.0035,.0035*blink,.0022,[1,1,1,1]]]){const e=eyeMesh(base,name,region,[c[0],c[1],c[2]+z],width,height,color,data.materials.length);add(e.mesh,e.material);}for(const e of socketMeshes(base,c,i))add(e.mesh,e.material);}
  // The supplied crown is separated into selectable JS sections without moving it.
  const hair=base.meshes.find(m=>m.name==='HairReference');
- for(const [key,part] of [['frontHair','Front'],['backHair','Back'],['sideHair','Side']])if(state[key]==='stoneRef'){
+ for(const [key,part] of [['frontHair','Front'],['backHair','Back'],['sideHair','Side']])if(!l.surfaceStage&&state[key]==='stoneRef'){
   const tri=[];for(const g of hair.groups)for(let t=0;t<g.indices.length;t+=3){const ids=g.indices.slice(t,t+3),c=ids.map(i=>hair.positions.slice(i*3,i*3+3).map(v=>v/1e5)).reduce((a,p)=>a.map((v,j)=>v+p[j]/3),[0,0,0]);const section=Math.abs(c[0])>.047?'Side':c[2]>.005?'Front':'Back';if(section===part)tri.push(...ids);}
   const length=1+clamp(state[key==='frontHair'?'frontLength':key==='backHair'?'backLength':'sideLength'])*.30,volume=1+clamp(state.hairVolume)*.15;const positions=hair.positions.map((v,i)=>i%3===1?Math.round((v/1e5<1.66?1.66+(v/1e5-1.66)*length:v/1e5)*1e5):Math.round((i%3===0?v*volume:(l.head[2]*1e5+(v-l.head[2]*1e5)*volume))));
   data.meshes.push({...hair,positions,name:'Hair'+part,groups:[{material:2,indices:tri}]});

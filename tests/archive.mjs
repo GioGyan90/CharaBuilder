@@ -16,8 +16,8 @@ for(const gender of ['male','female'])for(const [frontHair] of hairOptionsFor('f
 }
 for(const key of Object.keys({...parameterDefaults,...wardrobeDefaults,...hairRanges})){
  if(normalizeState({})[key]!==(key==='jawWidth'?45:50))throw Error('default '+key);
- if(normalizeState({[key]:999})[key]!==((faceAdjustmentKeys.includes(key)||bodyAdjustmentKeys.includes(key))?150:100))throw Error('upper bound');
- if(normalizeState({[key]:-999})[key]!==((faceAdjustmentKeys.includes(key)||bodyAdjustmentKeys.includes(key))?-50:0))throw Error('lower bound');
+ if(normalizeState({[key]:999})[key]!==(bodyAdjustmentKeys.includes(key)?200:faceAdjustmentKeys.includes(key)?150:100))throw Error('upper bound');
+ if(normalizeState({[key]:-999})[key]!==(bodyAdjustmentKeys.includes(key)?-100:faceAdjustmentKeys.includes(key)?-50:0))throw Error('lower bound');
  if(normalizeState({[key]:NaN})[key]!==(key==='jawWidth'?45:50))throw Error('finite guard');
 }
 for(const gender of ['female','male'])for(const clothes of ['shirtPants','underwear'])for(const shoes of ['shoes','barefoot']){
@@ -49,3 +49,7 @@ for(const jaw of [-50,22,45,50,150]){
 }
 if(normalizeState({jaw:22,jawWidth:83}).jawWidth!==83)throw Error('new jaw width must take precedence');
 console.log('PASS legacy jaw migration, new-key precedence and independent face structure archive');
+
+for(const stoneView of ['clay','skin'])if(normalizeState(JSON.parse(JSON.stringify({gender:'male',faceSource:'stone',stoneView}))).stoneView!==stoneView)throw Error('Stone surface view archive');
+if(normalizeState({stoneView:'invalid'}).stoneView!=='clay')throw Error('Stone surface view fallback');
+console.log('PASS Stone clay/skin view archive and invalid-value fallback');
