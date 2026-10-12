@@ -53,4 +53,13 @@ if(data.reference.headLoweringFit&&!data.reference.baldFairing){
  console.log('PASS marked neck/head fit preserves lower body and outer arms');
 }
 
-if(data.reference.baldFairing){const lower=[];for(const m of data.meshes.filter(m=>['Body','Face'].includes(m.name)))for(let i=0;i<m.positions.length;i+=3)if(m.positions[i+1]<=125000)lower.push(...m.positions.slice(i,i+3));assert.equal(createHash('sha256').update(JSON.stringify(lower)).digest('hex'),data.reference.baldFairing.protectedLowerBodySha256);assert.equal(stonePreset.frontHair,'none');assert.equal(stonePreset.backHair,'none');assert.equal(stonePreset.sideHair,'none');assert.equal(stonePreset.braid,'none');console.log('PASS local fairing preserves lower body and defaults to bald');}
+if(data.reference.baldFairing&&!data.reference.jawProportionFit){const lower=[];for(const m of data.meshes.filter(m=>['Body','Face'].includes(m.name)))for(let i=0;i<m.positions.length;i+=3)if(m.positions[i+1]<=125000)lower.push(...m.positions.slice(i,i+3));assert.equal(createHash('sha256').update(JSON.stringify(lower)).digest('hex'),data.reference.baldFairing.protectedLowerBodySha256);assert.equal(stonePreset.frontHair,'none');assert.equal(stonePreset.backHair,'none');assert.equal(stonePreset.sideHair,'none');assert.equal(stonePreset.braid,'none');console.log('PASS local fairing preserves lower body and defaults to bald');}
+
+if(data.reference.jawProportionFit){
+ const fit=data.reference.jawProportionFit,body=data.meshes.find(m=>m.name==='Body'),low=[];
+ for(let i=0;i<body.positions.length;i+=3)if(body.positions[i+1]<=125000)low.push(body.positions.slice(i,i+3).map(v=>v/1e5));
+ const bounds=[ [0,1,2].map(a=>Math.min(...low.map(p=>p[a]))),[0,1,2].map(a=>Math.max(...low.map(p=>p[a]))) ];
+ for(let b=0;b<2;b++)for(let a=0;a<3;a++)assert.ok(Math.abs(bounds[b][a]-fit.lowerBodyBoundsBefore[b][a]*(a===0?fit.bodyWidthScale:1))<1e-5,'frontal narrowing changed body height or depth');
+ assert.equal(stonePreset.frontHair,'none');assert.equal(stonePreset.backHair,'none');assert.equal(stonePreset.sideHair,'none');assert.equal(stonePreset.braid,'none');
+ console.log('PASS jaw/proportion fit narrows body width while preserving height, depth and bald defaults');
+}

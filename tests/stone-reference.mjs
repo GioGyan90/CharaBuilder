@@ -22,7 +22,7 @@ for(let i=0;i<body.positions.length/3;i++){
  const x=Math.abs(body.positions[i*3]/1e5),y=body.positions[i*3+1]/1e5;
  if(y>=1.04*(source.reference.turnaroundFit?.bodyScale[1]??1)||y<=.59*(source.reference.turnaroundFit?.bodyScale[1]??1))continue;
  const arm=body.skinIndices.slice(i*4,i*4+4).reduce((s,j,k)=>s+(armBones.has(j)?body.skinWeights[i*4+k]:0),0);
- assert.ok(x<.25*(source.reference.bodyWidthScale??1)*(source.reference.turnaroundFit?.bodyScale[0]??1)?arm<1e-8:arm>1-1e-8,'hand/hip skin ownership crossed the anatomical gap');checked++;
+ assert.ok(x<.25*(source.reference.bodyWidthScale??1)*(source.reference.turnaroundFit?.bodyScale[0]??1)*(source.reference.jawProportionFit?.bodyWidthScale??1)?arm<1e-8:arm>1-1e-8,'hand/hip skin ownership crossed the anatomical gap');checked++;
 }
 for(const eye of [source.landmarks.leftEye,source.landmarks.rightEye])assert.ok(eye[1]>source.landmarks.faceGuide.chin&&eye[1]<source.landmarks.faceGuide.top&&eye[2]>source.landmarks.head[2]&&eye[2]<source.landmarks.head[2]+.14,'eye anchor outside supplied socket');
 assert.ok(!composed.meshes.some(m=>m.name==='FaceEyes'),'surface study includes procedural eye layers');
