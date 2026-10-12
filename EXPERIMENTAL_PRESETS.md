@@ -1,3 +1,7 @@
+# v45：斜方肌与颈根过渡
+
+压低肩颈两侧高点并收整颈根，保留厚实体块；两轮多角度和动作自查，详见 [STONE_REFERENCE.md](STONE_REFERENCE.md)。
+
 # v44：三视图头身与颈部比例
 
 依用户三视图缩小身体、稍增大头部，整理颈根并增加颈部露出；保留11742三角面。两轮多角度与动作验证，详见 [STONE_REFERENCE.md](STONE_REFERENCE.md)。
