@@ -16,3 +16,17 @@ for(const key of ['ribWidth','pecVolume','scapulaVolume','gluteVolume','thighDep
  assert.ok(moved>.005,key+' inactive');
 }
 console.log('PASS neutral user-reference geometry unchanged across '+count+' vertices, normalized weights, low polygon budget and seven new body dimensions across -100..200');
+const armBones=new Set(Object.entries(source.rig.humanoid).filter(([k])=>/Arm|Hand|Thumb|Index|Middle|Ring|Little/.test(k)).map(([,i])=>i));
+const body=source.meshes.find(m=>m.name==='Body');let checked=0;
+for(let i=0;i<body.positions.length/3;i++){
+ const x=Math.abs(body.positions[i*3]/1e5),y=body.positions[i*3+1]/1e5;
+ if(y>=1.04||y<=.59)continue;
+ const arm=body.skinIndices.slice(i*4,i*4+4).reduce((s,j,k)=>s+(armBones.has(j)?body.skinWeights[i*4+k]:0),0);
+ assert.ok(x<.25?arm<1e-8:arm>1-1e-8,'hand/hip skin ownership crossed the anatomical gap');checked++;
+}
+for(const eye of [source.landmarks.leftEye,source.landmarks.rightEye])assert.ok(eye[1]<1.58&&eye[2]<.11,'eye anchor outside supplied socket');
+const whites=composed.meshes.filter(m=>m.groups.some(g=>composed.materials[g.material].name==='StoneEyeWhite'));
+for(const m of whites){assert.equal(m.positions.length/3,129);const zs=m.positions.filter((_,i)=>i%3===2);assert.ok(Math.max(...zs)-Math.min(...zs)>300,'sclera is still a flat floating decal');}
+console.log('PASS '+checked+' hand/hip ownership vertices, measured socket anchors and curved sclera');
+for(const m of source.meshes)for(let i=0;i<m.positions.length/3;i++)if(m.positions[i*3+1]/1e5>1.46){const head=m.skinIndices.slice(i*4,i*4+4).reduce((s,j,k)=>s+(j===source.rig.humanoid.head?m.skinWeights[i*4+k]:0),0);assert.ok(head>1-1e-9,'face/head skin does not follow its eyes rigidly');}
+console.log('PASS rigid head binding preserves eye/eyelid contact during head motion');

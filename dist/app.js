@@ -1,14 +1,14 @@
-import {stonePreset} from './experimental.js?v=38';
+import {stonePreset} from './experimental.js?v=39';
 import {cameraAngles,cameraYaw,anglePosition,selectedAngle,screenDragSide,moveCameraTarget} from './view.js?v=30';
-import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=38';
+import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=39';
 import {openHslPicker} from './colors.js?v=16';
-import {updateCharacterMotion,motionPresets} from './motion.js?v=30';
-import {parameterDefaults,parameterRanges} from './parameters.js?v=38';
+import {updateCharacterMotion,motionPresets} from './motion.js?v=39';
+import {parameterDefaults,parameterRanges} from './parameters.js?v=39';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=38';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=39';
 
-import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=38';
+import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=39';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
 const $ = s => document.querySelector(s);
 const defaults = {...parameterDefaults,...hairDefaults,...wardrobeDefaults,faceSource:'vroid',name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jawWidth:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',shoes:'shoes',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',eyeColor:'#806449',shirt:'#778f87',pants:'#343b50',shoeColor:'#343b50'};
@@ -104,8 +104,8 @@ function renderControls(){
  if(activeTab==='experimental'){
   const card=element('div','field'),apply=element('button','primary','载入 Stone 试验预设');
   apply.onclick=()=>{remember();finishDirectEdit();state=normalize({...defaults,...stonePreset});faceBaseline={...state};bodyBaseline={...state};motionMode='rest';motionTime=0;syncMotionControls();update();renderControls();setView('full');toast('已载入 Stone 试验版');};
-  card.append(element('h3',null,'Stone · 白模重建 / 08'),element('p','reference-note','宽下颌与下巴、窄眼、粗眉；厚颈、斜方肌、背阔肌和肩部肌肉。全部继续支持 JS 参数调整。'),apply);
-  card.append(element('p','reference-note','独立重建网格：直接以上传白模进行几何简化，约 2.2 万三角面。默认参数对应参考体型，并新增胸肌、肋廓、臀肌及腿部厚度控制。默认内衣 / 光脚，可继续用体型参数调整。'));
+  card.append(element('h3',null,'Stone · 白模修正 / 09'),element('p','reference-note','宽下颌与下巴、窄眼、粗眉；厚颈、斜方肌、背阔肌和肩部肌肉。全部继续支持 JS 参数调整。'),apply);
+  card.append(element('p','reference-note','修正手与胯侧的骨骼归属；动作时重算身体与头部的表面法线。眼睛按白模眼眶定位，并补充曲面眼白、眼睑与上眼线。默认内衣 / 光脚，可继续用体型参数调整。'));
   const links=element('div','options');for(const [tab,text] of [['face','调整脸部'],['body','调整体型'],['hair','调整发型'],['clothes','切换服装']]){const b=element('button','option',text);b.onclick=()=>document.querySelector('[data-tab="'+tab+'"]').click();links.append(b);}card.append(links);
   const observe=element('div','options');for(const [clothes,text] of [['underwear','内衣 / 光脚看结构'],['shirtPants','衬衫 / 长裤看贴合']]){const b=element('button','option',text);b.onclick=()=>{remember();finishDirectEdit();state.clothes=clothes;state.shoes=clothes==='underwear'?'barefoot':'shoes';update();setView('full');};observe.append(b);}card.append(observe);$('#controls').append(card);
  }

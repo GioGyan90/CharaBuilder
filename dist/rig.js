@@ -124,24 +124,28 @@ export function updateCharacterMotion(group,time,mode='idle'){
 }
 
 // GPU skinning blends normal rotations; at bent knees that differs from the deformed
-// trouser surface. Rebuild smooth posed normals, then undo the skin normal transform.
+// body/garment surface. Weld Stone Body/Face normals together in posed space,
+// then undo the skin normal transform so GPU lighting matches that surface.
 export function updatePantsNormals(group){
  if(!group?.userData.skeleton)return;
  let caches=group.userData.pantsNormalCache;
- if(!caches){caches=[];group.traverse(mesh=>{if(!mesh.isSkinnedMesh||mesh.userData.part!=='Pants')return;
-  const p=mesh.geometry.attributes.position,used=[...new Set(mesh.geometry.index.array)],lookup=new Map(),canonical=new Int32Array(p.count),sums=[];
+ if(!caches){caches=[];const skinLookup=new Map(),skinSums=[];group.traverse(mesh=>{const skin=group.userData.stoneRebuilt&&['Body','Face'].includes(mesh.userData.part)&&mesh.name!=='AnimeHeadOutline';if(!mesh.isSkinnedMesh||!(mesh.userData.part==='Pants'||skin))return;
+  const p=mesh.geometry.attributes.position,used=[...new Set(mesh.geometry.index.array)],lookup=skin?skinLookup:new Map(),canonical=new Int32Array(p.count),sums=skin?skinSums:[];
   for(const i of used){const key=[p.getX(i),p.getY(i),p.getZ(i)].map(v=>Math.round(v*100000)).join(',');if(!lookup.has(key)){lookup.set(key,sums.length);sums.push(new THREE.Vector3());}canonical[i]=lookup.get(key);}
   caches.push({mesh,used,canonical,sums,points:new Float32Array(p.array.length),inverse:new Map(used.map(i=>[i,new THREE.Matrix3()]))});
  });group.userData.pantsNormalCache=caches;}
  const point=new THREE.Vector3(),e1=new THREE.Vector3(),e2=new THREE.Vector3(),normal=new THREE.Vector3(),matrix=new THREE.Matrix4(),bone=new THREE.Matrix4();
+ for(const sums of new Set(caches.map(c=>c.sums)))for(const sum of sums)sum.set(0,0,0);
  for(const {mesh,used,canonical,sums,points,inverse} of caches){
   const p=mesh.geometry.attributes.position,joints=mesh.geometry.attributes.skinIndex.array,weights=mesh.geometry.attributes.skinWeight.array,n=mesh.geometry.attributes.normal,index=mesh.geometry.index.array;
   for(const i of used){point.fromBufferAttribute(p,i);mesh.applyBoneTransform(i,point);point.toArray(points,i*3);matrix.elements.fill(0);
    for(let a=0;a<4;a++){bone.fromArray(mesh.skeleton.boneMatrices,joints[i*4+a]*16);const w=weights[i*4+a];for(let k=0;k<16;k++)matrix.elements[k]+=bone.elements[k]*w;}
    inverse.get(i).setFromMatrix4(matrix).invert();
   }
-  for(const sum of sums)sum.set(0,0,0);
+
   for(let t=0;t<index.length;t+=3){const a=index[t],b=index[t+1],c=index[t+2];point.fromArray(points,a*3);e1.fromArray(points,b*3).sub(point);e2.fromArray(points,c*3).sub(point);normal.crossVectors(e1,e2);for(const i of [a,b,c])sums[canonical[i]].add(normal);}
+ }
+ for(const {mesh,used,canonical,sums,inverse} of caches){const n=mesh.geometry.attributes.normal;
   for(const i of used){normal.copy(sums[canonical[i]]).applyMatrix3(inverse.get(i)).normalize();if(normal.lengthSq()>.5)n.setXYZ(i,normal.x,normal.y,normal.z);}
   n.needsUpdate=true;
  }

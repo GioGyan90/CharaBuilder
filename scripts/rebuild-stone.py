@@ -12,10 +12,10 @@ m=trimesh.Trimesh(p,faces,process=True);print('Welded',len(m.vertices),len(m.fac
 low=m.simplify_quadric_decimation(face_count=22000,aggression=3);low.remove_unreferenced_vertices();p=np.asarray(low.vertices);f=np.asarray(low.faces);n=np.asarray(low.vertex_normals);print('Reduced',len(p),len(f),flush=True)
 manifest=json.loads((out/'male-manifest.json').read_text());old=json.loads(gzip.decompress(base64.b64decode(''.join((out/i).read_text() for i in manifest['parts']))));rig=json.loads(gzip.decompress(base64.b64decode((out/'male-rig.b64').read_text())))
 # Anatomical centres measured in the supplied reference's transformed bind pose.
-land={'hips':[0,.895,.015],'neck':[0,1.422,-.020],'head':[0,1.533,-.005],'leftEye':[.029,1.590,.123],'rightEye':[-.029,1.590,.123],'stoneRebuilt':True}
+land={'hips':[0,.895,.015],'neck':[0,1.422,-.020],'head':[0,1.533,-.005],'leftEye':[.029,1.563,.1042],'rightEye':[-.029,1.563,.1042],'stoneRebuilt':True}
 anchors={'hips':[0,.895,.015],'spine':[0,1.015,.01],'chest':[0,1.18,0],'upperChest':[0,1.30,-.007],'neck':land['neck'],'head':land['head']}
 for side,sg in [('left',1),('right',-1)]:
- for key,val in {'Shoulder':[.075,1.402,-.02],'UpperArm':[.247,1.371,-.004],'LowerArm':[.279,1.101,.010],'Hand':[.281,.862,.025],'UpperLeg':[.134,.877,.010],'LowerLeg':[.145,.474,.030],'Foot':[.173,.114,-.024],'Toes':[.177,.045,.096],'Eye':[.029,1.590,.123]}.items():anchors[side+key]=[sg*val[0],val[1],val[2]]
+ for key,val in {'Shoulder':[.075,1.402,-.02],'UpperArm':[.247,1.371,-.004],'LowerArm':[.318,1.106,.010],'Hand':[.338,.878,.025],'UpperLeg':[.134,.877,.010],'LowerLeg':[.145,.474,.030],'Foot':[.173,.114,-.024],'Toes':[.177,.045,.096],'Eye':[.029,1.563,.1042]}.items():anchors[side+key]=[sg*val[0],val[1],val[2]]
 # Preserve the proven open-source hierarchy; replace every bind point for Stone.
 oldbones=np.array([b['position'] for b in rig['bones']]);inverse={i:k for k,i in rig['humanoid'].items()}
 for i,b in enumerate(rig['bones']):
@@ -47,15 +47,18 @@ for sg in [1,-1]:
  seeds=np.where((p[:,0]*sg>.275)&(p[:,1]>.66)&(p[:,1]<1.39))[0];armDistance.append(dijkstra(graph,directed=False,indices=seeds,min_only=True))
 js=[];ws=[]
 for vertex,point in enumerate(p):
- x,y,z=point;side='left' if x>=0 else 'right';ax=abs(x)
- region='head' if y>1.44 else 'neck' if y>1.395 and ax<.14 else 'arm' if y>.59 and min(armDistance[0][vertex],armDistance[1][vertex])<bodyDistance[vertex] else 'leg' if y<.88 else 'core'
+ x,y,z=point
+ if y>1.46:
+  js.extend([rig['humanoid']['head'],0,0,0]);ws.extend([1,0,0,0]);continue
+ side='left' if x>=0 else 'right';ax=abs(x)
+ region='arm' if .59<y<1.04 and ax>.25 else 'leg' if y<.88 and ax<.25 else 'core' if y<1.04 and ax<.25 else 'head' if y>1.44 else 'neck' if y>1.395 and ax<.14 else 'arm' if y>.59 and min(armDistance[0][vertex],armDistance[1][vertex])<bodyDistance[vertex] else 'leg' if y<.88 else 'core'
  candidates=[]
  for i,a,b,key in segments:
   if region=='head':valid=key in ['head','neck']
   elif region=='neck':valid=key in ['neck','upperChest','chest','head']
   elif region=='arm':valid=key.startswith(side) and any(v in key for v in ['Arm','Hand','Thumb','Index','Middle','Ring','Little','Shoulder'])
   elif region=='leg':valid=(key.startswith(side) and any(v in key for v in ['Leg','Foot','Toes'])) or key=='hips'
-  else:valid=key in ['hips','spine','chest','upperChest','neck'] or key in [side+'Shoulder',side+'UpperArm'] and ax>.19
+  else:valid=key in ['hips','spine','chest','upperChest','neck'] or key in [side+'Shoulder',side+'UpperArm'] and ax>.19 and y>1.10
   if not valid:continue
   delta=b-a;t=np.clip(np.dot(point-a,delta)/(np.dot(delta,delta)+1e-12),0,1);dist=np.linalg.norm(point-(a+t*delta));candidates.append((dist,i))
  candidates.sort();best=candidates[:4];sigma=.027 if region in ['arm','leg'] else .065;dist=np.array([v[0] for v in best]);w=np.exp(-((dist-dist.min())/sigma)**2);w/=w.sum();ids=[v[1] for v in best];js.extend(ids+[0]*(4-len(ids)));ws.extend(w.tolist()+[0]*(4-len(ids)))
