@@ -46,9 +46,11 @@ if(data.reference.neckShoulderFit&&!data.reference.headLoweringFit){
  console.log('PASS neck refinement preserves upper head, lower body and outer arm coordinates');
 }
 
-if(data.reference.headLoweringFit){
+if(data.reference.headLoweringFit&&!data.reference.baldFairing){
  const protectedPositions=[];
  for(const m of data.meshes.filter(m=>['Body','Face'].includes(m.name)))for(let i=0;i<m.positions.length;i+=3){const p=m.positions.slice(i,i+3);if(p[1]<=125000||Math.abs(p[0])>=23000)protectedPositions.push(...p);}
  assert.equal(createHash('sha256').update(JSON.stringify(protectedPositions)).digest('hex'),data.reference.headLoweringFit.protectedBodySha256,'head lowering altered lower body or outer arms');
  console.log('PASS marked neck/head fit preserves lower body and outer arms');
 }
+
+if(data.reference.baldFairing){const lower=[];for(const m of data.meshes.filter(m=>['Body','Face'].includes(m.name)))for(let i=0;i<m.positions.length;i+=3)if(m.positions[i+1]<=125000)lower.push(...m.positions.slice(i,i+3));assert.equal(createHash('sha256').update(JSON.stringify(lower)).digest('hex'),data.reference.baldFairing.protectedLowerBodySha256);assert.equal(stonePreset.frontHair,'none');assert.equal(stonePreset.backHair,'none');assert.equal(stonePreset.sideHair,'none');assert.equal(stonePreset.braid,'none');console.log('PASS local fairing preserves lower body and defaults to bald');}

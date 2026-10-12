@@ -1,4 +1,4 @@
-import {createUnderwearData} from './underwear.js?v=46';
+import {createUnderwearData} from './underwear.js?v=47';
 // Independent user-reference foundation. No old Stone morph/sculpt data is applied.
 const clamp=v=>Math.max(-2,Math.min(2,((v??50)-50)/50));
 function eyeMesh(base,name,region,c,width,height,color,materialIndex){

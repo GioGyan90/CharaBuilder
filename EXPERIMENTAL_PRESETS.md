@@ -1,3 +1,7 @@
+# v47：肩颈局部平顺与默认光头
+
+修顺肩峰与下颌旁的圈选隆起，整理光头头皮轮廓，保留v46头位和面数。两轮自查与动作检查，详见 [STONE_REFERENCE.md](STONE_REFERENCE.md)。
+
 # v46：按划线修改颈肩，降低头位
 
 收窄上段脖颈、整理下段斜方肌连接并降低头位，第二轮修复低头时的局部翻转，详见 [STONE_REFERENCE.md](STONE_REFERENCE.md)。

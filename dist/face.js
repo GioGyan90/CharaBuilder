@@ -118,7 +118,7 @@ export function headEnvelope(points,indices,centerX,centerZ,chin){
   const low=Math.max(chin-.005,Math.min(...triangle.map(p=>p[1]))),high=Math.max(...triangle.map(p=>p[1]));
   for(let band=Math.ceil(low/step);band<=Math.floor(high/step);band++){
    const y=band*step,hits=[];
-   for(let edge=0;edge<3;edge++){const a=triangle[edge],b=triangle[(edge+1)%3],dy=b[1]-a[1];if(Math.abs(dy)<1e-8)continue;const t=(y-a[1])/dy;if(t>=0&&t<=1)hits.push([a[0]+(b[0]-a[0])*t,a[2]+(b[2]-a[2])*t]);}
+   for(let edge=0;edge<3;edge++){const a=triangle[edge],b=triangle[(edge+1)%3],dy=b[1]-a[1];if(Math.abs(dy)<1e-8)continue;const t=(y-a[1])/dy;if(t>=0&&t<=1){const hit=[a[0]+(b[0]-a[0])*t,a[2]+(b[2]-a[2])*t];if(!hits.some(h=>Math.hypot(h[0]-hit[0],h[1]-hit[1])<1e-10))hits.push(hit);}}
    if(hits.length<2)continue;const a=hits[0],e=[hits[1][0]-a[0],hits[1][1]-a[1]];
    for(let sector=0;sector<sectors;sector++){const angle=sector/sectors*2*Math.PI-Math.PI,dx=Math.cos(angle),dz=Math.sin(angle),den=dx*e[1]-dz*e[0];if(Math.abs(den)<1e-9)continue;
     const r=(a[0]*e[1]-a[1]*e[0])/den,t=(a[0]*dz-a[1]*dx)/den;if(r>0&&t>=0&&t<=1)put(band,sector,r);
