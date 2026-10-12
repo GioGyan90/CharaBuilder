@@ -1,4 +1,4 @@
-import {createUnderwearData} from './underwear.js?v=49';
+import {createUnderwearData} from './underwear.js?v=50';
 // Independent user-reference foundation. No old Stone morph/sculpt data is applied.
 const clamp=v=>Math.max(-2,Math.min(2,((v??50)-50)/50));
 function eyeMesh(base,name,region,c,width,height,color,materialIndex){
@@ -79,11 +79,22 @@ export function graftHead(recipient, donor, bodyBase, headBase){
  }
  const body=recipient.meshes.find(m=>m.name==='Body'),skinGroups=body.groups.filter(g=>recipient.materials[g.material].name.includes('_SKIN'));
  const lower=clip({...body,groups:skinGroups},bodyBase,false),center=bodyBase.landmarks.neck;
- const ring=[];for(let i=0;i<lower.positions.length;i+=3)if(Math.abs(lower.positions[i+1]/1e5-targetCut)<.000011)ring.push([lower.positions[i]/1e5,lower.positions[i+2]/1e5]);
- const unique=[...new Map(ring.map(p=>[p.join(','),p])).values()];
+ const ring=[];for(let i=0;i<lower.positions.length;i+=3)if(Math.abs(lower.positions[i+1]/1e5-targetCut)<.000011)ring.push([lower.positions[i]/1e5,lower.positions[i+2]/1e5,i/3]);
+ const unique=[...new Map(ring.map(p=>[p.slice(0,2).join(','),p])).values()];
  unique.sort((a,b)=>Math.atan2(a[1]-center[2],a[0]-center[0])-Math.atan2(b[1]-center[2],b[0]-center[0]));
  if(unique.length<3)throw Error('身材缺少颈部接口');
- function surface(x,z){const dx=x-center[0],dz=z-center[2];let best=null;for(let i=0;i<unique.length;i++){const a=unique[i],b=unique[(i+1)%unique.length],ax=a[0]-center[0],az=a[1]-center[2],ex=b[0]-a[0],ez=b[1]-a[1],det=dx*ez-dz*ex;if(Math.abs(det)<1e-10)continue;const t=(ax*ez-az*ex)/det,u=(ax*dz-az*dx)/det;if(t>0&&u>=-.00001&&u<=1.00001){best=[center[0]+t*dx,center[2]+t*dz];break;}}return best||[x,z];}
+ function surface(x,z){
+  const dx=x-center[0],dz=z-center[2];
+  for(let i=0;i<unique.length;i++){
+   const a=unique[i],b=unique[(i+1)%unique.length],ax=a[0]-center[0],az=a[1]-center[2],ex=b[0]-a[0],ez=b[1]-a[1],det=dx*ez-dz*ex;
+   if(Math.abs(det)<1e-10)continue;const t=(ax*ez-az*ex)/det,u=(ax*dz-az*dx)/det;
+   if(t>0&&u>=-.00001&&u<=1.00001){
+    const weights={};for(const [v,factor] of [[a[2],1-u],[b[2],u]])for(let k=0;k<4;k++){const bone=lower.skinIndices[v*4+k];weights[bone]=(weights[bone]||0)+lower.skinWeights[v*4+k]*factor;}
+    return {point:[center[0]+t*dx,center[2]+t*dz],weights};
+   }
+  }
+  return {point:[x,z],weights:null};
+ }
  const data={...recipient,materials:[...recipient.materials,...donor.materials],maps:[...recipient.maps,...donor.maps],meshes:recipient.meshes.filter(m=>!['Face','FaceEyes','Body'].includes(m.name)&&!m.name.startsWith('Hair'))};
  // Non-skin body groups (e.g. standard shoes) remain on their original surface.
  const other=body.groups.filter(g=>!skinGroups.includes(g));data.meshes.unshift(lower);if(other.length)data.meshes.push({...body,groups:other,name:'BodyAccessories'});
@@ -91,13 +102,12 @@ export function graftHead(recipient, donor, bodyBase, headBase){
  for(const mesh of donor.meshes.filter(m=>['Body','Face','FaceEyes'].includes(m.name))){
   const groups=mesh.name==='Body'?mesh.groups.filter(g=>donor.materials[g.material].name.includes('_SKIN')):mesh.groups;
   const head=clip({...mesh,groups},headBase,true);if(!head.groups.length)continue;
-  for(let i=0;i<head.positions.length;i+=3){let x=head.positions[i]/1e5+shift[0],y=head.positions[i+1]/1e5+shift[1],z=head.positions[i+2]/1e5+shift[2];const t=Math.max(0,Math.min(1,(y-targetCut)/.055)),blend=1-t*t*(3-2*t),p=surface(x,z);x+=(p[0]-x)*blend;z+=(p[1]-z)*blend;head.positions.splice(i,3,Math.round(x*1e5),Math.round(y*1e5),Math.round(z*1e5));
-   // The shared seam uses identical neck ownership on both sides.
-   if(y-targetCut<.00002){head.skinIndices.splice(i/3*4,4,bodyBase.rig.humanoid.neck,0,0,0);head.skinWeights.splice(i/3*4,4,1,0,0,0);}
+  for(let i=0;i<head.positions.length;i+=3){let x=head.positions[i]/1e5+shift[0],y=head.positions[i+1]/1e5+shift[1],z=head.positions[i+2]/1e5+shift[2];const t=Math.max(0,Math.min(1,(y-targetCut)/.055)),blend=1-t*t*(3-2*t),fit=surface(x,z),p=fit.point;x+=(p[0]-x)*blend;z+=(p[1]-z)*blend;head.positions.splice(i,3,Math.round(x*1e5),Math.round(y*1e5),Math.round(z*1e5));
+   // Blend to the recipient's actual seam weights, not a forced neck bone.
+   if(fit.weights&&blend>0){const weights={...fit.weights};for(const bone of Object.keys(weights))weights[bone]*=blend;for(let k=0;k<4;k++){const bone=head.skinIndices[i/3*4+k];weights[bone]=(weights[bone]||0)+head.skinWeights[i/3*4+k]*(1-blend);}const top=Object.entries(weights).sort((a,b)=>b[1]-a[1]).slice(0,4),sum=top.reduce((s,v)=>s+v[1],0);head.skinIndices.splice(i/3*4,4,...Array.from({length:4},(_,k)=>Number(top[k]?.[0]||0)));head.skinWeights.splice(i/3*4,4,...Array.from({length:4},(_,k)=>(top[k]?.[1]||0)/sum));}
   }
   head.name=mesh.name==='Body'?'FaceScalp':mesh.name;head.groups=head.groups.map(g=>({...g,material:g.material+offset}));data.meshes.push(head);
  }
- for(let i=0;i<lower.positions.length;i+=3)if(Math.abs(lower.positions[i+1]/1e5-targetCut)<.000011){lower.skinIndices.splice(i/3*4,4,bodyBase.rig.humanoid.neck,0,0,0);lower.skinWeights.splice(i/3*4,4,1,0,0,0);}
  const point=p=>p.map((v,k)=>v+shift[k]),r=donor.landmarks.faceRig;
  data.landmarks={...recipient.landmarks,headJoinY:targetCut,head:point(headBase.landmarks.head),leftEye:point(headBase.landmarks.leftEye),rightEye:point(headBase.landmarks.rightEye),faceRig:{...r,neckY:bodyBase.landmarks.neck[1],eyes:r.eyes.map(point),brows:r.brows.map(point),mouth:point(r.mouth),nose:point(r.nose),eyeY:r.eyeY+shift[1],chin:r.chin+shift[1],top:r.top+shift[1],headX:r.headX+shift[0],headZ:r.headZ+shift[2]}};
  data.mixedHead=true;return data;
