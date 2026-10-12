@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 import {gunzipSync} from 'node:zlib';
 import assert from 'node:assert/strict';
 import {composeStoneReference} from '../dist/stone-avatar.js';
@@ -25,3 +26,10 @@ const plain=composeStoneReference(data,stonePreset),selected=composeStoneReferen
 for(const result of [plain,selected])assert.ok(!result.meshes.some(m=>m.name.startsWith('Hair')||m.name==='FaceEyes'),'surface study still contains eye/hair overlays');
 assert.equal(stonePreset.stoneView,'clay');assert.equal(data.materials[1].double,false,'double-sided rendering masks topology faults');
 console.log(`PASS ${faces} skin triangles: closed manifold, consistent winding, no duplicate faces, identical seam normals/weights; clay study hides eyes and hair`);
+
+if(data.reference.bodyWidthScale){
+ const head=data.meshes.find(m=>m.name==='Face');
+ assert.equal(createHash('sha256').update(JSON.stringify(head.positions)).digest('hex'),'b89e02d632a177b1144519c652f351aae9286674e4ba75a14cb27458a9f9fdce','narrowing or simplification moved the v42 head');
+ assert.equal(head.groups[0].indices.length/3,2239);assert.ok(faces<13000,'low-poly skin budget exceeded');
+ console.log('PASS v42 head positions unchanged and low-poly skin budget below 13000 triangles');
+}
