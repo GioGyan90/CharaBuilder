@@ -2,7 +2,7 @@ import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
 import {bindCharacter} from './rig.js?v=28';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=36';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=37';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
 import {referenceHairMeshes,hairAssetIds} from './hair.js?v=32';
 import {createUnderwearData} from './underwear.js?v=34';
@@ -213,17 +213,21 @@ if(iris && material.map){
     if(source.name==='Shirt'||source.name==='Pants'){
       const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(source.positions.map(v=>v/100000),3));g.setIndex(source.normalIndices||source.groups.flatMap(g=>g.indices));g.computeVertexNormals();sourceNormals=Array.from(g.attributes.normal.array,v=>v*32767);g.dispose();
     }
+    // Stance follows authored skin ownership, including toes that cross x=0.
+    const rigWeights=source.skinIndices?{indices:source.skinIndices,weights:source.skinWeights}:base.rig.meshes[source.name];
+    const sides=new Map();for(const [key,id] of Object.entries(base.rig.humanoid))if(/^(left|right)(UpperLeg|LowerLeg|Foot|Toes|Toe)/.test(key)){const side=key.startsWith('left')?1:-1;sides.set(source.skinBoneNames?source.skinBoneNames.indexOf(base.rig.bones[id].name):id,side);}
     for(let i=0;i<p.length;i+=3) {
+      let legSide;if(rigWeights){let score=0,total=0;for(let k=0;k<4;k++){const w=rigWeights.weights[i/3*4+k]||0;score+=(sides.get(rigWeights.indices[i/3*4+k])||0)*w;total+=w;}legSide=score/(total||1);}
       const deformPart=source.faceRegions?.[i/3]||source.name;
-      const q=deform((source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,deformPart);
+      const q=deform((source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,deformPart,legSide);
       p.set(q,i);
-      normals.set(deformNormal(deform,(source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,...sourceNormals.slice(i,i+3).map(v=>v/32767),deformPart),i);
+      normals.set(deformNormal(deform,(source.positions[i]+(expression?.[i]||0))/100000,(source.positions[i+1]+(expression?.[i+1]||0))/100000,(source.positions[i+2]+(expression?.[i+2]||0))/100000,...sourceNormals.slice(i,i+3).map(v=>v/32767),deformPart,legSide),i);
       if(source.fitPositions&&state.faceSource==='stone'&&state.gender==='male'){
         // Fit clearance after the large body edit. A pre-edit offset can cross the
         // inner-thigh deformation field and expose skin through the crotch.
         const anchor=source.fitPositions.slice(i,i+3).map(v=>v/100000);
-        const n=deformNormal(deform,...anchor,...sourceNormals.slice(i,i+3).map(v=>v/32767),'Body');
-        const q=deform(...anchor,'Body');p.set(q.map((v,j)=>v+n[j]*.0065*scale),i);normals.set(n,i);
+        const n=deformNormal(deform,...anchor,...sourceNormals.slice(i,i+3).map(v=>v/32767),'Body',legSide);
+        const q=deform(...anchor,'Body',legSide);p.set(q.map((v,j)=>v+n[j]*.0065*scale),i);normals.set(n,i);
       }
     }
     if(source.name==='Face'&&state.faceSource==='stone'){

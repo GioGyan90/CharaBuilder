@@ -1,5 +1,5 @@
-import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=36';
-export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=36';
+import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=37';
+export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=37';
 import {deformAnimeFace} from './face.js?v=32';
 export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=32';
 // Parameters deform the original topology; source vertices are never mutated.
@@ -36,7 +36,7 @@ export function createDeformer(input,landmarks,scale) {
   const eyes=[landmarks.leftEye[0],landmarks.rightEye[0]];
   const editBody=createBodyDeformer(state,landmarks);
   const legDelta=(state.legs-50)*.0008;
-  function deform(x,y,z,name) {
+  function deform(x,y,z,name,legSide) {
     if(name.startsWith('Face:iris')&&landmarks.faceRig){
       const eye=landmarks.faceRig.eyes[Number(name.slice(-1))],c=deform(...eye,'Face:eye'+name.slice(-1)),uniform=(1+(state.headSize-50)*.002)*scale*(landmarks.faceRig.preset.adult?.78:1);
       return [c[0]+(x-eye[0])*uniform,c[1]+(y-eye[1])*uniform,c[2]+(z-eye[2])*uniform];
@@ -106,7 +106,7 @@ export function createDeformer(input,landmarks,scale) {
     if (name==='Hair001' && state.hair==='trim' && state.gender==='male') {
       x=head[0]+(x-head[0])*.94;z=head[2]+(z-head[2])*.94;
     }
-    [x,y,z]=editBody(x,y,z,source);
+    [x,y,z]=editBody(x,y,z,source,legSide);
     y += legDelta*smooth(.02,hip,oldY);
     return [x*scale,(y+.001)*scale,z*scale];
   }
@@ -114,13 +114,13 @@ export function createDeformer(input,landmarks,scale) {
 }
 // Inverse-transpose Jacobian, expressed as transformed tangent cross products.
 // Keeps the author's smooth normals while accounting for shape changes.
-export function deformNormal(deform,x,y,z,nx,ny,nz,name) {
+export function deformNormal(deform,x,y,z,nx,ny,nz,name,legSide) {
   const nlen=Math.hypot(nx,ny,nz)||1;nx/=nlen;ny/=nlen;nz/=nlen;
   const ax=Math.abs(ny)<.9?0:1,ay=Math.abs(ny)<.9?1:0;
   let tx=ay*nz,ty=-ax*nz,tz=ax*ny-ay*nx;
   const len=Math.hypot(tx,ty,tz)||1;tx/=len;ty/=len;tz/=len;
   const bx=ny*tz-nz*ty,by=nz*tx-nx*tz,bz=nx*ty-ny*tx;
-  const e=.0001,p=deform(x,y,z,name),a=deform(x+tx*e,y+ty*e,z+tz*e,name),b=deform(x+bx*e,y+by*e,z+bz*e,name);
+  const e=.0001,p=deform(x,y,z,name,legSide),a=deform(x+tx*e,y+ty*e,z+tz*e,name,legSide),b=deform(x+bx*e,y+by*e,z+bz*e,name,legSide);
   const ux=a[0]-p[0],uy=a[1]-p[1],uz=a[2]-p[2],vx=b[0]-p[0],vy=b[1]-p[1],vz=b[2]-p[2];
   const rx=uy*vz-uz*vy,ry=uz*vx-ux*vz,rz=ux*vy-uy*vx,l=Math.hypot(rx,ry,rz);
   return l>1e-12?[rx/l,ry/l,rz/l]:[nx,ny,nz];
