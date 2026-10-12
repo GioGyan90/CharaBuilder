@@ -1,4 +1,4 @@
-import {createUnderwearData} from './underwear.js?v=39';
+import {createUnderwearData} from './underwear.js?v=40';
 // Independent user-reference foundation. No old Stone morph/sculpt data is applied.
 const clamp=v=>Math.max(-2,Math.min(2,((v??50)-50)/50));
 function eyeMesh(base,name,region,c,width,height,color,materialIndex){
@@ -35,7 +35,7 @@ export function composeStoneReference(base,state){
  const data={...base,materials:base.materials.map(m=>({...m})),maps:base.materials.map(()=>null),meshes:[]};
  const add=(mesh,material)=>{const id=data.materials.length;data.materials.push(material);data.maps.push(null);data.meshes.push({...mesh,groups:mesh.groups.map(g=>({...g,material:id}))});};
  const l=base.landmarks,eyeY=(l.leftEye[1]+l.rightEye[1])/2;
- const rig={neckY:l.neck[1],rebuilt:true,reference:false,eyes:[l.rightEye,l.leftEye],eyeY,chin:1.452,top:1.62,mouth:[0,1.486,.108],nose:[0,1.545,.130],brows:[[-.028,1.586,.117],[.028,1.586,.117]],headX:0,headZ:l.head[2],gender:'male',preset:{name:'Stone · 白模重建脸',eyeScale:1,jawMix:0,adult:false},guide:{jawRatios:[1,1,1,1,1]}};
+ const rig={neckY:l.neck[1],rebuilt:true,reference:false,eyes:[l.rightEye,l.leftEye],eyeY,chin:l.faceGuide?.chin??1.452,top:l.faceGuide?.top??1.62,mouth:l.faceGuide?.mouth??[0,1.486,.108],nose:l.faceGuide?.nose??[0,1.545,.130],brows:l.faceGuide?.brows??[[-.028,1.586,.117],[.028,1.586,.117]],headX:0,headZ:l.head[2],gender:'male',preset:{name:'Stone · 参考头部重建脸',eyeScale:1,jawMix:0,adult:false},guide:{jawRatios:[1,1,1,1,1]}};
  data.landmarks={...l,faceRig:rig};
  const body=base.meshes.find(m=>m.name==='Body');const face=base.meshes.find(m=>m.name==='Face');data.meshes.push(body,{...face,faceRegions:Array(face.positions.length/3).fill('Face:skin')});
  for(let i=0;i<2;i++){const c=[...rig.eyes[i]];const blink=state.expression==='blink'?.12:1;for(const [name,region,width,height,z,color] of [['StoneEyeWhite','Face:eye'+i,.014,.0050*blink,0,[.93,.93,.93,1]],['StoneEyeIris','Face:iris'+i,.0035,.0035*blink,.0022,[1,1,1,1]]]){const e=eyeMesh(base,name,region,[c[0],c[1],c[2]+z],width,height,color,data.materials.length);add(e.mesh,e.material);}for(const e of socketMeshes(base,c,i))add(e.mesh,e.material);}

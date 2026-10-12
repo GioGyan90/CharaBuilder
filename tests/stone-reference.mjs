@@ -1,13 +1,13 @@
 import fs from 'node:fs/promises';
 import {gunzipSync} from 'node:zlib';
 import assert from 'node:assert/strict';
-import {createDeformer} from '../dist/parameters.js';
+import {createDeformer,headEnvelope} from '../dist/parameters.js';
 import {composeStoneReference} from '../dist/stone-avatar.js';
 import {stonePreset} from '../dist/experimental.js';
 const root=new URL('../dist/assets/anime/',import.meta.url),m=JSON.parse(await fs.readFile(new URL('stone-ref-manifest.json',root)));
 const txt=(await Promise.all(m.parts.map(p=>fs.readFile(new URL(p,root),'utf8')))).join('');
 const source=JSON.parse(gunzipSync(Buffer.from(txt,'base64')));
-assert.equal(source.reference.faces,22000);assert.ok(source.reference.vertices<12000);assert.equal(source.stoneRebuilt,true);
+assert.ok(source.reference.faces<42000);assert.ok(source.reference.vertices<19000);assert.ok(source.reference.completeScalp);assert.ok(source.reference.headSha256);assert.equal(source.stoneRebuilt,true);
 const composed=composeStoneReference(source,stonePreset);const f=createDeformer(stonePreset,composed.landmarks,1);let count=0;
 for(const mesh of source.meshes)for(let i=0;i<mesh.positions.length;i+=3){const p=mesh.positions.slice(i,i+3).map(v=>v/1e5),q=f(...p,mesh.name==='Face'?'Face:skin':'Body');assert.ok(Math.max(...q.map((v,k)=>Math.abs(v-p[k]-(k===1?.001:0))))<1e-10,'old Stone sculpt altered the new neutral foundation');count++;const w=mesh.skinWeights.slice(i/3*4,i/3*4+4);assert.ok(Math.abs(w.reduce((a,b)=>a+b,0)-1)<1e-9);}
 for(const key of ['ribWidth','pecVolume','scapulaVolume','gluteVolume','thighDepth','calfDepth','kneeWidth']){
@@ -28,5 +28,15 @@ for(const eye of [source.landmarks.leftEye,source.landmarks.rightEye])assert.ok(
 const whites=composed.meshes.filter(m=>m.groups.some(g=>composed.materials[g.material].name==='StoneEyeWhite'));
 for(const m of whites){assert.equal(m.positions.length/3,129);const zs=m.positions.filter((_,i)=>i%3===2);assert.ok(Math.max(...zs)-Math.min(...zs)>300,'sclera is still a flat floating decal');}
 console.log('PASS '+checked+' hand/hip ownership vertices, measured socket anchors and curved sclera');
-for(const m of source.meshes)for(let i=0;i<m.positions.length/3;i++)if(m.positions[i*3+1]/1e5>1.46){const head=m.skinIndices.slice(i*4,i*4+4).reduce((s,j,k)=>s+(j===source.rig.humanoid.head?m.skinWeights[i*4+k]:0),0);assert.ok(head>1-1e-9,'face/head skin does not follow its eyes rigidly');}
+for(const m of source.meshes)for(let i=0;i<m.positions.length/3;i++)if(m.positions[i*3+1]/1e5>1.52){const head=m.skinIndices.slice(i*4,i*4+4).reduce((s,j,k)=>s+(j===source.rig.humanoid.head?m.skinWeights[i*4+k]:0),0);assert.ok(head>1-1e-9,'face/head skin does not follow its eyes rigidly');}
 console.log('PASS rigid head binding preserves eye/eyelid contact during head motion');
+
+const bald=composeStoneReference(source,{...stonePreset,frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});
+assert.ok(!bald.meshes.some(m=>m.name.startsWith('Hair')));
+const face=source.meshes.find(m=>m.name==='Face');
+assert.deepEqual(bald.meshes.find(m=>m.name==='Face').positions,composed.meshes.find(m=>m.name==='Face').positions);
+assert.deepEqual(bald.meshes.find(m=>m.name==='Face').groups,composed.meshes.find(m=>m.name==='Face').groups);
+const cap=headEnvelope(face.positions.map(v=>v/1e5),face.groups.flatMap(g=>g.indices),0,source.landmarks.head[2],1.52);
+for(const band of [267,274,280])for(let sector=0;sector<96;sector++)assert.ok(cap.bins.get(band+','+sector)>0,'bare cranium has an uncovered angular sector');
+let shelf=0;for(let i=0;i<body.positions.length/3;i++){const x=Math.abs(body.positions[i*3]/1e5),y=body.positions[i*3+1]/1e5;if(x<=.11||y<1.418)continue;for(let k=0;k<4;k++)if(body.skinWeights[i*4+k]>1e-6)assert.equal(body.skinIndices[i*4+k],source.rig.humanoid.upperChest,'head rotation still pulls the shoulder shelf');shelf++;}
+assert.ok(shelf>10);console.log('PASS independent bald face, complete cranium at 288 polar sectors and '+shelf+' shoulder shelf weights');

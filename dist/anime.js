@@ -1,12 +1,12 @@
-import {composeStoneReference} from './stone-avatar.js?v=39';
+import {composeStoneReference} from './stone-avatar.js?v=40';
 import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
-import {bindCharacter} from './rig.js?v=39';
+import {bindCharacter} from './rig.js?v=40';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=39';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=40';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=39';
-import {createUnderwearData} from './underwear.js?v=39';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=40';
+import {createUnderwearData} from './underwear.js?v=40';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -23,9 +23,9 @@ async function loadAsset(id, textures = true) {
   if (assets[id]) return assets[id];
   if (pending.has(id)) return pending.get(id);
   const promise = (async () => {
-    const manifest = await json(new URL(`${id}-manifest.json${id==='stone-ref'?'?v=39':''}`, root));
+    const manifest = await json(new URL(`${id}-manifest.json${id==='stone-ref'?'?v=40':''}`, root));
     const parts = await Promise.all(manifest.parts.map(async path => {
-      const response = await fetch(new URL(path+(id==='stone-ref'?'?v=39':''), root));
+      const response = await fetch(new URL(path+(id==='stone-ref'?'?v=40':''), root));
       if (!response.ok) throw Error(`模型分片加载失败: ${path}`);
       return response.text();
     }));
@@ -252,7 +252,7 @@ if(iris && material.map){
       if(source.name==='Face'||source.name==='Body'){
         const offset=envelopePoints.length/3;envelopePoints.push(...p);
         for(const g of source.groups)if(data.materials[g.material].name.includes('_SKIN')){envelopeIndices.push(...g.indices.map(id=>id+offset));if(source.name==='Face')for(const id of g.indices)editedChin=Math.min(editedChin,p[id*3+1]);}
-      }else if(source.name.startsWith('Hair')&&!source.stoneRebuilt){
+      }else if(source.name.startsWith('Hair')){
         if(!envelope){const c=deform(...base.landmarks.head,'Body');envelope=headEnvelope(envelopePoints,envelopeIndices,c[0],c[2],editedChin);}
         clearHair(p,envelope,source.name);
         const fitted=new THREE.BufferGeometry();fitted.setAttribute('position',new THREE.BufferAttribute(p,3));fitted.setIndex(source.groups.flatMap(g=>g.indices));fitted.computeVertexNormals();normals.set(fitted.attributes.normal.array);fitted.dispose();
@@ -276,7 +276,7 @@ if(iris && material.map){
       mesh.castShadow=!/Face|Eye|Hair/.test(description);mesh.receiveShadow=false;
       mesh.renderOrder=/Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(description)?2:0;
       group.add(mesh);
-      if(description.startsWith('AnimeReferenceFace')&&description.includes('_SKIN')){
+      if(description.startsWith('AnimeReferenceFace')&&description.includes('_SKIN')&&!data.stoneRebuilt){
         const outlineGeometry=geometry.clone(),op=outlineGeometry.attributes.position;
         for(let id=0;id<op.count;id++){const taper=Math.max(0,Math.min(1,(source.positions[id*3+1]/100000-base.landmarks.neck[1]-.025)/.04)),width=.00085*scale*taper;op.setXYZ(id,op.getX(id)+normals[id*3]*width,op.getY(id)+normals[id*3+1]*width,op.getZ(id)+normals[id*3+2]*width);}
         const outlineMaterial=new THREE.MeshBasicMaterial({color:'#47352e',side:THREE.BackSide});materials.push(outlineMaterial);
