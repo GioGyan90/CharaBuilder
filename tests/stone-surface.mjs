@@ -36,7 +36,7 @@ if(data.reference.bodyWidthScale&&!data.reference.turnaroundFit){
 
 if(data.reference.turnaroundFit){assert.equal(data.meshes.find(m=>m.name==='Face').groups[0].indices.length/3,2239);assert.ok(faces<13000);assert.ok(!plain.meshes.some(m=>m.name==='UnderwearTop'),'proportion fit misclassifies male underwear');console.log('PASS turnaround fit preserves low-poly budget and male underwear');}
 
-if(data.reference.neckShoulderFit){
+if(data.reference.neckShoulderFit&&!data.reference.headLoweringFit){
  const protectedPositions=[];
  for(const m of data.meshes.filter(m=>['Body','Face'].includes(m.name)))for(let i=0;i<m.positions.length;i+=3){
   const p=m.positions.slice(i,i+3);
@@ -44,4 +44,11 @@ if(data.reference.neckShoulderFit){
  }
  assert.equal(createHash('sha256').update(JSON.stringify(protectedPositions)).digest('hex'),data.reference.neckShoulderFit.protectedGeometrySha256,'neck refinement altered the upper head, lower body or outer arms');
  console.log('PASS neck refinement preserves upper head, lower body and outer arm coordinates');
+}
+
+if(data.reference.headLoweringFit){
+ const protectedPositions=[];
+ for(const m of data.meshes.filter(m=>['Body','Face'].includes(m.name)))for(let i=0;i<m.positions.length;i+=3){const p=m.positions.slice(i,i+3);if(p[1]<=125000||Math.abs(p[0])>=23000)protectedPositions.push(...p);}
+ assert.equal(createHash('sha256').update(JSON.stringify(protectedPositions)).digest('hex'),data.reference.headLoweringFit.protectedBodySha256,'head lowering altered lower body or outer arms');
+ console.log('PASS marked neck/head fit preserves lower body and outer arms');
 }

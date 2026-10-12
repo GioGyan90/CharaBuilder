@@ -1,3 +1,7 @@
+# v46：按划线修改颈肩，降低头位
+
+收窄上段脖颈、整理下段斜方肌连接并降低头位，第二轮修复低头时的局部翻转，详见 [STONE_REFERENCE.md](STONE_REFERENCE.md)。
+
 # v45：斜方肌与颈根过渡
 
 压低肩颈两侧高点并收整颈根，保留厚实体块；两轮多角度和动作自查，详见 [STONE_REFERENCE.md](STONE_REFERENCE.md)。

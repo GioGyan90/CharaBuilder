@@ -35,7 +35,7 @@ assert.ok(!bald.meshes.some(m=>m.name.startsWith('Hair')));
 const face=source.meshes.find(m=>m.name==='Face');
 assert.deepEqual(bald.meshes.find(m=>m.name==='Face').positions,composed.meshes.find(m=>m.name==='Face').positions);
 assert.deepEqual(bald.meshes.find(m=>m.name==='Face').groups,composed.meshes.find(m=>m.name==='Face').groups);
-const cap=headEnvelope(face.positions.map(v=>v/1e5),face.groups.flatMap(g=>g.indices),0,source.landmarks.head[2],1.52);
-for(const band of [267,274,280])for(let sector=0;sector<96;sector++)assert.ok(cap.bins.get(band+','+sector)>0,'bare cranium has an uncovered angular sector');
-let shelf=0;for(let i=0;i<body.positions.length/3;i++){const x=Math.abs(body.positions[i*3]/1e5),y=body.positions[i*3+1]/1e5;if(x<=.14*(source.reference.turnaroundFit?.bodyScale[0]??1)||y<1.418*(source.reference.turnaroundFit?.bodyScale[1]??1))continue;for(let k=0;k<4;k++)if(body.skinWeights[i*4+k]>1e-6)assert.notEqual(body.skinIndices[i*4+k],source.rig.humanoid.head,'head rotation still pulls the shoulder shelf');shelf++;}
+const cap=headEnvelope(face.positions.map(v=>v/1e5),face.groups.flatMap(g=>g.indices),0,source.landmarks.head[2],1.52-(source.reference.headLoweringFit?.headLowering??0));
+for(const band of [267,274,280].map(b=>b-Math.round((source.reference.headLoweringFit?.headLowering??0)/.006)))for(let sector=0;sector<96;sector++)assert.ok(cap.bins.get(band+','+sector)>0,'bare cranium has an uncovered angular sector');
+let shelf=0;for(let i=0;i<body.positions.length/3;i++){const x=Math.abs(body.positions[i*3]/1e5),y=body.positions[i*3+1]/1e5;if(x<=.14*(source.reference.turnaroundFit?.bodyScale[0]??1)||y<1.418*(source.reference.turnaroundFit?.bodyScale[1]??1)-(source.reference.headLoweringFit?.headLowering??0))continue;for(let k=0;k<4;k++)if(body.skinWeights[i*4+k]>1e-6)assert.notEqual(body.skinIndices[i*4+k],source.rig.humanoid.head,'head rotation still pulls the shoulder shelf');shelf++;}
 assert.ok(shelf>10);console.log('PASS independent bald face, complete cranium at 288 polar sectors and '+shelf+' shoulder shelf weights');

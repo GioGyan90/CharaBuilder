@@ -1,12 +1,12 @@
-import {composeStoneReference} from './stone-avatar.js?v=45';
+import {composeStoneReference} from './stone-avatar.js?v=46';
 import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
-import {bindCharacter} from './rig.js?v=45';
+import {bindCharacter} from './rig.js?v=46';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=45';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=46';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=45';
-import {createUnderwearData} from './underwear.js?v=45';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=46';
+import {createUnderwearData} from './underwear.js?v=46';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
@@ -23,9 +23,9 @@ async function loadAsset(id, textures = true) {
   if (assets[id]) return assets[id];
   if (pending.has(id)) return pending.get(id);
   const promise = (async () => {
-    const manifest = await json(new URL(`${id}-manifest.json${id==='stone-ref'?'?v=45':''}`, root));
+    const manifest = await json(new URL(`${id}-manifest.json${id==='stone-ref'?'?v=46':''}`, root));
     const parts = await Promise.all(manifest.parts.map(async path => {
-      const response = await fetch(new URL(path+(id==='stone-ref'?'?v=45':''), root));
+      const response = await fetch(new URL(path+(id==='stone-ref'?'?v=46':''), root));
       if (!response.ok) throw Error(`模型分片加载失败: ${path}`);
       return response.text();
     }));
