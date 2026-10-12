@@ -24,7 +24,7 @@ for(const edge of edges.values()){assert.equal(edge.count,2,'open or non-manifol
 assert.equal(faces,data.reference.surfaceRepair.skinFaces);assert.ok(faces<35000);assert.ok(vertices.length<18000);
 const plain=composeStoneReference(data,stonePreset),selected=composeStoneReference(data,{...stonePreset,frontHair:'stoneRef',backHair:'stoneRef',sideHair:'stoneRef'});
 for(const result of [plain,selected])assert.ok(!result.meshes.some(m=>m.name.startsWith('Hair')||m.name==='FaceEyes'),'surface study still contains eye/hair overlays');
-assert.equal(stonePreset.stoneView,'clay');assert.equal(data.materials[1].double,false,'double-sided rendering masks topology faults');
+assert.equal(stonePreset.stoneView,'skin');assert.equal(data.materials[1].double,false,'double-sided rendering masks topology faults');
 console.log(`PASS ${faces} skin triangles: closed manifold, consistent winding, no duplicate faces, identical seam normals/weights; clay study hides eyes and hair`);
 
 if(data.reference.bodyWidthScale&&!data.reference.turnaroundFit){

@@ -129,7 +129,7 @@ export function updateCharacterMotion(group,time,mode='idle'){
 export function updatePantsNormals(group){
  if(!group?.userData.skeleton)return;
  let caches=group.userData.pantsNormalCache;
- if(!caches){caches=[];const skinLookup=new Map(),skinSums=[];group.traverse(mesh=>{const skin=group.userData.stoneRebuilt&&['Body','Face'].includes(mesh.userData.part)&&mesh.name!=='AnimeHeadOutline';if(!mesh.isSkinnedMesh||!(mesh.userData.part==='Pants'||skin))return;
+ if(!caches){caches=[];const skinLookup=new Map(),skinSums=[];group.traverse(mesh=>{const skin=(group.userData.stoneRebuilt||group.userData.mixedHead)&&['Body','Face','FaceScalp'].includes(mesh.userData.part)&&mesh.name!=='AnimeHeadOutline';if(!mesh.isSkinnedMesh||!(mesh.userData.part==='Pants'||skin))return;
   const p=mesh.geometry.attributes.position,used=[...new Set(mesh.geometry.index.array)],lookup=skin?skinLookup:new Map(),canonical=new Int32Array(p.count),sums=skin?skinSums:[];
   for(const i of used){const key=[p.getX(i),p.getY(i),p.getZ(i)].map(v=>Math.round(v*100000)).join(',');if(!lookup.has(key)){lookup.set(key,sums.length);sums.push(new THREE.Vector3());}canonical[i]=lookup.get(key);}
   caches.push({mesh,used,canonical,sums,points:new Float32Array(p.array.length),inverse:new Map(used.map(i=>[i,new THREE.Matrix3()]))});

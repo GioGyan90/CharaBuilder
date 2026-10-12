@@ -24,7 +24,7 @@ export function createBodyDeformer(state,l){
  if(Object.values(value).every(v=>v===0))return (x,y,z)=>[x,y,z];
  // Stone keeps the author's muscle profile and adds a broad, stocky silhouette.
  // Strength remains coupled to the existing muscle slider; other presets are unchanged.
- const burly=state.faceSource==='stone'&&state.gender==='male'&&!l.stoneRebuilt?Math.max(0,value.muscleMass):0;
+ const burly=state.bodySource==='stone'&&state.gender==='male'&&!l.stoneRebuilt?Math.max(0,value.muscleMass):0;
  const stoneBlend=Math.min(1,burly);
  const waistY=hip+.12+value.waistHeight*.020,hipY=hip-.025+value.hipHeight*.018,bustY=neck-.19+value.bustHeight*.018;
  return (x,y,z,source,legSide)=>{

@@ -51,5 +51,15 @@ if(normalizeState({jaw:22,jawWidth:83}).jawWidth!==83)throw Error('new jaw width
 console.log('PASS legacy jaw migration, new-key precedence and independent face structure archive');
 
 for(const stoneView of ['clay','skin'])if(normalizeState(JSON.parse(JSON.stringify({gender:'male',faceSource:'stone',stoneView}))).stoneView!==stoneView)throw Error('Stone surface view archive');
-if(normalizeState({stoneView:'invalid'}).stoneView!=='clay')throw Error('Stone surface view fallback');
+if(normalizeState({stoneView:'invalid'}).stoneView!=='skin')throw Error('Stone surface view fallback');
 console.log('PASS Stone clay/skin view archive and invalid-value fallback');
+
+for(const bodySource of ['vroid','stone'])for(const faceSource of ['vroid','authored','stone']){
+ const value={gender:'male',bodySource,faceSource};const result=normalizeState(JSON.parse(JSON.stringify(value)));
+ for(const key of Object.keys(value))if(result[key]!==value[key])throw Error('independent head/body archive '+key);
+}
+if(normalizeState({gender:'male',faceSource:'stone'}).bodySource!=='stone')throw Error('legacy Stone foundation migration');
+if(normalizeState({gender:'female',bodySource:'stone',faceSource:'stone'}).bodySource!=='vroid'||normalizeState({gender:'female',faceSource:'stone'}).faceSource!=='vroid')throw Error('female foundation guard');
+console.log('PASS independent foundations, legacy Stone migration and gender switch');
+
+for(const key of ['frontHair','backHair','sideHair'])if(normalizeState({gender:'male',faceSource:'stone',[key]:'stoneRef'})[key]!=='none')throw Error('legacy placeholder hair migration');
