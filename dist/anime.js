@@ -3,9 +3,9 @@ import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
 import {bindCharacter} from './rig.js?v=50';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=54';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=55';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=54';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=55';
 import {createUnderwearData} from './underwear.js?v=50';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
@@ -321,11 +321,14 @@ if(iris && material.map){
   }
   const rig=data.landmarks.faceRig;
   group.userData.faceHandles=[
-   ...rig.eyes.map((p,i)=>({group:'eyes',side:i===0?-1:1,position:deform(...p,'Face:eye'+i)})),
-   {group:'brows',side:1,position:deform(...rig.brows[1],'Face:brow1')},
+   {group:'contour',side:1,position:deform(rig.headX,rig.eyeY+.070,rig.headZ+.070,'Face:skin')},
+   ...rig.eyes.map((p,i)=>({group:'eyes',side:i===0?-1:1,bilateral:true,position:deform(...p,'Face:eye'+i)})),
+   ...rig.brows.map((p,i)=>({group:'brows',side:i===0?-1:1,bilateral:true,position:deform(...p,'Face:brow'+i)})),
+   ...[-1,1].map(side=>({group:'cheekbones',side,bilateral:true,position:deform(rig.headX+side*.062,rig.eyeY-.032,rig.nose[2]-.023,'Face:skin')})),
    {group:'nose',side:1,position:deform(...rig.nose,'Face:skin')},
    {group:'mouth',side:1,position:deform(...rig.mouth,'Face:mouth')},
-   {group:'jaw',side:1,position:deform(rig.headX,rig.chin,rig.mouth[2],'Face:skin')}
+   ...[-1,1].map(side=>({group:'jaw',side,bilateral:true,position:deform(rig.headX+side*.060,rig.chin+(rig.eyeY-rig.chin)*.30,rig.mouth[2]-.025,'Face:skin')})),
+   {group:'chin',side:1,position:deform(rig.headX,rig.chin+.010,rig.mouth[2]+.010,'Face:skin')}
   ];
   group.userData.bodyHandles=bodyHandlePoints(base).map(h=>({...h,position:deform(...h.position,'Body')}));
   bindCharacter(group,base,deform);

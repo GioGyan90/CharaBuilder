@@ -95,6 +95,18 @@ function authoredSections(owner){
  const source=owner.meshes[0],parts={front:[],back:[],side:[]};
  for(const g of source.groups)for(let k=0;k<g.indices.length;k+=3){const ids=g.indices.slice(k,k+3),center=[0,0,0];for(const id of ids)for(let j=0;j<3;j++)center[j]+=source.positions[id*3+j]/300000;
   const [x,y,z]=center,part=z<3?'back':(Math.abs(x)>7.0&&y<24)||z<8&&Math.abs(x)>6.0?'side':'front';parts[part].push(...ids);}
+ const parent=Array.from({length:source.positions.length/3},(_,i)=>i);
+ const root=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i];}return i;};
+ for(const g of source.groups)for(let k=0;k<g.indices.length;k+=3)for(let j=1;j<3;j++)parent[root(g.indices[k+j])]=root(g.indices[k]);
+ const components=new Map();for(let i=0;i<parent.length;i++){const key=root(i);if(!components.has(key))components.set(key,[]);components.get(key).push(i);}
+ const main=[...components.values()].sort((a,b)=>b.length-a.length)[0],positions=[...source.positions];
+ for(const ids of components.values()){
+  if(ids.length<20||ids.length>100)continue;const anchor=ids.reduce((a,b)=>source.positions[a*3+1]>source.positions[b*3+1]?a:b),y=source.positions[anchor*3+1]/1e5;
+  if(source.positions[anchor*3+2]/1e5<cz+.080||y>owner.landmarks.faceGuide.top-.050)continue;
+  const crown=main.filter(i=>source.positions[i*3+1]>source.positions[anchor*3+1]+500).reduce((a,b)=>{const distance=i=>[0,1,2].reduce((n,k)=>n+(source.positions[i*3+k]-source.positions[anchor*3+k])**2,0);return distance(a)<distance(b)?a:b;});
+  for(const i of ids){const t=Math.max(0,Math.min(1,(source.positions[i*3+1]/1e5-(y-.028))/.028)),w=t*t*(3-2*t);for(let k=0;k<3;k++)positions[i*3+k]+=Math.round((source.positions[crown*3+k]-source.positions[anchor*3+k])*w);}
+ }
+ const fitted={...source,positions};
  const result={};for(const part of ['front','back','side'])result[part]={...source,groups:[{material:0,indices:parts[part]}],expressions:{}};
  authoredSectionsCache.set(owner,result);return result;
 }
@@ -135,7 +147,19 @@ function stoneSections(owner){
   const ids=group.indices.slice(k,k+3),x=ids.reduce((v,i)=>v+source.positions[i*3]/3e5,0),z=ids.reduce((v,i)=>v+source.positions[i*3+2]/3e5,0),angle=Math.abs(Math.atan2(x,z-cz));
   parts[angle<1.05?'front':angle>2.10?'back':'side'].push(...ids);
  }
- const result={};for(const part of ['front','back','side'])result[part]=compact({...source,groups:source.groups.map(g=>({...g,indices:parts[part]})),expressions:{}});
+ const parent=Array.from({length:source.positions.length/3},(_,i)=>i);
+ const root=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i];}return i;};
+ for(const g of source.groups)for(let k=0;k<g.indices.length;k+=3)for(let j=1;j<3;j++)parent[root(g.indices[k+j])]=root(g.indices[k]);
+ const components=new Map();for(let i=0;i<parent.length;i++){const key=root(i);if(!components.has(key))components.set(key,[]);components.get(key).push(i);}
+ const main=[...components.values()].sort((a,b)=>b.length-a.length)[0],positions=[...source.positions];
+ for(const ids of components.values()){
+  if(ids.length<20||ids.length>100)continue;const anchor=ids.reduce((a,b)=>source.positions[a*3+1]>source.positions[b*3+1]?a:b),y=source.positions[anchor*3+1]/1e5;
+  if(source.positions[anchor*3+2]/1e5<cz+.080||y>owner.landmarks.faceGuide.top-.050)continue;
+  const crown=main.filter(i=>source.positions[i*3+1]>source.positions[anchor*3+1]+500).reduce((a,b)=>{const distance=i=>[0,1,2].reduce((n,k)=>n+(source.positions[i*3+k]-source.positions[anchor*3+k])**2,0);return distance(a)<distance(b)?a:b;});
+  for(const i of ids){const t=Math.max(0,Math.min(1,(source.positions[i*3+1]/1e5-(y-.028))/.028)),w=t*t*(3-2*t);for(let k=0;k<3;k++)positions[i*3+k]+=Math.round((source.positions[crown*3+k]-source.positions[anchor*3+k])*w);}
+ }
+ const fitted={...source,positions};
+ const result={};for(const part of ['front','back','side'])result[part]=compact({...fitted,groups:source.groups.map(g=>({...g,indices:parts[part]})),expressions:{}});
  stoneSectionsCache.set(owner,result);return result;
 }
 function fitStone(owner,source,target,state,part){
@@ -175,7 +199,7 @@ function stoneUndercut(owner,target,state,part){
   const offset=positions.length/3;
   for(let i=0;i<=segments;i++){
    const a=(part==='side'?.85:2.10)+(part==='side'?1.25:Math.PI-2.10)*i/segments,theta=sign*a;
-   const bottom=eye-.050+.085*Math.exp(-(((a-1.65)/.32)**2))-.020*Math.max(0,Math.min(1,(a-1.8)/.8))-length*.022;
+   const bottom=eye-.050+.110*Math.exp(-(((a-1.50)/.45)**2))-.020*Math.max(0,Math.min(1,(a-1.8)/.8))-length*.022*(1-Math.exp(-(((a-1.50)/.60)**2)));
    for(let j=0;j<=rows;j++){
     const t=j/rows,edgeTheta=theta+sign*.35*t**1.3*(part==='side'?(1-i/segments)**4:0);
     const y=top-.028+(bottom-(top-.028))*t,r=radius(edgeTheta,y)+.0025;
