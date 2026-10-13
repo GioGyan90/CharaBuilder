@@ -101,6 +101,7 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  const mw=region==='Face:mouth'?1:bell(source[0],headX,.037)*bell(source[1],mouth[1],.021)*front;
  x+=(source[0]-mouth[0])*bounded(state.mouth)*.42*mw;
  y+=(bounded(state.mouthHeight)*.014+(source[1]-mouth[1])*bounded(state.mouthThickness)*.40+bounded(state.mouthCorner)*.010*Math.min(1,Math.abs(source[0]-mouth[0])/.022))*mw;
+ if(preset.mature){const lipBand=region==='Face:mouth'?1:(1-smooth(.026,.055,Math.abs(source[0]-headX)))*(1-smooth(.011,.035,Math.abs(source[1]-mouth[1])))*front;y+=.010*lipBand;}
  // Lip relief stays on the authored anime facial plane, including the mouth opening.
  z+=((rig.reference?-.002:0)+bounded(state.mouthProjection)*.012)*mw;
  const cw=bell(source[0],headX,.045)*bell(source[1],chin+.012,.026)*front;

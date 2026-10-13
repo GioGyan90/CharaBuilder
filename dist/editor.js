@@ -1,3 +1,4 @@
+export const faceHandleIds=['contour','eyes','eyes','brows','brows','cheekbones','cheekbones','nose','mouth','jaw','jaw','chin'];
 export const faceEditorGroups=[
  {id:'contour',title:'脸型与额头',keys:['faceWidth','faceHeight','midFaceLength','lowerFaceLength','forehead'],axes:[['faceWidth','faceHeight','脸部宽度','脸部长度'],['midFaceLength','lowerFaceLength','中庭长度','下庭长度']]},
  {id:'cheekbones',title:'颧骨与面颊',keys:['cheekboneWidth','cheekboneHeight','cheekboneDepth','cheekboneSharpness','cheek'],axes:[['cheekboneWidth','cheekboneHeight','颧骨宽度','颧骨位置'],['cheek','cheekboneDepth','面颊饱满度','颧骨前后深度']]},

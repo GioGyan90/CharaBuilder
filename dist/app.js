@@ -1,14 +1,14 @@
 import {stonePreset} from './presets.js?v=50';
 import {cameraAngles,cameraYaw,anglePosition,selectedAngle,screenDragSide,moveCameraTarget} from './view.js?v=30';
-import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=54';
+import {faceHandleIds,faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=55';
 import {openHslPicker} from './colors.js?v=16';
 import {updateCharacterMotion,motionPresets} from './motion.js?v=50';
-import {parameterDefaults,parameterRanges} from './parameters.js?v=54';
+import {parameterDefaults,parameterRanges} from './parameters.js?v=55';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=54';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=55';
 
-import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=54';
+import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=55';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
 const $ = s => document.querySelector(s);
 const defaults = {bodySource:'vroid',stoneView:'skin',...parameterDefaults,...hairDefaults,...wardrobeDefaults,faceSource:'vroid',name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jawWidth:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',shoes:'shoes',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',eyeColor:'#806449',shirt:'#778f87',pants:'#343b50',shoeColor:'#343b50'};
@@ -123,7 +123,7 @@ function renderControls(){
   }
   const toolbar=element('div','face-toolbar'),drag=element('button',directFaceEdit?'selected':'','直接拖拽');drag.id='direct-face';drag.setAttribute('aria-pressed',String(directFaceEdit));drag.onclick=()=>directFaceEdit?finishDirectEdit():beginDirectEdit();
   const undo=element('button',null,'撤销'),redo=element('button',null,'重做');undo.id='face-undo';redo.id='face-redo';undo.onclick=()=>{if(!undoStates.length)return;redoStates.push({...state});state=undoStates.pop();update();renderControls();};redo.onclick=()=>{if(!redoStates.length)return;undoStates.push({...state});state=redoStates.pop();update();renderControls();};toolbar.append(drag,undo,redo);
-  $('#controls').append(toolbar,element('p','face-help',activeTab==='face'?'自由范围 −50～150 · 双侧同步调整\n拖动卡片或脸部点位，Shift 微调；虹膜大小独立于眼形；空白处可旋转查看。':'42 项体型参数 · 自由范围 −100～200\n拖动卡片或身体点位，Shift 微调；空白处旋转/缩放，右键平移；可随时切换机位。'));
+  $('#controls').append(toolbar,element('p','face-help',activeTab==='face'?'自由范围 −50～150 · 双侧同步调整\n悬停脸部显示区域与名称，拖拽调整；Shift 微调；虹膜大小独立于眼形；空白处可旋转查看。':'42 项体型参数 · 自由范围 −100～200\n拖动卡片或身体点位，Shift 微调；空白处旋转/缩放，右键平移；可随时切换机位。'));
   const groups=activeTab==='face'?faceEditorGroups:bodyEditorGroups,baseline=activeTab==='face'?faceBaseline:bodyBaseline;
   for(const group of groups){const keys=group.keys.filter(k=>fields.includes(k)&&!(k==='expression'&&['authored','stone'].includes(state.faceSource)));if(!keys.length)continue;
    const card=element('details','part-card');card.dataset.group=group.id;card.open=openCards.has(group.id);card.classList.toggle('editing',selectedFaceGroup===group.id);const summary=element('summary');summary.append(element('span',null,group.title),element('small',null,keys.length+' 项'));
@@ -135,17 +135,18 @@ function renderControls(){
  for(const key of fields.filter(k=>!(state.gender==='male'&&(k==='braid'||k==='braidLength'))&&!(activeTab==='clothes'&&state.clothes==='underwear'&&(wardrobeRanges[k]||(k==='shirt'&&state.gender==='male')))))$('#controls').append(renderField(key));syncHandleVisibility();
 }
 const handleLayer=element('div','face-handles'),bodyHandleLayer=element('div','face-handles');stage.append(handleLayer,bodyHandleLayer);
+handleLayer.classList.add('hover-face-handles');
 const handleButtons=[],bodyHandleButtons=[];
 function addHandles(layer,buttons,ids,groups,glyphs){
- for(const id of ids){const group=groups.find(g=>g.id===id),b=element('button','face-handle',glyphs[id]);b.setAttribute('aria-label','拖拽调整'+group.title);b.type='button';layer.append(b);buttons.push(b);
+ for(const id of ids){const group=groups.find(g=>g.id===id),b=element('button','face-handle',layer===handleLayer?'':glyphs[id]);if(layer===handleLayer){b.dataset.group=id;b.append(element('span','handle-label',group.title));}b.setAttribute('aria-label','拖拽调整'+group.title);b.type='button';layer.append(b);buttons.push(b);
   bindDrag(b,{read:()=>state,axis:()=>group.axes[dragModes.get(group.id)||0],side:()=>screenDragSide(Number(b.dataset.side)||1,cameraYaw(camera.position,orbit.target),group.axes[dragModes.get(group.id)||0][0]),write:patch,begin:()=>{remember();selectGroup(group.id);beginDirectEdit();const card=document.querySelector('[data-group="'+group.id+'"].part-card');if(card){card.open=true;openCards.add(group.id);card.scrollIntoView({block:'nearest',behavior:'smooth'});}}});
  }
 }
-addHandles(handleLayer,handleButtons,['eyes','eyes','brows','nose','mouth','jaw'],faceEditorGroups,{eyes:'眼',brows:'眉',nose:'鼻',mouth:'嘴',jaw:'颌'});
+addHandles(handleLayer,handleButtons,faceHandleIds,faceEditorGroups,{eyes:'眼',brows:'眉',nose:'鼻',mouth:'嘴',jaw:'颌'});
 addHandles(bodyHandleLayer,bodyHandleButtons,bodyEditorGroups.filter(g=>g.axes.length).map(g=>g.id),bodyEditorGroups,{proportions:'身',shoulderBody:'肩',chestBody:'胸',waistBody:'腰',pelvisBody:'胯',armsBody:'臂',legsBody:'腿',feetBody:'脚'});
 function syncHandleVisibility(){const ready=directFaceEdit&&model&&camera&&renderer&&orbit;handleLayer.hidden=!(ready&&activeTab==='face'&&currentView==='face');bodyHandleLayer.hidden=!(ready&&activeTab==='body'&&currentView==='full');}
 function updateFaceHandles(){syncHandleVisibility();if(handleLayer.hidden&&bodyHandleLayer.hidden)return;model.updateMatrixWorld(true);const handles=activeTab==='face'?model.userData.faceHandles:model.userData.bodyHandles,buttons=activeTab==='face'?handleButtons:bodyHandleButtons;
- handles?.forEach((h,i)=>{const p=new THREE.Vector3(...h.position).applyMatrix4(model.matrixWorld).project(camera),b=buttons[i];b.style.left=((p.x+1)*.5*stage.clientWidth)+'px';b.style.top=((-p.y+1)*.5*stage.clientHeight)+'px';b.dataset.side=String(h.side);b.classList.toggle('selected',h.group===selectedFaceGroup);const yaw=cameraYaw(camera.position,orbit.target);b.hidden=p.z<-1||p.z>1||(activeTab==='face'&&(Math.cos(yaw)<-.08||(h.group==='eyes'&&Math.abs(Math.sin(yaw))>.85&&Math.sign(Math.sin(yaw))!==h.side)));});
+ handles?.forEach((h,i)=>{const p=new THREE.Vector3(...h.position).applyMatrix4(model.matrixWorld).project(camera),b=buttons[i];b.style.left=((p.x+1)*.5*stage.clientWidth)+'px';b.style.top=((-p.y+1)*.5*stage.clientHeight)+'px';b.dataset.side=String(h.side);b.classList.toggle('selected',h.group===selectedFaceGroup);const yaw=cameraYaw(camera.position,orbit.target);b.hidden=p.z<-1||p.z>1||(activeTab==='face'&&(Math.cos(yaw)<-.08||(h.bilateral&&Math.abs(Math.sin(yaw))>.85&&Math.sign(Math.sin(yaw))!==h.side)));});
 }
 function material(color){return new THREE.MeshStandardMaterial({color,roughness:.75});}
 async function buildCharacter(){
