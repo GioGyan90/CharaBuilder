@@ -1,11 +1,11 @@
 export const faceEditorGroups=[
  {id:'contour',title:'脸型与额头',keys:['faceWidth','faceHeight','forehead'],axes:[['faceWidth','faceHeight','脸部宽度','脸部长度']]},
- {id:'cheekbones',title:'颧骨与面颊',keys:['cheekboneWidth','cheekboneHeight','cheekboneDepth','cheek'],axes:[['cheekboneWidth','cheekboneHeight','颧骨宽度','颧骨位置'],['cheek','cheekboneDepth','面颊饱满度','颧骨突出']]},
+ {id:'cheekbones',title:'颧骨与面颊',keys:['cheekboneWidth','cheekboneHeight','cheekboneDepth','cheek'],axes:[['cheekboneWidth','cheekboneHeight','颧骨宽度','颧骨位置'],['cheek','cheekboneDepth','面颊饱满度','颧骨前后深度']]},
  {id:'jaw',title:'下颌',keys:['jawWidth','jawDepth','jawHeight','jawAngle'],axes:[['jawWidth','jawHeight','下颌宽度','下颌位置'],['jawWidth','jawDepth','下颌宽度','下颌深度'],['jawAngle','jawDepth','下颌转折','下颌深度']]},
- {id:'chin',title:'下巴',keys:['chinWidth','chinLength','chinProjection'],axes:[['chinWidth','chinLength','下巴宽度','下巴长度'],['chinWidth','chinProjection','下巴宽度','下巴突出']]},
- {id:'eyes',title:'眼睛',keys:['eyeSize','eyeWidth','eyeHeight','eyeSpace','eyeVertical','eyeTilt','eyeColor'],axes:[['eyeSpace','eyeVertical','眼间距','眼部位置'],['eyeWidth','eyeHeight','眼睛宽度','眼睛高度']]},
- {id:'brows',title:'眉毛',keys:['browHeight','browAngle','browThickness','browRidge'],axes:[['browAngle','browHeight','眉毛角度','眉毛位置'],['browThickness','browRidge','眉毛厚度','眉骨突出']]},
- {id:'nose',title:'鼻子',keys:['nose','noseWidth','noseHeight','noseProjection'],axes:[['noseWidth','noseHeight','鼻子宽度','鼻部位置'],['noseWidth','noseProjection','鼻子宽度','鼻梁突出']]},
+ {id:'chin',title:'下巴',keys:['chinWidth','chinLength','chinProjection'],axes:[['chinWidth','chinLength','下巴宽度','下巴长度'],['chinWidth','chinProjection','下巴宽度','下巴前后深度']]},
+ {id:'eyes',title:'眼睛',keys:['eyeSize','eyeWidth','eyeHeight','eyeSpace','eyeVertical','eyeTilt','irisSize','eyeColor'],axes:[['eyeSpace','eyeVertical','眼间距','眼部位置'],['eyeWidth','eyeHeight','眼睛宽度','眼睛高度'],['eyeSize','irisSize','眼睛大小','虹膜 / 瞳孔比例']]},
+ {id:'brows',title:'眉毛',keys:['browHeight','browAngle','browThickness','browRidge','browRidgeHeight'],axes:[['browAngle','browHeight','眉毛角度','眉毛位置'],['browThickness','browRidge','眉毛粗细','眉弓前后深度'],['browRidge','browRidgeHeight','眉弓深度','眉弓高度']]},
+ {id:'nose',title:'鼻子',keys:['nose','noseWidth','noseHeight','noseProjection','noseRootDepth','noseBridgeWidth','noseTipProjection','noseTipAngle'],axes:[['noseWidth','noseHeight','鼻子宽度','鼻部位置'],['noseBridgeWidth','noseRootDepth','鼻梁宽度','鼻根深度'],['noseTipProjection','noseTipAngle','鼻尖深度','鼻尖角度']]},
  {id:'mouth',title:'嘴巴',keys:['mouth','mouthHeight','mouthThickness','mouthProjection','mouthCorner'],axes:[['mouth','mouthHeight','嘴巴宽度','嘴部位置'],['mouth','mouthThickness','嘴巴宽度','嘴唇厚度']]},
  {id:'expression',title:'表情',keys:['expression'],axes:[]}
 ];

@@ -3,9 +3,9 @@ import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
 import {bindCharacter} from './rig.js?v=50';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=51';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=53';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=52';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=53';
 import {createUnderwearData} from './underwear.js?v=50';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
@@ -89,7 +89,7 @@ function compose(state) {
   data=graftHead(stone,anime,reference,assets[state.gender]);
  }
  const other={...state};for(const key of ['frontHair','backHair','sideHair'])if(other[key]==='stoneRef')other[key]='none';
- const target={...assets[state.gender],landmarks:data.landmarks};
+ const target={...assets[state.gender],meshes:data.meshes,materials:data.materials,landmarks:data.landmarks};
  for(const {owner,mesh} of referenceHairMeshes({...assets,[state.gender]:target},other)){const offset=data.materials.length;data.materials.push(...owner.materials);data.maps.push(...owner.materials.map((_,i)=>owner.maps[i]||null));data.meshes.push({...mesh,groups:mesh.groups.map(g=>({...g,material:g.material+offset}))});}
  return data;
 }

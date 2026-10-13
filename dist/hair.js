@@ -154,6 +154,40 @@ function fitStone(owner,source,target,state,part){
  // Bind to whichever head is selected, rather than retaining donor bone IDs.
  return {...source,name:part==='front'?'HairFront':part==='back'?'HairBack':'HairSide',positions,skinIndices:undefined,skinWeights:undefined,expressions:{}};
 }
+// Short undercut follows the selected skull, with a raised contour around the
+// ear and separate temple/nape length controls. The extracted crown is retained.
+function stoneUndercut(owner,target,state,part){
+ const rig=target.landmarks.faceRig,head=target.landmarks.head;
+ const face=target.meshes.find(m=>m.name==='Face'),skin=face.groups.filter(g=>target.materials[g.material]?.name.includes('_SKIN'));
+ const triangles=skin.flatMap(g=>g.indices),p=face.positions,cx=head[0],cz=head[2];
+ const top=rig?.top||Math.max(...p.filter((_,i)=>i%3===1))/1e5,eye=rig?.eyeY||target.landmarks.leftEye[1];
+ const radius=(theta,y)=>{
+  const dx=Math.sin(theta),dz=Math.cos(theta);let radius=0;
+  for(let k=0;k<triangles.length;k+=3){const hits=[];
+   for(let e=0;e<3;e++){const a=triangles[k+e]*3,b=triangles[k+(e+1)%3]*3,ay=p[a+1]/1e5,by=p[b+1]/1e5;if(Math.abs(by-ay)<1e-8)continue;const t=(y-ay)/(by-ay);if(t>=0&&t<=1)hits.push([(p[a]+(p[b]-p[a])*t)/1e5-cx,(p[a+2]+(p[b+2]-p[a+2])*t)/1e5-cz]);}
+   if(hits.length<2)continue;const a=hits[0],ex=hits[1][0]-a[0],ez=hits[1][1]-a[1],den=dx*ez-dz*ex;if(Math.abs(den)<1e-9)continue;const r=(a[0]*ez-a[1]*ex)/den,t=(a[0]*dz-a[1]*dx)/den;if(r>0&&t>=0&&t<=1)radius=Math.max(radius,r);
+  }
+  return radius||.060;
+ };
+ const positions=[],normals=[],uv=[],indices=[],segments=part==='side'?20:16,rows=8;
+ const length=((state[part==='side'?'sideLength':'backLength']??50)-50)/50;
+ for(const sign of [-1,1]){
+  const offset=positions.length/3;
+  for(let i=0;i<=segments;i++){
+   const a=(part==='side'?.85:2.10)+(part==='side'?1.25:Math.PI-2.10)*i/segments,theta=sign*a;
+   const bottom=eye-.050+.085*Math.exp(-(((a-1.65)/.32)**2))-.020*Math.max(0,Math.min(1,(a-1.8)/.8))-length*.022;
+   for(let j=0;j<=rows;j++){
+    const t=j/rows,edgeTheta=theta+sign*.35*t**1.3*(part==='side'?(1-i/segments)**4:0);
+    const y=top-.028+(bottom-(top-.028))*t,r=radius(edgeTheta,y)+.0025;
+    positions.push(Math.round((cx+Math.sin(edgeTheta)*r)*1e5),Math.round(y*1e5),Math.round((cz+Math.cos(edgeTheta)*r)*1e5));
+    normals.push(Math.round(Math.sin(edgeTheta)*32767),0,Math.round(Math.cos(edgeTheta)*32767));uv.push(Math.round(i/segments*65535),Math.round(j/rows*65535));
+   }
+  }
+  for(let i=0;i<segments;i++)for(let j=0;j<rows;j++){const a=offset+i*(rows+1)+j,b=a+rows+1;indices.push(...(sign>0?[a,a+1,b,b,a+1,b+1]:[a,b,a+1,b,b+1,a+1]));}
+ }
+ const material=owner.meshes.find(m=>m.name==='HairReference').groups[0].material;
+ return {name:part==='side'?'HairSideUndercut':'HairBackUndercut',positions,normals,uv,groups:[{material,indices}],expressions:{}};
+}
 export function referenceHairMeshes(assets,input){
  const state={...hairDefaults,...input},target=assets[state.gender],result=[];
  if(['frontHair','backHair','sideHair','braid'].every(k=>state[k]==='none'))return result;
@@ -161,6 +195,7 @@ export function referenceHairMeshes(assets,input){
  // A complete authored short hairstyle already includes its own scalp surface.
  if(!keys.every(([key])=>(authoredIds.has(state[key])||state[key]==='stoneOriginal'))){const id=state.gender==='male'?'uniform':'bob',owner=assets[id];result.push({owner,mesh:fit(owner,sections(owner,id).cap,target,state,'cap')});}
  for(const [key,part,table] of keys){const id=table[state[key]];if(!id)continue;const owner=assets[id];
+  if(id==='stone-ref'&&part!=='front')result.push({owner,mesh:stoneUndercut(owner,target,state,part)});
   result.push({owner,mesh:id==='stone-ref'?fitStone(owner,stoneSections(owner)[part],target,state,part):authoredIds.has(id)?fitAuthored(owner,authoredSections(owner)[part],target,state,part):fit(owner,sections(owner,id)[part],target,state,part)});
  }
  if(state.braid!=='none'){const id=state.braid==='single'?'classic':'female',owner=assets[id];result.push({owner,mesh:fit(owner,sections(owner,id).tail,target,state,'tail')});}

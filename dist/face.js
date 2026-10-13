@@ -62,9 +62,14 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  else if(preset.mature&&region==='Face:skin'){const i=source[0]<headX?0:1,eye=rig.eyes[i],w=(1-smooth(.030,.055,Math.abs(source[0]-eye[0])))*(1-smooth(.022,.040,Math.abs(source[1]-eye[1])))*front;moveEye(eye,i,w);}
  else for(let i=0;i<2;i++){const eye=rig.eyes[i];moveEye(eye,i,bell(source[0],eye[0],.042)*bell(source[1],eye[1],.041)*front);}
  for(let i=0;i<2;i++){
-  const b=rig.brows[i],w=region==='Face:brow'+i?1:bell(source[0],b[0],.034)*bell(source[1],b[1],.019)*front;
+  const b=rig.brows[i],ridgeY=b[1]+bounded(state.browRidgeHeight)*.012,w=region==='Face:brow'+i?1:bell(source[0],b[0],.034)*bell(source[1],b[1],.019)*front;
   if(region==='Face:brow'+i)y+=(source[1]-b[1])*(Math.max(.2,1+bounded(state.browThickness)*.55)-1);
-  if(region==='Face:skin'||region==='Face:brow'+i)z+=bounded(state.browRidge)*.005*w;
+  if(region==='Face:skin'){
+   const ridge=bell(source[0],b[0],.038)*bell(source[1],ridgeY-.010,.023)*front;
+   z+=bounded(state.browRidge)*.009*ridge;
+   y+=bounded(state.browRidgeHeight)*.008*ridge;
+   if(preset.mature)z+=.010*(ridge-bell(source[0],b[0],.038)*bell(source[1],b[1]-.010,.023)*front);
+  }else if(region==='Face:brow'+i){z+=bounded(state.browRidge)*.009;y+=bounded(state.browRidgeHeight)*.012;}
   y+=(bounded(state.browHeight)*.013+(source[0]-b[0])*Math.sign(b[0]-headX)*bounded(state.browAngle)*.30)*w;
  }
  const nw=bell(source[0],headX,.021)*bell(source[1],nose[1],.028)*front;
@@ -72,6 +77,14 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  x+=(source[0]-headX)*(Math.max(.15,1+bounded(state.nose)*.38+bounded(state.noseWidth)*.35)-1)*nw;
  y+=bounded(state.noseHeight)*.013*nw;
  z+=((rig.reference?-.006:0)+bounded(state.nose)*.010+bounded(state.noseProjection)*.020)*nw;
+ if(region==='Face:skin'){
+  const root=bell(source[0],headX,.014)*bell(source[1],eyeY+.004,.020)*front;
+  const bridge=bell(source[0],headX,.014)*bell(source[1],eyeY-.022,.027)*front;
+  const tip=bell(source[0],headX,.015)*bell(source[1],nose[1]-.008,.016)*front;
+  z+=bounded(state.noseRootDepth)*.012*root+bounded(state.noseTipProjection)*.014*tip;
+  x+=(source[0]-headX)*bounded(state.noseBridgeWidth)*.55*bridge;
+  y+=bounded(state.noseTipAngle)*.009*tip;
+ }
  const mw=region==='Face:mouth'?1:bell(source[0],headX,.037)*bell(source[1],mouth[1],.021)*front;
  x+=(source[0]-mouth[0])*bounded(state.mouth)*.42*mw;
  y+=(bounded(state.mouthHeight)*.014+(source[1]-mouth[1])*bounded(state.mouthThickness)*.40+bounded(state.mouthCorner)*.010*Math.min(1,Math.abs(source[0]-mouth[0])/.022))*mw;
@@ -92,7 +105,10 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
   const glabella=bell(source[0],headX,.019)*bell(source[1],eyeY+.020,.027)*front;
   const ridge=rig.brows.reduce((sum,b)=>sum+bell(source[0],b[0],.038)*bell(source[1],b[1]-.010,.025),0)*front;
   if(region==='Face:skin'){
-   z+=.006*nw+.014*bridge+.006*glabella+.010*ridge;
+   z+=.003*nw+.012*bridge+.009*glabella+.012*ridge;
+   const chinFront=bell(source[0],headX,.035)*bell(source[1],chin+.015,.028)*front;
+   z+=.012*chinFront;
+   x+=(source[0]-headX)*.08*bell(source[1],chin+.032,.028)*front;
    y-=.002*ridge;
    const lower=(1-smooth(chin,eyeY,source[1]))*front;
    y-=.010*lower;
@@ -101,7 +117,7 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
   }
   if(region.startsWith('Face:brow')){
    const b=rig.brows[Number(region.slice(-1))];
-   y+=(source[1]-b[1])*.15+.002;
+   y+=(source[1]-b[1])*.85-.004;
    z+=.012;
   }
  }

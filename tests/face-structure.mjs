@@ -30,3 +30,11 @@ for(const jawHeight of [-50,150])for(const jawAngle of [-50,150])for(const cheek
  assert.ok(b[1]>a[1],'opposite vertical edits fold the cheek/jaw transition');
 }
 console.log('PASS opposite vertical extremes preserve cheek/jaw surface order');
+
+// New controls move anatomically separate sites; eyebrow position remains separate.
+for(const [key,p,axis] of [['browRidgeHeight',rig.brows[0],1],['noseRootDepth',[0,rig.eyeY+.004,.08],2],['noseBridgeWidth',[.010,rig.eyeY-.022,.08],0],['noseTipProjection',[0,rig.nose[1]-.008,.08],2],['noseTipAngle',[0,rig.nose[1]-.008,.08],1]]){
+ const region=key==='browRidgeHeight'?'Face:brow0':'Face:skin';
+ const a=deformAnimeFace(...p,{...state,[key]:0},rig,region),b=deformAnimeFace(...p,{...state,[key]:100},rig,region);assert.ok(b[axis]-a[axis]>.004,key+' has no visible effect');
+ if(key!=='browRidgeHeight')for(const region of ['Face:eye0','Face:mouth'])assert.deepEqual(deformAnimeFace(...p,{...state,[key]:100},rig,region),deformAnimeFace(...p,state,rig,region));
+}
+console.log('PASS independent brow ridge height, nasal root/bridge/tip axes and eye/mouth isolation');
