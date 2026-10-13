@@ -29,7 +29,11 @@ export function buildAnimeFace(base,gender,reference=true){
  // realistic scalp, eyeball or photographic texture enters the runtime mesh.
  const materials=base.materials.map(m=>({...m}));
  if(reference)for(const g of find('_SKIN'))materials[g.material]={...materials[g.material],name:'AnimeReferenceFace_'+gender+'_SKIN'};
- return {materials,maps:base.maps,meshes:[{...source,positions:[...source.positions],normals:[...source.normals],expressions:source.expressions,faceRegions:regions}],landmarks:{...base.landmarks,faceRig:rig},presetName:preset.name};
+ const face={...source,positions:[...source.positions],normals:[...source.normals],expressions:source.expressions,faceRegions:regions},earGroups=[];
+ const maxX=Math.max(...skin.map(p=>Math.abs(p[0]-rig.headX)));
+ face.groups=source.groups.map(g=>{if(!base.materials[g.material].name.includes('_SKIN'))return g;const kept=[],ears=[];for(let k=0;k<g.indices.length;k+=3){const ids=g.indices.slice(k,k+3),c=[0,1,2].map(axis=>ids.reduce((n,i)=>n+points[i*3+axis]/3,0));(Math.abs(c[0]-rig.headX)>maxX*.60&&c[1]>eyeY-.066&&c[1]<eyeY+.042&&c[2]<rig.headZ+.055?ears:kept).push(...ids);}if(ears.length)earGroups.push({...g,indices:ears});return {...g,indices:kept};});
+ const meshes=[face];if(earGroups.length){const weights=base.rig.meshes.Face,ids=[...new Set(earGroups.flatMap(g=>g.indices))],index=new Map(ids.map((id,i)=>[id,i])),copy=(values,stride)=>ids.flatMap(id=>values.slice(id*stride,id*stride+stride));meshes.push({...face,name:'FaceEars',positions:copy(face.positions,3),normals:copy(face.normals,3),uv:copy(face.uv,2),faceRegions:ids.map(id=>regions[id]),expressions:Object.fromEntries(Object.entries(face.expressions).map(([name,values])=>[name,copy(values,3)])),groups:earGroups.map(g=>({...g,indices:g.indices.map(id=>index.get(id))})),skinIndices:copy(weights.indices,4),skinWeights:copy(weights.weights,4).map(v=>v/65535)});}
+ return {materials,maps:base.maps,meshes,landmarks:{...base.landmarks,faceRig:rig},presetName:preset.name};
 }
 export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  const {eyeY,chin,headX,headZ,mouth,nose,preset,guide}=rig;
@@ -60,7 +64,7 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
   x+=(source[0]-headX)*hard*(.13*crest-.09*hollow);
   z+=hard*(.007*crest-.005*hollow);
   const chinBand=bell(source[0],headX,.028)*bell(source[1],chin+.012,.022)*front;
-  z+=bounded(state.chinProjection)*.025*chinBand;
+  z+=bounded(state.chinProjection)*.038*chinBand;
  }
  const eyeId=/^Face:(?:eye|brow|socket)[01]$/.test(region)?Number(region.slice(-1)):null;
  const moveEye=(eye,i,weight)=>{
@@ -101,12 +105,14 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  const mw=region==='Face:mouth'?1:bell(source[0],headX,.037)*bell(source[1],mouth[1],.021)*front;
  x+=(source[0]-mouth[0])*bounded(state.mouth)*.42*mw;
  y+=(bounded(state.mouthHeight)*.014+(source[1]-mouth[1])*bounded(state.mouthThickness)*.40+bounded(state.mouthCorner)*.010*Math.min(1,Math.abs(source[0]-mouth[0])/.022))*mw;
- if(preset.mature){const lipBand=region==='Face:mouth'?1:(1-smooth(.026,.055,Math.abs(source[0]-headX)))*(1-smooth(.011,.035,Math.abs(source[1]-mouth[1])))*front;y+=.010*lipBand;}
+
  // Lip relief stays on the authored anime facial plane, including the mouth opening.
  z+=((rig.reference?-.002:0)+bounded(state.mouthProjection)*.012)*mw;
- const cw=bell(source[0],headX,.045)*bell(source[1],chin+.012,.026)*front;
- y-=bounded(state.chinLength)*.014*cw;
- x+=(source[0]-headX)*bounded(state.chinWidth)*.30*cw;
+ const cw=bell(source[0],headX,.045)*bell(source[1],chin+.012,.026)*front*(1-smooth(mouth[1]-.020,mouth[1]-.004,source[1]));
+ y-=bounded(state.chinLength)*.027*cw;
+ x+=(source[0]-headX)*(bounded(state.chinWidth)*.50+bounded(state.chinSize)*.25)*cw;
+ y-=bounded(state.chinSize)*.016*cw;
+ if(region==='Face:skin')z+=bounded(state.chinSize)*.010*cw;
  const cheekWeight=bell(source[1],eyeY-.046,.033)*front;
  x+=(source[0]-headX)*bounded(state.cheek)*.15*cheekWeight;
  y-=(eyeY-source[1])*bounded(state.faceHeight)*.18*smooth(eyeY+.014,eyeY-.09,source[1])*front;
@@ -166,7 +172,9 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  const slope=Math.abs(midDelta)*Math.max(1.5/(eyeY-mouth[1]+.002),1.5/.070)+Math.abs(lowDelta)*Math.max(1.5/(mouth[1]-chin+.024),1.5/(eyeY-mouth[1]-.004));
  const stretchScale=Math.min(1,.82/Math.max(.0001,slope));
  y+=(midDelta*upper+lowDelta*lowerBand)*stretchScale*front;
- if(!rig.rebuilt&&source[1]<eyeY-.09)y=Math.max(rig.neckY+.022,y);
+ if(preset.mature){const lipBand=region==='Face:mouth'?1:(1-smooth(.026,.055,Math.abs(source[0]-headX)))*(1-smooth(.011,.045,Math.abs(source[1]-mouth[1])))*front;y+=.022*lipBand;}
+ // Pin only the collar: pinning the entire chin silently saturated chin length.
+ if(!rig.rebuilt&&source[1]<Math.min(eyeY-.09,rig.neckY+.026))y=Math.max(rig.neckY+.022,y);
  return [x,y,z];
 }
 // Keep hair outside the actual edited head rather than the imported donor skull.

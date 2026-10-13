@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 // Library hair meshes and the user-provided Stone extraction; fit/split original strands.
-export const hairDefaults={frontHair:'straight',backHair:'bob',sideHair:'short',braid:'none',frontLength:50,backLength:50,sideLength:50,braidLength:50,hairVolume:50,hairlineHeight:50};
+export const hairDefaults={frontHair:'straight',backHair:'bob',sideHair:'short',braid:'none',frontLength:50,backLength:50,sideLength:50,braidLength:50,hairVolume:50,hairlineHeight:50,sideHairColor:'#929590'};
 export const hairChoices={frontHair:[['stoneOriginal','Stone · 原版前发'],['none','无前发'],['straight','齐刘海'],['parted','中分刘海'],['swept','层次斜刘海'],['soft','柔顺刘海'],['curtain','弧形刘海'],['sidepart','侧分短发 · 原模型'],['upcomb','上梳短发 · 原模型'],['layered06','分层短发 · culturalibre']],backHair:[['stoneOriginal','Stone · 原版后发'],['none','无后发'],['short','层次短发'],['bob','波波后发'],['long','直长后发'],['curled','卷曲后发'],['sidepart','侧分短后发'],['upcomb','上梳短后发'],['layered06','分层短后发']],sideHair:[['stoneOriginal','Stone · 原版侧发'],['none','无侧发'],['short','波波侧发'],['layered','层次鬓发'],['long','长鬓发'],['curled','弧形侧发'],['sidepart','侧分短侧发'],['upcomb','上梳短侧发'],['layered06','分层短侧发']],braid:[['none','无发辫'],['single','侧卷马尾'],['double','双马尾']]};
 export const hairRanges={hairlineHeight:['发际线高度','低','高'],frontLength:['前发长度','短','长'],backLength:['后发长度','短','长'],sideLength:['侧发长度','短','长'],braidLength:['马尾长度','短','长'],hairVolume:['蓬松度','贴合','蓬松']};
 export const classicHairPresets=[
@@ -95,18 +95,6 @@ function authoredSections(owner){
  const source=owner.meshes[0],parts={front:[],back:[],side:[]};
  for(const g of source.groups)for(let k=0;k<g.indices.length;k+=3){const ids=g.indices.slice(k,k+3),center=[0,0,0];for(const id of ids)for(let j=0;j<3;j++)center[j]+=source.positions[id*3+j]/300000;
   const [x,y,z]=center,part=z<3?'back':(Math.abs(x)>7.0&&y<24)||z<8&&Math.abs(x)>6.0?'side':'front';parts[part].push(...ids);}
- const parent=Array.from({length:source.positions.length/3},(_,i)=>i);
- const root=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i];}return i;};
- for(const g of source.groups)for(let k=0;k<g.indices.length;k+=3)for(let j=1;j<3;j++)parent[root(g.indices[k+j])]=root(g.indices[k]);
- const components=new Map();for(let i=0;i<parent.length;i++){const key=root(i);if(!components.has(key))components.set(key,[]);components.get(key).push(i);}
- const main=[...components.values()].sort((a,b)=>b.length-a.length)[0],positions=[...source.positions];
- for(const ids of components.values()){
-  if(ids.length<20||ids.length>100)continue;const anchor=ids.reduce((a,b)=>source.positions[a*3+1]>source.positions[b*3+1]?a:b),y=source.positions[anchor*3+1]/1e5;
-  if(source.positions[anchor*3+2]/1e5<cz+.080||y>owner.landmarks.faceGuide.top-.050)continue;
-  const crown=main.filter(i=>source.positions[i*3+1]>source.positions[anchor*3+1]+500).reduce((a,b)=>{const distance=i=>[0,1,2].reduce((n,k)=>n+(source.positions[i*3+k]-source.positions[anchor*3+k])**2,0);return distance(a)<distance(b)?a:b;});
-  for(const i of ids){const t=Math.max(0,Math.min(1,(source.positions[i*3+1]/1e5-(y-.028))/.028)),w=t*t*(3-2*t);for(let k=0;k<3;k++)positions[i*3+k]+=Math.round((source.positions[crown*3+k]-source.positions[anchor*3+k])*w);}
- }
- const fitted={...source,positions};
  const result={};for(const part of ['front','back','side'])result[part]={...source,groups:[{material:0,indices:parts[part]}],expressions:{}};
  authoredSectionsCache.set(owner,result);return result;
 }
@@ -156,7 +144,7 @@ function stoneSections(owner){
   if(ids.length<20||ids.length>100)continue;const anchor=ids.reduce((a,b)=>source.positions[a*3+1]>source.positions[b*3+1]?a:b),y=source.positions[anchor*3+1]/1e5;
   if(source.positions[anchor*3+2]/1e5<cz+.080||y>owner.landmarks.faceGuide.top-.050)continue;
   const crown=main.filter(i=>source.positions[i*3+1]>source.positions[anchor*3+1]+500).reduce((a,b)=>{const distance=i=>[0,1,2].reduce((n,k)=>n+(source.positions[i*3+k]-source.positions[anchor*3+k])**2,0);return distance(a)<distance(b)?a:b;});
-  for(const i of ids){const t=Math.max(0,Math.min(1,(source.positions[i*3+1]/1e5-(y-.028))/.028)),w=t*t*(3-2*t);for(let k=0;k<3;k++)positions[i*3+k]+=Math.round((source.positions[crown*3+k]-source.positions[anchor*3+k])*w);}
+  for(const i of ids){const t=Math.max(0,Math.min(1,(source.positions[i*3+1]/1e5-(y-.028))/.028)),w=t*t*(3-2*t);for(let k=0;k<3;k++)positions[i*3+k]+=Math.round((source.positions[crown*3+k]-source.positions[anchor*3+k]+(k===1?800:k===2?-150:0))*w);}
  }
  const fitted={...source,positions};
  const result={};for(const part of ['front','back','side'])result[part]=compact({...fitted,groups:source.groups.map(g=>({...g,indices:parts[part]})),expressions:{}});
@@ -199,7 +187,7 @@ function stoneUndercut(owner,target,state,part){
   const offset=positions.length/3;
   for(let i=0;i<=segments;i++){
    const a=(part==='side'?.85:2.10)+(part==='side'?1.25:Math.PI-2.10)*i/segments,theta=sign*a;
-   const bottom=eye-.050+.110*Math.exp(-(((a-1.50)/.45)**2))-.020*Math.max(0,Math.min(1,(a-1.8)/.8))-length*.022*(1-Math.exp(-(((a-1.50)/.60)**2)));
+   const bottom=eye-.050+.055*Math.exp(-(((a-1.45)/.30)**2))-.020*Math.max(0,Math.min(1,(a-1.8)/.8))-length*.022*(1-Math.exp(-(((a-1.50)/.60)**2)));
    for(let j=0;j<=rows;j++){
     const t=j/rows,edgeTheta=theta+sign*.35*t**1.3*(part==='side'?(1-i/segments)**4:0);
     const y=top-.028+(bottom-(top-.028))*t,r=radius(edgeTheta,y)+.0025;
@@ -209,8 +197,8 @@ function stoneUndercut(owner,target,state,part){
   }
   for(let i=0;i<segments;i++)for(let j=0;j<rows;j++){const a=offset+i*(rows+1)+j,b=a+rows+1;indices.push(...(sign>0?[a,a+1,b,b,a+1,b+1]:[a,b,a+1,b,b+1,a+1]));}
  }
- const material=owner.meshes.find(m=>m.name==='HairReference').groups[0].material;
- return {name:part==='side'?'HairSideUndercut':'HairBackUndercut',positions,normals,uv,groups:[{material,indices}],expressions:{}};
+ const gray=[],dark=[];for(let k=0;k<indices.length;k+=3){const tri=indices.slice(k,k+3),y=tri.reduce((n,i)=>n+positions[i*3+1]/3e5,0);(y<top-.075?gray:dark).push(...tri);}
+ return {name:part==='side'?'HairSideUndercut':'HairBackUndercut',positions,normals,uv,groups:[{material:0,indices:gray},{material:1,indices:dark}],expressions:{}};
 }
 export function referenceHairMeshes(assets,input){
  const state={...hairDefaults,...input},target=assets[state.gender],result=[];
@@ -219,7 +207,7 @@ export function referenceHairMeshes(assets,input){
  // A complete authored short hairstyle already includes its own scalp surface.
  if(!keys.every(([key])=>(authoredIds.has(state[key])||state[key]==='stoneOriginal'))){const id=state.gender==='male'?'uniform':'bob',owner=assets[id];result.push({owner,mesh:fit(owner,sections(owner,id).cap,target,state,'cap')});}
  for(const [key,part,table] of keys){const id=table[state[key]];if(!id)continue;const owner=assets[id];
-  if(id==='stone-ref'&&part!=='front')result.push({owner,mesh:stoneUndercut(owner,target,state,part)});
+  if(id==='stone-ref'&&part!=='front'){const mesh=stoneUndercut(owner,target,state,part);result.push({owner:{materials:[{name:'StoneSide_HAIR',color:[1,1,1,1],blend:0,double:true,texture:null},{name:'StoneUnderBase_HAIR',color:[1,1,1,1],blend:0,double:true,texture:null}],maps:[null,null]},mesh});}
   result.push({owner,mesh:id==='stone-ref'?fitStone(owner,stoneSections(owner)[part],target,state,part):authoredIds.has(id)?fitAuthored(owner,authoredSections(owner)[part],target,state,part):fit(owner,sections(owner,id)[part],target,state,part)});
  }
  if(state.braid!=='none'){const id=state.braid==='single'?'classic':'female',owner=assets[id];result.push({owner,mesh:fit(owner,sections(owner,id).tail,target,state,'tail')});}

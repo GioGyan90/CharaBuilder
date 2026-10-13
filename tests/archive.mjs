@@ -63,3 +63,6 @@ if(normalizeState({gender:'female',bodySource:'stone',faceSource:'stone'}).bodyS
 console.log('PASS independent foundations, legacy Stone migration and gender switch');
 
 for(const key of ['frontHair','backHair','sideHair'])if(normalizeState({gender:'male',faceSource:'stone',[key]:'stoneRef'})[key]!=='none')throw Error('legacy placeholder hair migration');
+
+if(normalizeState({sideHairColor:'#b8c0bd'}).sideHairColor!=='#b8c0bd')throw Error('temple color archive lost');
+console.log('PASS independent temple hair color archive');
