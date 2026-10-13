@@ -2,7 +2,7 @@ import {faceGuides} from './face-guides.js?v=18';
 const smooth=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
 const bell=(x,c,r)=>Math.exp(-(((x-c)/r)**2));
 const bounded=v=>Math.max(-2,Math.min(2,((Number.isFinite(v)?v:50)-50)/50));
-const presets={female:{name:'绫 · 成女脸',eyeScale:1.02,jawMix:.38},male:{name:'隼 · 熟男脸',eyeScale:.90,jawMix:.42},stone:{name:'Stone · 硬朗熟男脸',eyeScale:.96,eyeWidthScale:1.08,eyeHeightScale:.58,irisScale:.58,jawMix:.48,mature:true}};
+const presets={female:{name:'绫 · 成女脸',eyeScale:1.02,jawMix:.38},male:{name:'隼 · 熟男脸',eyeScale:.90,jawMix:.42,eyeLift:.006,midStretch:.008},stone:{name:'Stone · 硬朗熟男脸',eyeScale:.96,eyeWidthScale:1.08,eyeHeightScale:.58,irisScale:.58,jawMix:.48,mature:true,eyeLift:.012,midStretch:.016}};
 function center(points){return [0,1,2].map(a=>(Math.min(...points.map(p=>p[a]))+Math.max(...points.map(p=>p[a])))*.5);}
 export function buildAnimeFace(base,gender,reference=true){
  const source=base.meshes.find(m=>m.name==='Face'),guide=faceGuides[gender],preset=reference==='stone'&&gender==='male'?presets.stone:reference?presets[gender]:{name:'原版日漫',eyeScale:1,jawMix:0};
@@ -11,6 +11,15 @@ export function buildAnimeFace(base,gender,reference=true){
  const groupPoints=groups=>[...new Set(groups.flatMap(g=>g.indices))].map(id=>points.slice(id*3,id*3+3));
  const eyes=[-1,1].map(sign=>center(groupPoints(find('EyeIris')).filter(p=>Math.sign(p[0])===sign)));
  for(const g of source.groups){const name=base.materials[g.material].name;for(const id of g.indices){if(/EyeIris|EyeHighlight/.test(name))regions[id]='Face:iris'+(points[id*3]<0?'0':'1');else if(/EyeWhite|Eyeline|Eyelash|EyeExtra/.test(name))regions[id]='Face:eye'+(points[id*3]<0?'0':'1');else if(name.includes('FaceBrow'))regions[id]='Face:brow'+(points[id*3]<0?'0':'1');else if(name.includes('FaceMouth'))regions[id]='Face:mouth';}}
+ // Weld UV seam duplicates by position. Skin and white share a geometric
+ // perimeter; protect it from skeletal edits and use one full eye transform.
+ const whiteEdges=new Map();
+ for(const g of find('EyeWhite'))for(let k=0;k<g.indices.length;k+=3){
+  const ids=g.indices.slice(k,k+3).map(id=>source.positions.slice(id*3,id*3+3).join(','));
+  for(let e=0;e<3;e++){const key=[ids[e],ids[(e+1)%3]].sort().join('|');whiteEdges.set(key,(whiteEdges.get(key)||0)+1);}
+ }
+ const perimeter=new Set([...whiteEdges].filter(([,n])=>n===1).flatMap(([edge])=>edge.split('|')));
+ for(const g of find('_SKIN'))for(const id of g.indices)if(perimeter.has(source.positions.slice(id*3,id*3+3).join(',')))regions[id]='Face:socket'+(points[id*3]<0?'0':'1');
  const skin=groupPoints(find('_SKIN')),chin=Math.min(...skin.map(p=>p[1])),top=Math.max(...skin.map(p=>p[1])),mouth=center(groupPoints(find('FaceMouth'))),eyeY=(eyes[0][1]+eyes[1][1])/2;
  const nosePoints=skin.filter(p=>Math.abs(p[0]-base.landmarks.head[0])<.014&&Math.abs(p[1]-(eyeY-.037))<.025);const nose=center(nosePoints);
  const brows=[-1,1].map(sign=>center(groupPoints(find('FaceBrow')).filter(p=>Math.sign(p[0])===sign)));
@@ -46,17 +55,21 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
   const cheekBand=bell(source[1],eyeY-.030,.023)*front*side;
   x+=(source[0]-headX)*bounded(state.cheekboneWidth)*.18*cheekBand;
   y+=bounded(state.cheekboneHeight)*.003*cheekBand;
-  z+=bounded(state.cheekboneDepth)*.013*cheekBand;
+  z+=bounded(state.cheekboneDepth)*.022*cheekBand;
+  const hard=bounded(state.cheekboneSharpness)+(preset.mature?.65:0),crest=bell(source[1],eyeY-.026,.018)*front*side,hollow=bell(source[1],eyeY-.063,.021)*front*side;
+  x+=(source[0]-headX)*hard*(.13*crest-.09*hollow);
+  z+=hard*(.007*crest-.005*hollow);
   const chinBand=bell(source[0],headX,.028)*bell(source[1],chin+.012,.022)*front;
-  z+=bounded(state.chinProjection)*.016*chinBand;
+  z+=bounded(state.chinProjection)*.025*chinBand;
  }
- const eyeId=/^Face:(?:eye|brow)[01]$/.test(region)?Number(region.slice(-1)):null;
+ const eyeId=/^Face:(?:eye|brow|socket)[01]$/.test(region)?Number(region.slice(-1)):null;
  const moveEye=(eye,i,weight)=>{
   const size=(preset.eyeScale-1)+bounded(state.eyeSize)*.36,dx=source[0]-eye[0],dy=source[1]-eye[1],sign=Math.sign(eye[0]-headX);
   const sx=(1+size)*(preset.eyeWidthScale||1)+bounded(state.eyeWidth)*.25,sy=(1+size)*(preset.eyeHeightScale||1)+bounded(state.eyeHeight)*.22;
   const angle=bounded(state.eyeTilt)*.18*sign,tx=dx*Math.max(.12,sx),ty=dy*Math.max(.12,sy);
   x+=(tx*Math.cos(angle)-ty*Math.sin(angle)-dx)*weight+sign*bounded(state.eyeSpace)*.012*weight;
-  y+=(tx*Math.sin(angle)+ty*Math.cos(angle)-dy)*weight+bounded(state.eyeVertical)*.015*weight;
+  y+=(tx*Math.sin(angle)+ty*Math.cos(angle)-dy)*weight+(bounded(state.eyeVertical)*.028+(preset.eyeLift||0))*weight;
+  z+=bounded(state.eyeDepth)*.016*weight;
  };
  if(eyeId!==null)moveEye(rig.eyes[eyeId],eyeId,1);
  else if(preset.mature&&region==='Face:skin'){const i=source[0]<headX?0:1,eye=rig.eyes[i],w=(1-smooth(.030,.055,Math.abs(source[0]-eye[0])))*(1-smooth(.022,.040,Math.abs(source[1]-eye[1])))*front;moveEye(eye,i,w);}
@@ -75,7 +88,7 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  const nw=bell(source[0],headX,.021)*bell(source[1],nose[1],.028)*front;
  // Small anime nose; parameter changes affect both its width and projection.
  x+=(source[0]-headX)*(Math.max(.15,1+bounded(state.nose)*.38+bounded(state.noseWidth)*.35)-1)*nw;
- y+=bounded(state.noseHeight)*.013*nw;
+ y+=(bounded(state.noseHeight)*.020-bounded(state.noseLength)*.018)*nw;
  z+=((rig.reference?-.006:0)+bounded(state.nose)*.010+bounded(state.noseProjection)*.020)*nw;
  if(region==='Face:skin'){
   const root=bell(source[0],headX,.014)*bell(source[1],eyeY+.004,.020)*front;
@@ -140,6 +153,18 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
    y+=(source[1]-b[1])*.15;
   }
  }
+ // Continuous feature distribution moves nose, lips and jaw together; neck
+ // graft blending is applied later. Socket and white share this exact mapping.
+ const middle=1-smooth(mouth[1]-.010,eyeY-.008,source[1]);
+ y-=(preset.midStretch||0)*middle*front;
+ // Length edits grow away from the protected chin/neck instead of translating
+ // the entire jaw down into the neck seam at large positive values.
+ const upper=smooth(mouth[1]+.004,eyeY+.006,source[1])*(1-smooth(eyeY+.030,eyeY+.100,source[1]));
+ const lowerBand=smooth(chin-.010,mouth[1]+.014,source[1])*(1-smooth(mouth[1]+.014,eyeY+.010,source[1]));
+ const midDelta=bounded(state.midFaceLength)*.022,lowDelta=bounded(state.lowerFaceLength)*.016;
+ const slope=Math.abs(midDelta)*Math.max(1.5/(eyeY-mouth[1]+.002),1.5/.070)+Math.abs(lowDelta)*Math.max(1.5/(mouth[1]-chin+.024),1.5/(eyeY-mouth[1]-.004));
+ const stretchScale=Math.min(1,.82/Math.max(.0001,slope));
+ y+=(midDelta*upper+lowDelta*lowerBand)*stretchScale*front;
  if(!rig.rebuilt&&source[1]<eyeY-.09)y=Math.max(rig.neckY+.022,y);
  return [x,y,z];
 }
