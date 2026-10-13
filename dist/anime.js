@@ -5,7 +5,7 @@ import {bindCharacter} from './rig.js?v=50';
 import * as THREE from 'three';
 import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=51';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=50';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=52';
 import {createUnderwearData} from './underwear.js?v=50';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
@@ -276,7 +276,7 @@ if(iris && material.map){
         const offset=envelopePoints.length/3;envelopePoints.push(...p);
         for(const g of source.groups)if(data.materials[g.material].name.includes('_SKIN')){envelopeIndices.push(...g.indices.map(id=>id+offset));if(source.name==='Face')for(const id of g.indices)editedChin=Math.min(editedChin,p[id*3+1]);}
       }else if(source.name.startsWith('Hair')){
-        if(!envelope){const c=deform(...base.landmarks.head,'Body');envelope=headEnvelope(envelopePoints,envelopeIndices,c[0],c[2],editedChin);}
+        if(!envelope){const c=deform(...data.landmarks.head,'Body');envelope=headEnvelope(envelopePoints,envelopeIndices,c[0],c[2],editedChin);}
         clearHair(p,envelope,source.name);
         const fitted=new THREE.BufferGeometry();fitted.setAttribute('position',new THREE.BufferAttribute(p,3));fitted.setIndex(source.groups.flatMap(g=>g.indices));fitted.computeVertexNormals();normals.set(fitted.attributes.normal.array);fitted.dispose();
       }
