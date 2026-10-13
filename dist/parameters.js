@@ -1,7 +1,7 @@
 import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=50';
 export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=50';
-import {deformAnimeFace} from './face.js?v=50';
-export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=50';
+import {deformAnimeFace} from './face.js?v=51';
+export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=51';
 // Parameters deform the original topology; source vertices are never mutated.
 export const parameterDefaults = {
   ...bodyDefaults,
@@ -38,7 +38,7 @@ export function createDeformer(input,landmarks,scale) {
   const legDelta=(state.legs-50)*.0008;
   function deform(x,y,z,name,legSide) {
     if(name.startsWith('Face:iris')&&landmarks.faceRig){
-      const eye=landmarks.faceRig.eyes[Number(name.slice(-1))],c=deform(...eye,'Face:eye'+name.slice(-1)),uniform=(1+(state.headSize-50)*.002)*scale*(landmarks.faceRig.preset.adult?.78:1);
+      const eye=landmarks.faceRig.eyes[Number(name.slice(-1))],c=deform(...eye,'Face:eye'+name.slice(-1)),uniform=(1+(state.headSize-50)*.002)*scale*(landmarks.faceRig.preset.irisScale??(landmarks.faceRig.preset.adult?.78:1));
       return [c[0]+(x-eye[0])*uniform,c[1]+(y-eye[1])*uniform,c[2]+(z-eye[2])*uniform];
     }
     const source=[x,y,z],oldY = y;

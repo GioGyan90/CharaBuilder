@@ -3,10 +3,10 @@ import {cameraAngles,cameraYaw,anglePosition,selectedAngle,screenDragSide,moveCa
 import {faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=50';
 import {openHslPicker} from './colors.js?v=16';
 import {updateCharacterMotion,motionPresets} from './motion.js?v=50';
-import {parameterDefaults,parameterRanges} from './parameters.js?v=50';
+import {parameterDefaults,parameterRanges} from './parameters.js?v=51';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=50';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=51';
 
 import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=50';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
@@ -110,7 +110,7 @@ function renderControls(){
   const wrap=element('div','field'),box=element('div','options');wrap.append(element('div','field-title','经典发型组合'));for(const preset of classicHairPresets.filter(p=>!p.gender||p.gender===state.gender)){const b=element('button','option',preset.label);b.classList.toggle('selected',Object.entries(preset.values).every(([k,v])=>state[k]===v));b.onclick=()=>{remember();Object.assign(state,preset.values,{frontLength:50,backLength:50,sideLength:50,braidLength:50,hairVolume:50});update();renderControls();setView('face');};box.append(b);}wrap.append(box);const note=element('p','reference-note','基于作者原模型分区。 ');for(const preset of classicHairPresets.filter(p=>p.reference&&p.gender===state.gender)){const a=element('a',null,preset.label+'来源 ');a.href=preset.reference;a.target='_blank';a.rel='noopener';note.append(a);}const allRefs=element('a',null,'全部模型来源');allRefs.href='https://github.com/GioGyan90/CharaBuilder/blob/main/HAIR_REFERENCES.md';allRefs.target='_blank';allRefs.rel='noopener';note.append(allRefs);wrap.append(note);$('#controls').append(wrap);
  }
  if(activeTab==='face'){
-  const wrap=element('div','field face-presets'),box=element('div','options');wrap.append(element('div','field-title','脸型预设'));for(const preset of facePresets.filter(p=>!p.gender||p.gender===state.gender)){const b=element('button','option',preset.label);b.classList.toggle('selected',Object.entries(preset.values).every(([k,v])=>state[k]===v));b.onclick=()=>{remember();Object.assign(state,faceNeutral,preset.values);faceBaseline={...state};update();renderControls();setView('face');};box.append(b);}wrap.append(box);if(state.faceSource==='stone')wrap.append(element('p','reference-note','Stone 使用低模熟男脸与预设眼球，可独立调整眼形和瞳孔颜色。'));$('#controls').append(wrap);
+  const wrap=element('div','field face-presets'),box=element('div','options');wrap.append(element('div','field-title','脸型预设'));for(const preset of facePresets.filter(p=>!p.gender||p.gender===state.gender)){const b=element('button','option',preset.label);b.classList.toggle('selected',Object.entries(preset.values).every(([k,v])=>state[k]===v));b.onclick=()=>{remember();Object.assign(state,faceNeutral,preset.values);faceBaseline={...state};update();renderControls();setView('face');};box.append(b);}wrap.append(box);if(state.faceSource==='stone')wrap.append(element('p','reference-note','Stone 独立熟男五官：突出鼻梁与眉弓、细长眼型、小瞳孔，可继续调整眼形和瞳孔颜色。'));$('#controls').append(wrap);
  }
  if(activeTab==='body'||activeTab==='face'){
   if(activeTab==='body'){
