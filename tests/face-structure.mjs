@@ -44,3 +44,9 @@ console.log('PASS opposing mid/lower-face length extremes preserve vertical surf
 
 for(const key of ['chinSize','chinWidth','chinLength'])assert.deepEqual(deformAnimeFace(...rig.mouth,{...state,[key]:150},rig,'Face:mouth'),deformAnimeFace(...rig.mouth,state,rig,'Face:mouth'),'chin edit moved lips: '+key);
 console.log('PASS larger chin edits keep mouth fixed');
+
+for(const [key,cy,cz,x] of [['cheekboneAngle',rig.eyeY-.030,.065,.05],['jawTilt',rig.chin+(rig.eyeY-rig.chin)*.42,.055,.05],['chinAngle',rig.chin+.014,.075,.015]]){const pairs=[0,100].map(value=>[-.008,.008].map(dy=>deformAnimeFace(x,cy+dy,cz,{...state,[key]:value},rig)));assert.ok(Math.abs((pairs[0][1][2]-pairs[0][0][2])-(pairs[1][1][2]-pairs[1][0][2]))>.002,key+' must rotate plane instead of just changing depth');for(const region of ['Face:eye0','Face:mouth'])assert.deepEqual(deformAnimeFace(x,cy,cz,{...state,[key]:150},rig,region),deformAnimeFace(x,cy,cz,state,rig,region),key+' moved eyes/lips');}
+console.log('PASS three regional plane rotations, separate from depth, with eyes and lips isolated');
+
+for(const key of ['cheekboneAngle','jawTilt','chinAngle'])for(const x of [-.022,0,.022])assert.deepEqual(deformAnimeFace(x,rig.mouth[1],rig.mouth[2],{...state,[key]:150},rig,'Face:skin'),deformAnimeFace(x,rig.mouth[1],rig.mouth[2],state,rig,'Face:skin'),'angle moved lip surface '+key);
+console.log('PASS regional angles keep the lip skin plane fixed');
