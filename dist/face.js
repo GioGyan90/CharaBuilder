@@ -2,7 +2,7 @@ import {faceGuides} from './face-guides.js?v=18';
 const smooth=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
 const bell=(x,c,r)=>Math.exp(-(((x-c)/r)**2));
 const bounded=v=>Math.max(-2,Math.min(2,((Number.isFinite(v)?v:50)-50)/50));
-const presets={female:{name:'绫 · 成女脸',eyeScale:1.02,jawMix:.38},male:{name:'隼 · 熟男脸',eyeScale:.90,jawMix:.42},stone:{name:'Stone · 硬朗熟男脸',eyeScale:.90,jawMix:.55,adult:true}};
+const presets={female:{name:'绫 · 成女脸',eyeScale:1.02,jawMix:.38},male:{name:'隼 · 熟男脸',eyeScale:.90,jawMix:.42},stone:{name:'Stone · 硬朗熟男脸',eyeScale:.96,eyeWidthScale:1.08,eyeHeightScale:.58,irisScale:.58,jawMix:.48,mature:true}};
 function center(points){return [0,1,2].map(a=>(Math.min(...points.map(p=>p[a]))+Math.max(...points.map(p=>p[a])))*.5);}
 export function buildAnimeFace(base,gender,reference=true){
  const source=base.meshes.find(m=>m.name==='Face'),guide=faceGuides[gender],preset=reference==='stone'&&gender==='male'?presets.stone:reference?presets[gender]:{name:'原版日漫',eyeScale:1,jawMix:0};
@@ -53,12 +53,13 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  const eyeId=/^Face:(?:eye|brow)[01]$/.test(region)?Number(region.slice(-1)):null;
  const moveEye=(eye,i,weight)=>{
   const size=(preset.eyeScale-1)+bounded(state.eyeSize)*.36,dx=source[0]-eye[0],dy=source[1]-eye[1],sign=Math.sign(eye[0]-headX);
-  const sx=1+size+bounded(state.eyeWidth)*.25,sy=1+size+bounded(state.eyeHeight)*.22;
+  const sx=(1+size)*(preset.eyeWidthScale||1)+bounded(state.eyeWidth)*.25,sy=(1+size)*(preset.eyeHeightScale||1)+bounded(state.eyeHeight)*.22;
   const angle=bounded(state.eyeTilt)*.18*sign,tx=dx*Math.max(.12,sx),ty=dy*Math.max(.12,sy);
   x+=(tx*Math.cos(angle)-ty*Math.sin(angle)-dx)*weight+sign*bounded(state.eyeSpace)*.012*weight;
   y+=(tx*Math.sin(angle)+ty*Math.cos(angle)-dy)*weight+bounded(state.eyeVertical)*.015*weight;
  };
  if(eyeId!==null)moveEye(rig.eyes[eyeId],eyeId,1);
+ else if(preset.mature&&region==='Face:skin'){const i=source[0]<headX?0:1,eye=rig.eyes[i],w=(1-smooth(.030,.055,Math.abs(source[0]-eye[0])))*(1-smooth(.022,.040,Math.abs(source[1]-eye[1])))*front;moveEye(eye,i,w);}
  else for(let i=0;i<2;i++){const eye=rig.eyes[i];moveEye(eye,i,bell(source[0],eye[0],.042)*bell(source[1],eye[1],.041)*front);}
  for(let i=0;i<2;i++){
   const b=rig.brows[i],w=region==='Face:brow'+i?1:bell(source[0],b[0],.034)*bell(source[1],b[1],.019)*front;
@@ -84,6 +85,26 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  y-=(eyeY-source[1])*bounded(state.faceHeight)*.18*smooth(eyeY+.014,eyeY-.09,source[1])*front;
  const fw=bell(source[1],eyeY+.077,.056)*front;
  z+=bounded(state.forehead)*.010*fw;
+ if(preset.mature){
+  // Separate mature foundation: keep a real nasal bridge and orbital brow ridge,
+  // instead of flattening these planes into the youthful reference face.
+  const bridge=bell(source[0],headX,.014)*bell(source[1],eyeY-.013,.041)*front;
+  const glabella=bell(source[0],headX,.019)*bell(source[1],eyeY+.020,.027)*front;
+  const ridge=rig.brows.reduce((sum,b)=>sum+bell(source[0],b[0],.038)*bell(source[1],b[1]-.010,.025),0)*front;
+  if(region==='Face:skin'){
+   z+=.006*nw+.014*bridge+.006*glabella+.010*ridge;
+   y-=.002*ridge;
+   const lower=(1-smooth(chin,eyeY,source[1]))*front;
+   y-=.010*lower;
+   const shelf=(1-smooth(chin+.002,chin+.028,source[1]))*front;
+   y+=.005*shelf*(1-smooth(.021,.055,Math.abs(source[0]-headX)));
+  }
+  if(region.startsWith('Face:brow')){
+   const b=rig.brows[Number(region.slice(-1))];
+   y+=(source[1]-b[1])*.15+.002;
+   z+=.012;
+  }
+ }
  if(preset.adult){
   // Independent adult foundation, measured from DEGUIDER's authored jaw guide.
   // Increase the lower facial height without moving eyes, scalp or neck geometry.

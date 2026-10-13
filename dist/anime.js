@@ -3,7 +3,7 @@ import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
 import {bindCharacter} from './rig.js?v=50';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=50';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=51';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
 import {referenceHairMeshes,hairAssetIds} from './hair.js?v=50';
 import {createUnderwearData} from './underwear.js?v=50';
@@ -32,6 +32,7 @@ async function loadAsset(id, textures = true) {
     const bytes = Uint8Array.from(atob(parts.join('')), c => c.charCodeAt(0));
     if (bytes.length !== manifest.bytes) throw Error('模型数据不完整');
     const data = JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
+    if(id==='stone-head')data.materials=data.materials.map(m=>m.name.includes('FaceBrow')?{...m,texture:'stone-brow.png'}:m);
     const used = new Set(data.meshes.flatMap(m=>m.groups.map(g=>g.material)));
     if(id==='female'||id==='male'){const response=await fetch(new URL(`${id}-rig.b64`,root));if(!response.ok)throw Error('骨骼资源加载失败');const bytes=Uint8Array.from(atob(await response.text()),c=>c.charCodeAt(0));data.rig=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());}
     data.maps = textures ? await Promise.all(data.materials.map(async (m,i) => {
@@ -79,7 +80,7 @@ function compose(state) {
  let data;
  if(stoneHead){
   const headBase=assets['stone-head'];if(!headBase)throw Error('Stone 头部预设尚未载入');
-  const fitted=buildAnimeFace(headBase,'male',true),donor={...headBase,...fitted,meshes:[...fitted.meshes,headBase.meshes.find(m=>m.name==='Body')]};
+  const fitted=buildAnimeFace(headBase,'male','stone'),donor={...headBase,...fitted,meshes:[...fitted.meshes,headBase.meshes.find(m=>m.name==='Body')]};
   const body=stoneBody?stone:composeAnime({...state,faceSource:'vroid',frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});
   data=graftHead(body,donor,stoneBody?reference:assets[state.gender],headBase);
   data.headReference=headBase.reference;data.landmarks.faceRig.preset={...data.landmarks.faceRig.preset,name:'Stone · 硬朗熟男脸'};
