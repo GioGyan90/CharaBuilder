@@ -50,3 +50,8 @@ console.log('PASS three regional plane rotations, separate from depth, with eyes
 
 for(const key of ['cheekboneAngle','jawTilt','chinAngle'])for(const x of [-.022,0,.022])assert.deepEqual(deformAnimeFace(x,rig.mouth[1],rig.mouth[2],{...state,[key]:150},rig,'Face:skin'),deformAnimeFace(x,rig.mouth[1],rig.mouth[2],state,rig,'Face:skin'),'angle moved lip surface '+key);
 console.log('PASS regional angles keep the lip skin plane fixed');
+
+// Jaw controls have exact compact support: widening the mandible cannot
+// change temples, eye socket, upper cheekbones, lips, or the central chin.
+for(const preset of [rig.preset,{...rig.preset,mature:true,eyeLift:.012}]){const r={...rig,preset};for(const key of ['jawWidth','jawDepth','jawHeight','jawAngle','jawTilt']){for(const point of [[.07,rig.eyeY+.025,.07],[.06,rig.eyeY-.020,.07],[.05,rig.eyeY-.030,.07],rig.mouth,[0,rig.chin+.012,.07],[.05,rig.chin+.030,.020]])for(const level of [-50,150])assert.deepEqual(deformAnimeFace(...point,{...state,[key]:level},r),deformAnimeFace(...point,state,r),key+' leaked outside lower jaw');for(const region of ['Face:eye0','Face:brow0','Face:mouth'])assert.deepEqual(deformAnimeFace(...points.jaw,{...state,[key]:150},r,region),deformAnimeFace(...points.jaw,state,r,region),key+' changed facial component');}}
+console.log('PASS five jaw controls isolated from temples, orbital/upper cheek, lips and central chin in mature and standard heads');
