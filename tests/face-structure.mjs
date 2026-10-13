@@ -41,3 +41,6 @@ console.log('PASS independent brow ridge height, nasal root/bridge/tip axes and 
 
 for(const midFaceLength of [-50,150])for(const lowerFaceLength of [-50,150])for(let y=rig.chin-.015;y<rig.eyeY+.11;y+=.0005){const edit={...state,midFaceLength,lowerFaceLength};const a=deformAnimeFace(.025,y,.07,edit,rig),b=deformAnimeFace(.025,y+.0001,.07,edit,rig);assert.ok(b[1]>a[1],'combined feature lengths folded facial surface');}
 console.log('PASS opposing mid/lower-face length extremes preserve vertical surface order');
+
+for(const key of ['chinSize','chinWidth','chinLength'])assert.deepEqual(deformAnimeFace(...rig.mouth,{...state,[key]:150},rig,'Face:mouth'),deformAnimeFace(...rig.mouth,state,rig,'Face:mouth'),'chin edit moved lips: '+key);
+console.log('PASS larger chin edits keep mouth fixed');

@@ -95,11 +95,11 @@ export function graftHead(recipient, donor, bodyBase, headBase){
   }
   return {point:[x,z],weights:null};
  }
- const data={...recipient,materials:[...recipient.materials,...donor.materials],maps:[...recipient.maps,...donor.maps],meshes:recipient.meshes.filter(m=>!['Face','FaceEyes','Body'].includes(m.name)&&!m.name.startsWith('Hair'))};
+ const data={...recipient,materials:[...recipient.materials,...donor.materials],maps:[...recipient.maps,...donor.maps],meshes:recipient.meshes.filter(m=>!['Face','FaceEyes','FaceEars','Body'].includes(m.name)&&!m.name.startsWith('Hair'))};
  // Non-skin body groups (e.g. standard shoes) remain on their original surface.
  const other=body.groups.filter(g=>!skinGroups.includes(g));data.meshes.unshift(lower);if(other.length)data.meshes.push({...body,groups:other,name:'BodyAccessories'});
  const offset=recipient.materials.length;
- for(const mesh of donor.meshes.filter(m=>['Body','Face','FaceEyes'].includes(m.name))){
+ for(const mesh of donor.meshes.filter(m=>['Body','Face','FaceEyes','FaceEars'].includes(m.name))){
   const groups=mesh.name==='Body'?mesh.groups.filter(g=>donor.materials[g.material].name.includes('_SKIN')):mesh.groups;
   const head=clip({...mesh,groups},headBase,true);if(!head.groups.length)continue;
   for(let i=0;i<head.positions.length;i+=3){let x=head.positions[i]/1e5+shift[0],y=head.positions[i+1]/1e5+shift[1],z=head.positions[i+2]/1e5+shift[2];const t=Math.max(0,Math.min(1,(y-targetCut)/.055)),blend=1-t*t*(3-2*t),fit=surface(x,z),p=fit.point;x+=(p[0]-x)*blend;z+=(p[1]-z)*blend;head.positions.splice(i,3,Math.round(x*1e5),Math.round(y*1e5),Math.round(z*1e5));

@@ -1,11 +1,11 @@
-import {composeStoneReference,graftHead} from './stone-avatar.js?v=50';
+import {composeStoneReference,graftHead} from './stone-avatar.js?v=56';
 import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
 import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
 import {bindCharacter} from './rig.js?v=50';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=55';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=56';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=55';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=56';
 import {createUnderwearData} from './underwear.js?v=50';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
@@ -160,7 +160,7 @@ export function createHuman(state) {
     const clothes = name.includes('_CLOTH'), iris=name.includes('EyeIris');
     let color = new THREE.Color().fromArray(m.color);
     if (skin) color.set(state.skin).multiplyScalar(1.07);
-    if (hair || brow) color.set(state.hairColor);
+    if (hair || brow) color.set(name==='StoneSide_HAIR'?(state.sideHairColor||'#929590'):state.hairColor);
     if (iris) color.set(state.eyeColor||'#806449');
     if (clothes) color.set(name.includes('Shoes')?(state.shoeColor||state.pants):name.includes('Bottoms')||name.includes('AccessoryNeck')?state.pants:state.shirt);
     const overlay = /Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(name);
@@ -174,7 +174,7 @@ export function createHuman(state) {
     });
     if(clay){material.roughness=.85;material.metalness=0;material.userData.stoneClay=true;}
     if(data.stoneRebuilt&&clothes){material.polygonOffset=true;material.polygonOffsetFactor=-1;material.polygonOffsetUnits=-1;}
-    material.userData.colorRole=skin?'skin':hair||brow?'hairColor':iris?'eyeColor':clothes?(name.includes('Shoes')?'shoeColor':name.includes('Bottoms')||name.includes('AccessoryNeck')?'pants':'shirt'):null;
+    material.userData.colorRole=skin?'skin':name==='StoneSide_HAIR'?'sideHairColor':hair||brow?'hairColor':iris?'eyeColor':clothes?(name.includes('Shoes')?'shoeColor':name.includes('Bottoms')||name.includes('AccessoryNeck')?'pants':'shirt'):null;
     if(hair && material.map){
       material.onBeforeCompile=shader=>{
         shader.uniforms.hairMapReference={value:material.map.userData.hairReference||.65};
@@ -263,7 +263,7 @@ if(iris && material.map){
       const groups=source.groups.filter(g=>data.materials[g.material].name.includes('_SKIN')),smooth=smoothGarmentNormals(p,groups);
       for(const id of new Set(groups.flatMap(g=>g.indices)))normals.set(smooth.subarray(id*3,id*3+3),id*3);
     }
-    if(data.mixedHead&&['Body','Face','FaceScalp'].includes(source.name))normals.set(smoothGarmentNormals(p,source.groups));
+    if(data.mixedHead&&['Body','Face','FaceScalp','FaceEars'].includes(source.name))normals.set(smoothGarmentNormals(p,source.groups));
     if(source.name==='Pants')normals.set(smoothGarmentNormals(p,source.groups));
     if(source.name==='Body'&&state.faceSource==='stone'&&state.gender==='male'&&!data.stoneRebuilt&&!data.mixedHead){
       relaxStoneShoulders(p,source,data.landmarks);
@@ -272,7 +272,7 @@ if(iris && material.map){
       group.userData.bodyRefinement=source.refinement;
     }
     if(data.landmarks.faceRig){
-      if(source.name==='Face'||source.name==='Body'||source.name==='FaceScalp'){
+      if(source.name==='Face'||source.name==='Body'||source.name==='FaceScalp'||(source.name==='FaceEars'&&!['sideHair','backHair'].some(k=>state[k]==='stoneOriginal'))){
         const offset=envelopePoints.length/3;envelopePoints.push(...p);
         for(const g of source.groups)if(data.materials[g.material].name.includes('_SKIN')){envelopeIndices.push(...g.indices.map(id=>id+offset));if(source.name==='Face')for(const id of g.indices)editedChin=Math.min(editedChin,p[id*3+1]);}
       }else if(source.name.startsWith('Hair')){
@@ -355,7 +355,7 @@ export function disposeHuman(group) {
 export function applyHumanColors(group,state){
  if(!group)return;
  for(const material of group.userData.materials||[]){const role=material.userData.colorRole;if(!role||material.userData.stoneClay)continue;
-  material.color.set(role==='shirtButton'?state.shirt:(state[role]||(role==='shoeColor'?state.pants:'#806449')));
+  material.color.set(role==='shirtButton'?state.shirt:(state[role]||(role==='shoeColor'?state.pants:role==='sideHairColor'?'#929590':'#806449')));
   if(role==='skin')material.color.multiplyScalar(1.07);
   if(role==='shirtButton')material.color.multiplyScalar(.73);
  }
