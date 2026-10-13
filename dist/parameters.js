@@ -1,13 +1,14 @@
 import {bodyDefaults,bodyRanges,bodyAdjustmentKeys,createBodyDeformer} from './body.js?v=50';
 export {bodyAnchors,bodyHandlePoints,bodyAdjustmentKeys} from './body.js?v=50';
-import {deformAnimeFace} from './face.js?v=51';
-export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=51';
+import {deformAnimeFace} from './face.js?v=53';
+export {buildAnimeFace,headEnvelope,clearHair} from './face.js?v=53';
 // Parameters deform the original topology; source vertices are never mutated.
 export const parameterDefaults = {
   ...bodyDefaults,
   headSize:50,neckWidth:50,chest:50,waist:50,hips:50,legThickness:50,
   forehead:50,chinLength:50,noseProjection:50,mouthHeight:50,
   jawWidth:50,jawDepth:50,jawHeight:50,jawAngle:50,cheekboneWidth:50,cheekboneHeight:50,cheekboneDepth:50,chinProjection:50,
+  browRidgeHeight:50,noseRootDepth:50,noseBridgeWidth:50,noseTipProjection:50,noseTipAngle:50,irisSize:50,
   faceHeight:50,cheek:50,chinWidth:50,eyeWidth:50,eyeHeight:50,eyeVertical:50,eyeTilt:50,browHeight:50,browAngle:50,browThickness:50,browRidge:50,noseWidth:50,noseHeight:50,mouthThickness:50,mouthProjection:50,mouthCorner:50
 };
 export const parameterRanges = {
@@ -15,15 +16,16 @@ export const parameterRanges = {
   headSize:['头部大小','小','大'],neckWidth:['颈部粗细','细','粗'],
   chest:['胸廓尺寸','小','大'],waist:['腰围','细','宽'],hips:['臀围','窄','宽'],legThickness:['腿部粗细','细','粗'],
   jawWidth:['下颌宽度','窄','宽'],jawDepth:['下颌深度','后收','前伸'],jawHeight:['下颌位置','低','高'],jawAngle:['下颌转折','柔和','棱角'],
-  cheekboneWidth:['颧骨宽度','窄','宽'],cheekboneHeight:['颧骨位置','低','高'],cheekboneDepth:['颧骨突出','平','突出'],chinProjection:['下巴突出','后收','前伸'],
+  cheekboneWidth:['颧骨宽度','窄','宽'],cheekboneHeight:['颧骨位置','低','高'],cheekboneDepth:['颧骨前后深度','平','突出'],chinProjection:['下巴前后深度','后收','前伸'],
   faceHeight:['脸部长度','短','长'],cheek:['面颊饱满度','收窄','丰满'],chinWidth:['下巴宽度','窄','宽'],
   eyeWidth:['眼睛宽度','窄','宽'],eyeHeight:['眼睛高度','扁','圆'],eyeVertical:['眼部位置','低','高'],eyeTilt:['眼睛角度','下垂','上扬'],
-  browThickness:['眉毛厚度','细','粗'],browRidge:['眉骨突出','平','突出'],browHeight:['眉毛位置','低','高'],browAngle:['眉毛角度','平缓','上挑'],noseWidth:['鼻翼宽度','窄','宽'],noseHeight:['鼻部位置','低','高'],
+  irisSize:['虹膜 / 瞳孔比例','小','大'],browRidgeHeight:['眉弓高度','低','高'],noseRootDepth:['鼻根深度','凹','挺'],noseBridgeWidth:['鼻梁宽度','窄','宽'],noseTipProjection:['鼻尖深度','后收','前伸'],noseTipAngle:['鼻尖角度','下垂','上翘'],
+  browThickness:['眉毛粗细','细','粗'],browRidge:['眉弓前后深度','平','突出'],browHeight:['眉毛位置','低','高'],browAngle:['眉毛角度','平缓','上挑'],noseWidth:['鼻翼宽度','窄','宽'],noseHeight:['鼻部位置','低','高'],
   mouthThickness:['嘴唇厚度','薄','厚'],mouthProjection:['嘴部突出','平','突出'],mouthCorner:['嘴角形状','下压','上扬'],
   forehead:['额头饱满度','平','饱满'],chinLength:['下巴长度','短','长'],
   noseProjection:['鼻梁突出','平','突出'],mouthHeight:['嘴部位置','低','高']
 };
-export const faceAdjustmentKeys=['faceWidth','jawWidth','jawDepth','jawHeight','jawAngle','cheekboneWidth','cheekboneHeight','cheekboneDepth','chinProjection','eyeSize','eyeSpace','nose','mouth','forehead','chinLength','noseProjection','mouthHeight','faceHeight','cheek','chinWidth','eyeWidth','eyeHeight','eyeVertical','eyeTilt','browHeight','browAngle','browThickness','browRidge','noseWidth','noseHeight','mouthThickness','mouthProjection','mouthCorner'];
+export const faceAdjustmentKeys=['browRidgeHeight','noseRootDepth','noseBridgeWidth','noseTipProjection','noseTipAngle','irisSize','faceWidth','jawWidth','jawDepth','jawHeight','jawAngle','cheekboneWidth','cheekboneHeight','cheekboneDepth','chinProjection','eyeSize','eyeSpace','nose','mouth','forehead','chinLength','noseProjection','mouthHeight','faceHeight','cheek','chinWidth','eyeWidth','eyeHeight','eyeVertical','eyeTilt','browHeight','browAngle','browThickness','browRidge','noseWidth','noseHeight','mouthThickness','mouthProjection','mouthCorner'];
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 const gaussian=(v,c,s)=>Math.exp(-(((v-c)/s)**2));
 export function createDeformer(input,landmarks,scale) {
@@ -38,7 +40,7 @@ export function createDeformer(input,landmarks,scale) {
   const legDelta=(state.legs-50)*.0008;
   function deform(x,y,z,name,legSide) {
     if(name.startsWith('Face:iris')&&landmarks.faceRig){
-      const eye=landmarks.faceRig.eyes[Number(name.slice(-1))],c=deform(...eye,'Face:eye'+name.slice(-1)),uniform=(1+(state.headSize-50)*.002)*scale*(landmarks.faceRig.preset.irisScale??(landmarks.faceRig.preset.adult?.78:1));
+      const eye=landmarks.faceRig.eyes[Number(name.slice(-1))],c=deform(...eye,'Face:eye'+name.slice(-1)),uniform=(1+(state.headSize-50)*.002)*scale*(landmarks.faceRig.preset.irisScale??(landmarks.faceRig.preset.adult?.78:1))*Math.max(.2,1+(state.irisSize-50)*.008);
       return [c[0]+(x-eye[0])*uniform,c[1]+(y-eye[1])*uniform,c[2]+(z-eye[2])*uniform];
     }
     const source=[x,y,z],oldY = y;
