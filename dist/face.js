@@ -37,7 +37,9 @@ export function buildAnimeFace(base,gender,reference=true){
 }
 export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  const {eyeY,chin,headX,headZ,mouth,nose,preset,guide}=rig;
- const source=[x,y,z],front=smooth(headZ+.004,headZ+.042,z),t=(y-chin)/(eyeY-chin);
+ const source=[x,y,z],lipAngleGuard=1-(1-smooth(.030,.055,Math.abs(x-headX)))*(1-smooth(.009,.025,Math.abs(y-mouth[1])));
+ const tilt=(key,cy,cz,weight)=>{const angle=-bounded(state[key])*.25,dy=source[1]-cy,dz=source[2]-cz;y+=(dy*Math.cos(angle)-dz*Math.sin(angle)-dy)*weight;z+=(dy*Math.sin(angle)+dz*Math.cos(angle)-dz)*weight;};
+ const front=smooth(headZ+.004,headZ+.042,z),t=(y-chin)/(eyeY-chin);
  // Sample the acquired jaw guide, then blend into the anime preset's envelope.
  if(t>0&&t<1.08){
   const u=Math.max(0,Math.min(4,(t-.18)/.1925)),i=Math.min(3,Math.floor(u));const ratio=guide.jawRatios[i]*(1-(u-i))+guide.jawRatios[i+1]*(u-i);
@@ -63,6 +65,9 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
   const hard=bounded(state.cheekboneSharpness)+(preset.mature?.65:0),crest=bell(source[1],eyeY-.026,.018)*front*side,hollow=bell(source[1],eyeY-.063,.021)*front*side;
   x+=(source[0]-headX)*hard*(.13*crest-.09*hollow);
   z+=hard*(.007*crest-.005*hollow);
+  const angleFront=smooth(headZ+.040,headZ+.065,source[2])*lipAngleGuard;
+  tilt('cheekboneAngle',eyeY-.030,headZ+.065,cheekBand*angleFront);
+  tilt('jawTilt',chin+height*.42,headZ+.055,jawBand*angleFront);
   const chinBand=bell(source[0],headX,.028)*bell(source[1],chin+.012,.022)*front;
   z+=bounded(state.chinProjection)*.038*chinBand;
  }
@@ -112,7 +117,7 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  y-=bounded(state.chinLength)*.027*cw;
  x+=(source[0]-headX)*(bounded(state.chinWidth)*.50+bounded(state.chinSize)*.25)*cw;
  y-=bounded(state.chinSize)*.016*cw;
- if(region==='Face:skin')z+=bounded(state.chinSize)*.010*cw;
+ if(region==='Face:skin'){z+=bounded(state.chinSize)*.010*cw;tilt('chinAngle',chin+.014,headZ+.075,cw*lipAngleGuard);}
  const cheekWeight=bell(source[1],eyeY-.046,.033)*front;
  x+=(source[0]-headX)*bounded(state.cheek)*.15*cheekWeight;
  y-=(eyeY-source[1])*bounded(state.faceHeight)*.18*smooth(eyeY+.014,eyeY-.09,source[1])*front;

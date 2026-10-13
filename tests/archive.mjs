@@ -66,3 +66,6 @@ for(const key of ['frontHair','backHair','sideHair'])if(normalizeState({gender:'
 
 if(normalizeState({sideHairColor:'#b8c0bd'}).sideHairColor!=='#b8c0bd')throw Error('temple color archive lost');
 console.log('PASS independent temple hair color archive');
+
+for(const key of ['cheekboneAngle','jawTilt','chinAngle'])for(const value of [-50,50,150])if(normalizeState({[key]:value})[key]!==value)throw Error('angle archive lost '+key);
+console.log('PASS independent regional angle export/import values');
