@@ -3,10 +3,10 @@ import {cameraAngles,cameraYaw,anglePosition,selectedAngle,screenDragSide,moveCa
 import {faceHandleIds,faceEditorGroups,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=57';
 import {openHslPicker} from './colors.js?v=16';
 import {updateCharacterMotion,motionPresets} from './motion.js?v=50';
-import {parameterDefaults,parameterRanges} from './parameters.js?v=57';
+import {parameterDefaults,parameterRanges} from './parameters.js?v=58';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=57';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=58';
 
 import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=56';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';

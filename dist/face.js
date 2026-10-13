@@ -39,25 +39,31 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  const {eyeY,chin,headX,headZ,mouth,nose,preset,guide}=rig;
  const source=[x,y,z],lipAngleGuard=1-(1-smooth(.030,.055,Math.abs(x-headX)))*(1-smooth(.009,.025,Math.abs(y-mouth[1])));
  const tilt=(key,cy,cz,weight)=>{const angle=-bounded(state[key])*.25,dy=source[1]-cy,dz=source[2]-cz;y+=(dy*Math.cos(angle)-dz*Math.sin(angle)-dy)*weight;z+=(dy*Math.sin(angle)+dz*Math.cos(angle)-dz)*weight;};
- const front=smooth(headZ+.004,headZ+.042,z),t=(y-chin)/(eyeY-chin);
+ const front=smooth(headZ+.004,headZ+.042,z),height=eyeY-chin,t=(y-chin)/height;
+ // Lower-face support ends below the cheekbones; mature jaw corners sit lower.
+ const jawCenter=chin+height*((preset.mature||preset.eyeLift)?.30:.36);
+ const jawFront=smooth(headZ+.025,headZ+.065,source[2]);
+ const jawSupport=bell(source[1],jawCenter,.040)*(1-smooth(chin+height*.48,chin+height*.72,source[1]))*smooth(chin-.005,chin+.020,source[1])*jawFront;
  // Sample the acquired jaw guide, then blend into the anime preset's envelope.
  if(t>0&&t<1.08){
   const u=Math.max(0,Math.min(4,(t-.18)/.1925)),i=Math.min(3,Math.floor(u));const ratio=guide.jawRatios[i]*(1-(u-i))+guide.jawRatios[i+1]*(u-i);
   const shape=(Math.max(.84,Math.min(1.36,ratio))-1)*preset.jawMix;
-  const jawWeight=bell(y,chin+(eyeY-chin)*.42,.055)*front;
-  x=headX+(x-headX)*(1+shape*jawWeight+bounded(state.jawWidth)*.24*jawWeight);
+  const jawWeight=jawSupport;
+  x=headX+(x-headX)*(1+shape*jawWeight);
  }
  // Independent skeletal silhouette controls, evaluated in the unedited face frame.
  // MakeHuman separates cheek bones/volume/vertical position and chin prominence/
  // width/height/angularity. Adapt those regions to the authored anime topology.
  if(region==='Face:skin'){
-  const height=eyeY-chin,side=smooth(.012,.045,Math.abs(source[0]-headX));
-  const jawBand=bell(source[1],chin+height*.42,.038)*front*side;
+  const side=smooth(.012,.045,Math.abs(source[0]-headX));
+  const jawBand=jawSupport*side*lipAngleGuard;
+  x+=(source[0]-headX)*bounded(state.jawWidth)*.18*jawBand;
   z+=bounded(state.jawDepth)*.016*jawBand;
-  y+=bounded(state.jawHeight)*.003*jawBand;
-  // Move the jaw corner outward/downward, tapering to zero at eyes and chin.
-  x+=(source[0]-headX)*bounded(state.jawAngle)*.15*jawBand;
-  y-=bounded(state.jawAngle)*.001*jawBand;
+  const jawVertical=smooth(chin+.005,chin+height*.28,source[1])*(1-smooth(chin+height*.28,chin+height*.72,source[1]))*jawFront*side*lipAngleGuard;
+  y+=bounded(state.jawHeight)*.004*jawVertical;
+  // Adjust the corner silhouette without shifting its vertical position.
+  x+=(source[0]-headX)*bounded(state.jawAngle)*.10*jawBand;
+
   const cheekBand=bell(source[1],eyeY-.030,.023)*front*side;
   x+=(source[0]-headX)*bounded(state.cheekboneWidth)*.18*cheekBand;
   y+=bounded(state.cheekboneHeight)*.003*cheekBand;
@@ -67,7 +73,7 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
   z+=hard*(.007*crest-.005*hollow);
   const angleFront=smooth(headZ+.040,headZ+.065,source[2])*lipAngleGuard;
   tilt('cheekboneAngle',eyeY-.030,headZ+.065,cheekBand*angleFront);
-  tilt('jawTilt',chin+height*.42,headZ+.055,jawBand*angleFront);
+  tilt('jawTilt',jawCenter,headZ+.055,jawBand*angleFront);
   const chinBand=bell(source[0],headX,.028)*bell(source[1],chin+.012,.022)*front;
   z+=bounded(state.chinProjection)*.038*chinBand;
  }
