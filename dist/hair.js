@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 // Library hair meshes and the user-provided Stone extraction; fit/split original strands.
-export const hairDefaults={frontHair:'straight',backHair:'bob',sideHair:'short',braid:'none',frontLength:50,backLength:50,sideLength:50,braidLength:50,hairVolume:50};
+export const hairDefaults={frontHair:'straight',backHair:'bob',sideHair:'short',braid:'none',frontLength:50,backLength:50,sideLength:50,braidLength:50,hairVolume:50,hairlineHeight:50};
 export const hairChoices={frontHair:[['stoneOriginal','Stone · 原版前发'],['none','无前发'],['straight','齐刘海'],['parted','中分刘海'],['swept','层次斜刘海'],['soft','柔顺刘海'],['curtain','弧形刘海'],['sidepart','侧分短发 · 原模型'],['upcomb','上梳短发 · 原模型'],['layered06','分层短发 · culturalibre']],backHair:[['stoneOriginal','Stone · 原版后发'],['none','无后发'],['short','层次短发'],['bob','波波后发'],['long','直长后发'],['curled','卷曲后发'],['sidepart','侧分短后发'],['upcomb','上梳短后发'],['layered06','分层短后发']],sideHair:[['stoneOriginal','Stone · 原版侧发'],['none','无侧发'],['short','波波侧发'],['layered','层次鬓发'],['long','长鬓发'],['curled','弧形侧发'],['sidepart','侧分短侧发'],['upcomb','上梳短侧发'],['layered06','分层短侧发']],braid:[['none','无发辫'],['single','侧卷马尾'],['double','双马尾']]};
-export const hairRanges={frontLength:['前发长度','短','长'],backLength:['后发长度','短','长'],sideLength:['侧发长度','短','长'],braidLength:['马尾长度','短','长'],hairVolume:['蓬松度','贴合','蓬松']};
+export const hairRanges={hairlineHeight:['发际线高度','低','高'],frontLength:['前发长度','短','长'],backLength:['后发长度','短','长'],sideLength:['侧发长度','短','长'],braidLength:['马尾长度','短','长'],hairVolume:['蓬松度','贴合','蓬松']};
 export const classicHairPresets=[
  {label:'Stone · 原版上梳发',gender:'male',values:{frontHair:'stoneOriginal',backHair:'stoneOriginal',sideHair:'stoneOriginal',braid:'none'}},
  {label:'作者分层短发',gender:'male',reference:'https://www.makehumancommunity.org/node/2479',values:{frontHair:'layered06',backHair:'layered06',sideHair:'layered06',braid:'none'}},
@@ -199,5 +199,11 @@ export function referenceHairMeshes(assets,input){
   result.push({owner,mesh:id==='stone-ref'?fitStone(owner,stoneSections(owner)[part],target,state,part):authoredIds.has(id)?fitAuthored(owner,authoredSections(owner)[part],target,state,part):fit(owner,sections(owner,id)[part],target,state,part)});
  }
  if(state.braid!=='none'){const id=state.braid==='single'?'classic':'female',owner=assets[id];result.push({owner,mesh:fit(owner,sections(owner,id).tail,target,state,'tail')});}
+ for(const {mesh} of result){
+  const head=target.landmarks.head,face=target.meshes.find(m=>m.name==='Face'),top=target.landmarks.faceRig?.top||Math.max(...face.positions.filter((_,i)=>i%3===1))/1e5;
+  const lift=((state.hairlineHeight??50)-50)*.00045+(state.faceSource==='stone'?.010:0);
+  if(!lift)continue;
+  mesh.positions=mesh.positions.map((v,i)=>{if(i%3!==1)return v;const x=mesh.positions[i-1]/1e5-head[0],z=mesh.positions[i+1]/1e5-head[2],y=v/1e5,front=Math.max(0,z/Math.max(1e-6,Math.hypot(x,z))),crown=Math.max(0,Math.min(1,(top+.025-y)/.065));return Math.round((y+lift*front*crown)*1e5);});
+ }
  return result;
 }
