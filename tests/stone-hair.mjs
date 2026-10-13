@@ -1,0 +1,37 @@
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+const distURL=new URL('../dist/',import.meta.url);
+const base=fileURLToPath(distURL);
+const moduleURL=path=>pathToFileURL(path).href;
+const temp=await fs.mkdtemp(path.join(os.tmpdir(),'charabuilder-modular-'));
+let hair=await fs.readFile(base+'hair.js','utf8');hair=hair.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'hair.mjs'),hair);
+let rig=await fs.readFile(base+'rig.js','utf8');rig=rig.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'rig.mjs'),rig);
+let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./stone-avatar.js?v=50'",JSON.stringify(moduleURL(base+'stone-avatar.js'))).replace("'./stone-body.js?v=34'",JSON.stringify(moduleURL(base+'stone-body.js'))).replace("'./stone-detail.js?v=32'",JSON.stringify(moduleURL(base+'stone-detail.js'))).replace("'./rig.js?v=50'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=51'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=50'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=52'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
+global.fetch=async url=>{try{return new Response(await fs.readFile(new URL(url)),{status:200});}catch{return new Response('',{status:404});}};
+const {loadHumanAssets,ensureHumanPresets,createHuman,disposeHuman}=await import(moduleURL(path.join(temp,'model.mjs')));
+const {hairDefaults,hairChoices,hairRanges}=await import(moduleURL(path.join(temp,'hair.mjs')));
+const {wardrobeDefaults}=await import(moduleURL(base+'wardrobe.js'));const {parameterDefaults}=await import(moduleURL(base+'parameters.js'));
+await loadHumanAssets({textures:false});
+const defaults={...parameterDefaults,...wardrobeDefaults,...hairDefaults,gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jaw:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',shirt:'#d7c8b0',pants:'#343b50'};
+const {updateCharacterMotion}=await import(moduleURL(path.join(temp,'rig.mjs')));
+const THREE=await import(moduleURL(base+'vendor/three.module.js'));
+let motion=await fs.readFile(base+'motion.js','utf8');motion=motion.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./rig.js?v=50'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'./assets/motion/quaternius.js?v=26'",JSON.stringify(moduleURL(base+'assets/motion/quaternius.js')));await fs.writeFile(path.join(temp,'motion.mjs'),motion);
+const {updateCharacterMotion:play,motionPresets}=await import(moduleURL(path.join(temp,'motion.mjs')));
+const {default:library}=await import(moduleURL(base+'assets/motion/quaternius.js'));
+
+import assert from 'node:assert/strict';
+const {applyHumanColors}=await import(moduleURL(path.join(temp,'model.mjs')));
+const {stonePreset}=await import(moduleURL(base+'presets.js'));
+const pick={frontHair:'stoneOriginal',backHair:'stoneOriginal',sideHair:'stoneOriginal',braid:'none'};
+const {hairAssetIds}=await import(moduleURL(path.join(temp,'hair.mjs')));assert.deepEqual(hairAssetIds({...defaults,...stonePreset,...pick}),['stone-ref'],'complete extraction unnecessarily loads an extra hair pack');
+let count=0;
+for(const bodySource of ['stone','vroid'])for(const faceSource of ['stone','authored','vroid']){
+ const state={...defaults,...stonePreset,bodySource,faceSource,...pick};await ensureHumanPresets(state,{textures:false});const model=createHuman(state);let faces=0;model.traverse(m=>{if(!m.isMesh||!m.userData.part.startsWith('Hair'))return;faces+=m.geometry.index.count/3;assert.ok(m.material.userData.colorRole==='hairColor');for(const i of new Set(m.geometry.index.array)){const j=m.geometry.attributes.skinIndex,w=m.geometry.attributes.skinWeight;assert.equal(j.getX(i),model.userData.motion.humanoid.head);assert.equal(w.getX(i),1);}});assert.equal(faces,16012,'original extraction triangles changed');
+ const skeleton=model.userData.skeleton;applyHumanColors(model,{...state,hairColor:'#4783ab'});assert.equal(model.userData.skeleton,skeleton);model.traverse(m=>{if(m.isMesh&&m.userData.part.startsWith('Hair'))assert.ok(Math.hypot(m.material.color.r-new THREE.Color('#4783ab').r,m.material.color.g-new THREE.Color('#4783ab').g,m.material.color.b-new THREE.Color('#4783ab').b)<1e-6,'live hair color mismatch');});
+ for(const mode of ['rest','walk','talk']){play(model,0,mode);play(model,.7,mode);model.traverse(m=>{if(!m.isSkinnedMesh||!m.userData.part.startsWith('Hair'))return;for(const i of new Set(m.geometry.index.array))assert.ok(m.applyBoneTransform(i,new THREE.Vector3().fromBufferAttribute(m.geometry.attributes.position,i)).toArray().every(Number.isFinite));});}
+ disposeHuman(model);count++;
+}
+for(const key of ['frontHair','backHair','sideHair'])for(const value of ['none','stoneOriginal'])for(const level of [0,100]){const state={...defaults,...stonePreset,...pick,[key]:value,hairVolume:level,[key==='frontHair'?'frontLength':key==='backHair'?'backLength':'sideLength']:level,headSize:level};await ensureHumanPresets(state,{textures:false});const model=createHuman(state);model.traverse(m=>{if(!m.isMesh||!m.userData.part.startsWith('Hair'))return;for(const i of new Set(m.geometry.index.array))assert.ok(new THREE.Vector3().fromBufferAttribute(m.geometry.attributes.position,i).toArray().every(Number.isFinite));});disposeHuman(model);count++;}
+console.log('PASS '+count+' extracted hair combinations/extremes, original face count, hair color role, rigid head binding and three posed states');await fs.rm(temp,{recursive:true,force:true});

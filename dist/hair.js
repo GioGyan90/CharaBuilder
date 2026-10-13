@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-// Authored CC0 meshes: preserve polygons, locks, UVs and normals; only fit/split them.
+// Library hair meshes and the user-provided Stone extraction; fit/split original strands.
 export const hairDefaults={frontHair:'straight',backHair:'bob',sideHair:'short',braid:'none',frontLength:50,backLength:50,sideLength:50,braidLength:50,hairVolume:50};
-export const hairChoices={frontHair:[['none','无前发'],['straight','齐刘海'],['parted','中分刘海'],['swept','层次斜刘海'],['soft','柔顺刘海'],['curtain','弧形刘海'],['sidepart','侧分短发 · 原模型'],['upcomb','上梳短发 · 原模型'],['layered06','分层短发 · culturalibre']],backHair:[['none','无后发'],['short','层次短发'],['bob','波波后发'],['long','直长后发'],['curled','卷曲后发'],['sidepart','侧分短后发'],['upcomb','上梳短后发'],['layered06','分层短后发']],sideHair:[['none','无侧发'],['short','波波侧发'],['layered','层次鬓发'],['long','长鬓发'],['curled','弧形侧发'],['sidepart','侧分短侧发'],['upcomb','上梳短侧发'],['layered06','分层短侧发']],braid:[['none','无发辫'],['single','侧卷马尾'],['double','双马尾']]};
+export const hairChoices={frontHair:[['stoneOriginal','Stone · 原版前发'],['none','无前发'],['straight','齐刘海'],['parted','中分刘海'],['swept','层次斜刘海'],['soft','柔顺刘海'],['curtain','弧形刘海'],['sidepart','侧分短发 · 原模型'],['upcomb','上梳短发 · 原模型'],['layered06','分层短发 · culturalibre']],backHair:[['stoneOriginal','Stone · 原版后发'],['none','无后发'],['short','层次短发'],['bob','波波后发'],['long','直长后发'],['curled','卷曲后发'],['sidepart','侧分短后发'],['upcomb','上梳短后发'],['layered06','分层短后发']],sideHair:[['stoneOriginal','Stone · 原版侧发'],['none','无侧发'],['short','波波侧发'],['layered','层次鬓发'],['long','长鬓发'],['curled','弧形侧发'],['sidepart','侧分短侧发'],['upcomb','上梳短侧发'],['layered06','分层短侧发']],braid:[['none','无发辫'],['single','侧卷马尾'],['double','双马尾']]};
 export const hairRanges={frontLength:['前发长度','短','长'],backLength:['后发长度','短','长'],sideLength:['侧发长度','短','长'],braidLength:['马尾长度','短','长'],hairVolume:['蓬松度','贴合','蓬松']};
 export const classicHairPresets=[
+ {label:'Stone · 原版上梳发',gender:'male',values:{frontHair:'stoneOriginal',backHair:'stoneOriginal',sideHair:'stoneOriginal',braid:'none'}},
  {label:'作者分层短发',gender:'male',reference:'https://www.makehumancommunity.org/node/2479',values:{frontHair:'layered06',backHair:'layered06',sideHair:'layered06',braid:'none'}},
  {label:'侧分短发',gender:'male',reference:'https://opengameart.org/content/side-parting-hairstyle-for-male-model',values:{frontHair:'sidepart',backHair:'sidepart',sideHair:'sidepart',braid:'none'}},
  {label:'上梳短发',gender:'male',reference:'https://opengameart.org/content/upcomb-hair-style-for-male-model',values:{frontHair:'upcomb',backHair:'upcomb',sideHair:'upcomb',braid:'none'}},
@@ -14,16 +15,16 @@ export const classicHairPresets=[
  {label:'侧卷马尾',gender:'female',values:{frontHair:'curtain',backHair:'curled',sideHair:'curled',braid:'single'}}
 ];
 // Product selection policy, not a statement about who may wear a real hairstyle.
-export const genderHairValues={male:{frontHair:['none','swept','sidepart','upcomb','layered06'],backHair:['none','short','sidepart','upcomb','layered06'],sideHair:['none','layered','sidepart','upcomb','layered06'],braid:['none']},female:{frontHair:['none','straight','parted','swept','soft','curtain'],backHair:['none','short','bob','long','curled'],sideHair:['none','short','layered','long','curled'],braid:['none','single','double']}};
+export const genderHairValues={male:{frontHair:['stoneOriginal','none','swept','sidepart','upcomb','layered06'],backHair:['stoneOriginal','none','short','sidepart','upcomb','layered06'],sideHair:['stoneOriginal','none','layered','sidepart','upcomb','layered06'],braid:['none']},female:{frontHair:['none','straight','parted','swept','soft','curtain'],backHair:['none','short','bob','long','curled'],sideHair:['none','short','layered','long','curled'],braid:['none','single','double']}};
 export function hairOptionsFor(key,gender,faceSource){const allowed=genderHairValues[gender]?.[key];return allowed?hairChoices[key].filter(([value])=>allowed.includes(value)&&value!=='stoneRef'):hairChoices[key];}
 export function filterHairForGender(input){const out={...input},gender=out.gender==='male'?'male':'female';const fallback=gender==='male'?{frontHair:'sidepart',backHair:'sidepart',sideHair:'sidepart',braid:'none'}:hairDefaults;
  for(const key of ['frontHair','backHair','sideHair'])if(out[key]==='stoneRef')out[key]='none';
  for(const key of ['frontHair','backHair','sideHair','braid'])if(!hairOptionsFor(key,gender,out.faceSource).some(([value])=>value===out[key]))out[key]=fallback[key];return out;}
 const skullCache=new WeakMap();
-const frontOwners={straight:'bob',parted:'female',swept:'uniform',soft:'long',curtain:'classic',sidepart:'sidepart',upcomb:'upcomb',layered06:'layered06'};
-const backOwners={short:'uniform',bob:'bob',long:'long',curled:'classic',sidepart:'sidepart',upcomb:'upcomb',layered06:'layered06'};
-const sideOwners={short:'bob',layered:'uniform',long:'long',curled:'classic',sidepart:'sidepart',upcomb:'upcomb',layered06:'layered06'};
-export function hairAssetIds(input){const state={...hairDefaults,...input};if(['frontHair','backHair','sideHair','braid'].every(k=>state[k]==='none'))return [];return [...new Set([state.gender==='male'?'uniform':'bob',frontOwners[state.frontHair],backOwners[state.backHair],sideOwners[state.sideHair],state.braid==='single'?'classic':state.braid==='double'?'female':null].filter(Boolean))];}
+const frontOwners={stoneOriginal:'stone-ref',straight:'bob',parted:'female',swept:'uniform',soft:'long',curtain:'classic',sidepart:'sidepart',upcomb:'upcomb',layered06:'layered06'};
+const backOwners={stoneOriginal:'stone-ref',short:'uniform',bob:'bob',long:'long',curled:'classic',sidepart:'sidepart',upcomb:'upcomb',layered06:'layered06'};
+const sideOwners={stoneOriginal:'stone-ref',short:'bob',layered:'uniform',long:'long',curled:'classic',sidepart:'sidepart',upcomb:'upcomb',layered06:'layered06'};
+export function hairAssetIds(input){const state={...hairDefaults,...input};if(['frontHair','backHair','sideHair','braid'].every(k=>state[k]==='none'))return [];return [...new Set([['frontHair','backHair','sideHair'].every(key=>['sidepart','upcomb','layered06','stoneOriginal'].includes(state[key]))?null:state.gender==='male'?'uniform':'bob',frontOwners[state.frontHair],backOwners[state.backHair],sideOwners[state.sideHair],state.braid==='single'?'classic':state.braid==='double'?'female':null].filter(Boolean))];}
 function compact(source){
  const ids=[...new Set(source.groups.flatMap(g=>g.indices))].sort((a,b)=>a-b),index=new Map(ids.map((id,i)=>[id,i]));
  const fits={};for(const [name,fit] of Object.entries(source.fits||{})){
@@ -126,14 +127,41 @@ function fitAuthored(owner,source,target,state,part){
  }
  return {...source,name:part==='front'?'HairFront':part==='back'?'HairBack':'HairSide',positions,normals,expressions:{}};
 }
+const stoneSectionsCache=new WeakMap();
+function stoneSections(owner){
+ if(stoneSectionsCache.has(owner))return stoneSectionsCache.get(owner);
+ const source=owner.meshes.find(m=>m.name==='HairReference'),parts={front:[],back:[],side:[]},cz=owner.landmarks.head[2];
+ for(const group of source.groups)for(let k=0;k<group.indices.length;k+=3){
+  const ids=group.indices.slice(k,k+3),x=ids.reduce((v,i)=>v+source.positions[i*3]/3e5,0),z=ids.reduce((v,i)=>v+source.positions[i*3+2]/3e5,0),angle=Math.abs(Math.atan2(x,z-cz));
+  parts[angle<1.05?'front':angle>2.10?'back':'side'].push(...ids);
+ }
+ const result={};for(const part of ['front','back','side'])result[part]=compact({...source,groups:source.groups.map(g=>({...g,indices:parts[part]})),expressions:{}});
+ stoneSectionsCache.set(owner,result);return result;
+}
+function fitStone(owner,source,target,state,part){
+ const sourceTop=owner.landmarks.faceGuide.top,targetTop=target.landmarks.faceRig?.top||Math.max(...target.meshes.find(m=>m.name==='Face').positions.filter((_,i)=>i%3===1))/1e5,dy=targetTop-sourceTop,dx=target.landmarks.head[0]-owner.landmarks.head[0],dz=target.landmarks.head[2]-owner.landmarks.head[2];
+ const root=targetTop-.045,volume=1+Math.max(-50,Math.min(50,(state.hairVolume??50)-50))*.0016,positions=[];
+ const smooth=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
+ for(let k=0;k<source.positions.length;k+=3){
+  let x=source.positions[k]/1e5,y=source.positions[k+1]/1e5+dy,z=source.positions[k+2]/1e5;
+  const angle=Math.abs(Math.atan2(x-owner.landmarks.head[0],z-owner.landmarks.head[2])),front=1-smooth(.75,1.50,angle),back=smooth(1.80,2.55,angle),side=1-front-back;
+  const length=1+(front*((state.frontLength??50)-50)+back*((state.backLength??50)-50)+side*((state.sideLength??50)-50))*.004;
+  y=root+(y-root)*(y>root?1+(length-1)*.35:length);
+  x=owner.landmarks.head[0]+(x-owner.landmarks.head[0])*.98*volume+dx;
+  z=owner.landmarks.head[2]+(z-owner.landmarks.head[2])*volume+dz;
+  positions.push(Math.round(x*1e5),Math.round(y*1e5),Math.round(z*1e5));
+ }
+ // Bind to whichever head is selected, rather than retaining donor bone IDs.
+ return {...source,name:part==='front'?'HairFront':part==='back'?'HairBack':'HairSide',positions,skinIndices:undefined,skinWeights:undefined,expressions:{}};
+}
 export function referenceHairMeshes(assets,input){
  const state={...hairDefaults,...input},target=assets[state.gender],result=[];
  if(['frontHair','backHair','sideHair','braid'].every(k=>state[k]==='none'))return result;
  const keys=[['frontHair','front',frontOwners],['backHair','back',backOwners],['sideHair','side',sideOwners]];
  // A complete authored short hairstyle already includes its own scalp surface.
- if(!keys.every(([key])=>authoredIds.has(state[key]))){const id=state.gender==='male'?'uniform':'bob',owner=assets[id];result.push({owner,mesh:fit(owner,sections(owner,id).cap,target,state,'cap')});}
+ if(!keys.every(([key])=>(authoredIds.has(state[key])||state[key]==='stoneOriginal'))){const id=state.gender==='male'?'uniform':'bob',owner=assets[id];result.push({owner,mesh:fit(owner,sections(owner,id).cap,target,state,'cap')});}
  for(const [key,part,table] of keys){const id=table[state[key]];if(!id)continue;const owner=assets[id];
-  result.push({owner,mesh:authoredIds.has(id)?fitAuthored(owner,authoredSections(owner)[part],target,state,part):fit(owner,sections(owner,id)[part],target,state,part)});
+  result.push({owner,mesh:id==='stone-ref'?fitStone(owner,stoneSections(owner)[part],target,state,part):authoredIds.has(id)?fitAuthored(owner,authoredSections(owner)[part],target,state,part):fit(owner,sections(owner,id)[part],target,state,part)});
  }
  if(state.braid!=='none'){const id=state.braid==='single'?'classic':'female',owner=assets[id];result.push({owner,mesh:fit(owner,sections(owner,id).tail,target,state,'tail')});}
  return result;
