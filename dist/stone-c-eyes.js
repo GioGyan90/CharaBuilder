@@ -1,5 +1,5 @@
-import {prepareStoneCHair} from './stone-c-hair.js?v=107';
-import {buildStoneCLids} from './stone-c-lids.js?v=107';
+import {prepareStoneCHair} from './stone-c-hair.js?v=108';
+import {buildStoneCLids} from './stone-c-lids.js?v=108';
 // C ocular upgrade: clip the old painted eye patch, then fit independent globes.
 // The original packed asset is immutable; the patch interpolates all render/rig attributes.
 export function prepareStoneCEyes(asset,patch){

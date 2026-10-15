@@ -1,6 +1,6 @@
 import {deformNormal} from './parameters.js?v=101';
 import {hunyuanSkinGLSL} from './hunyuan-skin.js?v=97';
-import {composeStoneCEyes} from './stone-c-eyes.js?v=107';
+import {composeStoneCEyes} from './stone-c-eyes.js?v=108';
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 const normalCache=new WeakMap();
 const hairPartitions=new WeakMap();
@@ -75,7 +75,7 @@ float cLowerEyePaintLimit(float x){
    cleanup='\n#ifdef USE_MAP\nfloat cUpperEyePaint= smoothstep(.015,.017,abs(vCEyeRestPosition.x))*(1.-smoothstep(.053,.055,abs(vCEyeRestPosition.x)))*smoothstep(1.530,1.532,vCEyeRestPosition.y)*(1.-smoothstep(1.539,1.540,vCEyeRestPosition.y))*(1.-smoothstep(.091-max(0.,abs(vCEyeRestPosition.x)-.036)*.8,.093-max(0.,abs(vCEyeRestPosition.x)-.036)*.8,vCEyeRestPosition.z))*(1.-smoothstep(.035,.12,max(diffuseColor.r,max(diffuseColor.g,diffuseColor.b))));\nfloat cProtectBrow=1.-smoothstep(cLowerEyePaintLimit(abs(vCEyeRestPosition.x))-.00035,cLowerEyePaintLimit(abs(vCEyeRestPosition.x))+.00005,vCEyeRestPosition.y);\ndiffuseColor.rgb=mix(diffuseColor.rgb,cOriginalSkin,clamp(max(vCEyePaintCleanup*cProtectBrow,cUpperEyePaint),0.,1.));\n#endif\n';
   }
   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>'+cleanup+'\ndiffuseColor.rgb=gradeHunyuanSkin(diffuseColor.rgb,cSkinGain);');};
- material.customProgramCacheKey=()=> 'stone-c-v107-'+kind;
+ material.customProgramCacheKey=()=> 'stone-c-v108-'+kind;
  updateStoneCMaterial(material,THREE,state);
 }
 export function updateStoneCMaterial(material,THREE,state){

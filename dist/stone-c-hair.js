@@ -26,10 +26,10 @@ export function prepareStoneCHair(mesh){
    return [inside,outside];
   }
   // One continuous lower band wraps behind both ears and across the nape.
-  // Only the central forward fringe is excluded; no rear X/Z crop may truncate it.
+  // Only the projecting central fringe is excluded; shallow temple edges belong to short hair.
   const [lower,crown]=split([[1,0,0],[0,1,0],[0,0,1]],v=>1.593+.08*v[2]-v[1]);emit(crown,main);
   const [rear,forward]=split(lower,v=>.035-v[2]);emit(rear,side);
-  const [temple,fringe]=split(forward,v=>sign*v[0]-.060);emit(temple,side);emit(fringe,main);
+  const [temple,fringe]=split(forward,v=>sign*v[0]-.30*v[2]-.020);emit(temple,side);emit(fringe,main);
  }
  mesh.groups=[{...original,indices:[...skin,...main,...side]}];
  mesh.stoneCSkinIndices=skin;mesh.stoneCHairMainIndices=main;mesh.stoneCSideHairIndices=side;mesh.stoneCHairIndices=[...main,...side];

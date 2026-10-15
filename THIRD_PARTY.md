@@ -150,3 +150,7 @@ Material-region clipping subdivides the existing project C hair surface at the t
 ### C continuous rear undercut partition · v107
 
 Extends the existing short-hair material region behind both ears and across the lower rear hair. Only project material ownership and subdivision change; the original source mesh/atlas and existing attribution remain intact. No new third-party assets.
+
+### C temple color boundary refinement · v108
+
+Refines the project material clipping boundary between the projecting front fringe and shallow temple hair. Original source geometry and atlas are unchanged; generated cut points continue to interpolate existing attributes. No third-party assets added.

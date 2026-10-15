@@ -25,9 +25,10 @@ for(const edits of [{},{craniumWidth:100,craniumDepth:0,headSize:75}]){
  assert.equal(new Set([...a,...c].filter(i=>i<source.meshes.find(m=>m.name==='Face').positions.length/3)).size,new Set(sourceHair).size,'all original hair corners retained');
  const rest=head.geometry.attributes.cEyeRestPosition,rearBands=[0,0,0];
  const center=ids=>ids.reduce((sum,id)=>sum.map((v,k)=>v+rest.array[id*3+k]/3),[0,0,0]);
- for(let i=0;i<a.length;i+=3){const [x,y,z]=center(a.slice(i,i+3));assert.ok(!(z<.030&&y<1.593+.08*z-1e-5),'lower rear hair left in main color group');}
- for(let i=0;i<c.length;i+=3){const [x,y,z]=center(c.slice(i,i+3));assert.ok(!(z>.040&&Math.abs(x)<.0599),'short-hair material leaked into central fringe');if(z<-.070)rearBands[x<-.035?0:x>.035?2:1]++;}
+ for(let i=0;i<a.length;i+=3){const [x,y,z]=center(a.slice(i,i+3));assert.ok(!(z<.030&&y<1.593+.08*z-1e-5),'lower rear hair left in main color group');assert.ok(!(z>.035&&z<.095&&Math.abs(x)>.049&&y<1.593+.08*z-1e-5),'black temple wedges left beside short hair');}
+ for(let i=0;i<c.length;i+=3){const [x,y,z]=center(c.slice(i,i+3));assert.ok(!(z>.100&&Math.abs(x)<.0499),'short-hair material leaked into central fringe');if(z<-.070)rearBands[x<-.035?0:x>.035?2:1]++;}
  assert.ok(rearBands.every(n=>n>30),'rear band must cover left, center and right behind ears');
+ const mainVertices=new Set(a);let fringeSamples=0;const sourcePos=source.meshes.find(m=>m.name==='Face').positions;for(const i of new Set(sourceHair)){const [x,y,z]=sourcePos.slice(i*3,i*3+3).map(v=>v/1e5);if(Math.abs(x)<.050&&z>.110&&y<1.593+.08*z){assert.ok(mainVertices.has(i),'projecting front fringe lost main color');fringeSamples++;}}assert.ok(fringeSamples>30,'must sample the original projecting fringe');
  // Material seams must connect from the left side through the rear to the right.
  const vertices=new Map(),key=id=>[0,1,2].map(k=>Math.round(rest.array[id*3+k]*1e6)).join(',');
  for(let i=0;i<c.length;i+=3){const keys=c.slice(i,i+3).map(key);for(const k of keys){if(!vertices.has(k))vertices.set(k,new Set());for(const other of keys)vertices.get(k).add(other);}}
