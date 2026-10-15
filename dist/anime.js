@@ -1,4 +1,4 @@
-import {composeStoneC,installStoneCMaterial,updateStoneCMaterial} from './stone-c.js?v=101';
+import {composeStoneC,installStoneCMaterial,updateStoneCMaterial} from './stone-c.js?v=102';
 import {installAdultScalp,adultScalpAttributes,updateAdultScalp} from './adult-scalp.js?v=92';
 import {installAdultIrisMaterial} from './adult-eye-material.js?v=92';
 import {composeStoneReference,graftHead,reserveImportedEyes,addImportedFeatures,prepareAdultHead,adultHeadNormals,installAdultHeadNormals} from './stone-avatar.js?v=101';
@@ -35,6 +35,7 @@ async function loadAsset(id, textures = true) {
     const bytes = Uint8Array.from(atob(parts.join('')), c => c.charCodeAt(0));
     if (bytes.length !== manifest.bytes) throw Error('模型数据不完整');
     const data = JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
+    if(id==='stone-c')data.hairTriangles=(await json(new URL('stone-c-hair.json?v=102',root))).hairTriangles;
     if(id==='stone-head')data.materials=data.materials.map(m=>m.name.includes('FaceBrow')?{...m,texture:'stone-brow.png'}:m);
     const used = new Set(data.meshes.flatMap(m=>m.groups.map(g=>g.material)));
     if(id==='female'||id==='male'){const response=await fetch(new URL(`${id}-rig.b64`,root));if(!response.ok)throw Error('骨骼资源加载失败');const bytes=Uint8Array.from(atob(await response.text()),c=>c.charCodeAt(0));data.rig=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());}

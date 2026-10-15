@@ -5,7 +5,7 @@ import {updateCharacterMotion,motionPresets} from './motion.js?v=101';
 import {parameterDefaults,parameterRanges} from './parameters.js?v=101';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=101';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=102';
 
 import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=93';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
@@ -134,7 +134,7 @@ function renderField(key){
 }
 function renderControls(){
  const [num,title,desc,fields]=tabs[activeTab];$('#section-number').textContent=num;$('#section-title').textContent=title;$('#section-desc').textContent=desc;$('#controls').replaceChildren();$('#controls').classList.toggle('face-control-panel',['face','body'].includes(activeTab));
- if(activeTab==='hair'&&state.faceSource==='stoneC'){$('#controls').append(element('p','reference-note','当前 C 头模保留选定的原生低面发型和分色贴图，随颅骨与头部比例一同变形。'));return;}
+ if(activeTab==='hair'&&state.faceSource==='stoneC'){$('#controls').append(element('p','reference-note','原生发型已独立分离，使用无贴图纯色材质，随颅骨与头部比例一同变形。'),renderField('hairColor'));return;}
  if(activeTab==='hair'){
   const wrap=element('div','field'),box=element('div','options');wrap.append(element('div','field-title','经典发型组合'));for(const preset of classicHairPresets.filter(p=>(!p.gender||p.gender===state.gender)&&!Object.values(p.values).some(v=>['stoneOriginal','imported00003'].includes(v)))){const b=element('button','option',preset.label);b.classList.toggle('selected',Object.entries(preset.values).every(([k,v])=>state[k]===v));b.onclick=()=>{remember();Object.assign(state,preset.values,{frontLength:50,backLength:50,sideLength:50,braidLength:50,hairVolume:50,hairlineHeight:50});update();renderControls();setView('face');};box.append(b);}wrap.append(box);const note=element('p','reference-note','基于现成模型与导入发型分区。 ');for(const preset of classicHairPresets.filter(p=>p.reference&&p.gender===state.gender&&!Object.values(p.values).some(v=>['stoneOriginal','imported00003'].includes(v)))){const a=element('a',null,preset.label+'来源 ');a.href=preset.reference;a.target='_blank';a.rel='noopener';note.append(a);}const allRefs=element('a',null,'全部模型来源');allRefs.href='https://github.com/GioGyan90/CharaBuilder/blob/main/HAIR_REFERENCES.md';allRefs.target='_blank';allRefs.rel='noopener';note.append(allRefs);wrap.append(note);$('#controls').append(wrap);
  }

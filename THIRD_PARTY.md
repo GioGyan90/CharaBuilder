@@ -126,3 +126,7 @@ MakeHuman `universal-male-young-maxmuscle-averageweight.target` and matching ave
 culturalibre Hair06 is CC0 according to the official MakeHuman Hair01 inventory and original asset page https://www.makehumancommunity.org/node/2479 . The fixed public binary mirror, SHA-256, original10430 vertices /14688 triangles and conversion are recorded in `layered06-manifest.json`. All original triangles and UVs remain. The Stone variation adapts the existing locks; it is not a new original authored hairstyle. Original binary source files are not distributed or loaded at runtime.
 
 Stone brow coverage derives from the original CC0 VRoid beta male brow alpha; stubble, scar and grey temples are skinning-attached JS material details. The mature jaw still uses the previously credited DEGUIDER guide; no donor neck mesh is added.
+
+### C hair material partition · v102
+
+`stone-c-hair.json` assigns existing triangles from the project C head to a separate untextured hair material. It adds no third-party geometry or textures. The original C asset, source atlas and their existing attribution remain unchanged; only the face material continues to use that atlas. Reconstruction: `scripts/split-stone-c-hair.py` (numpy / Pillow).

@@ -2,6 +2,19 @@ import {deformNormal} from './parameters.js?v=101';
 import {hunyuanSkinGLSL} from './hunyuan-skin.js?v=97';
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 const normalCache=new WeakMap();
+const hairPartitions=new WeakMap();
+// Partition original triangles, retaining every position, normal, UV and skin weight.
+// Both parts stay in Face deformation space so shared boundary vertices cannot drift.
+function splitStoneCHair(mesh,triangles,material){
+ let groups=hairPartitions.get(mesh);
+ if(!groups){
+  const selected=new Set(triangles),skin=[],hair=[];
+  const original=mesh.groups[0];
+  for(let i=0;i<original.indices.length;i+=3)(selected.has(i/3)?hair:skin).push(...original.indices.slice(i,i+3));
+  groups=[{...original,indices:skin},{material,indices:hair}];hairPartitions.set(mesh,groups);
+ }
+ return {...mesh,groups};
+}
 /** C is a separate adult asset. Never run the old adolescent/adult-head rebuild. */
 export function composeStoneC(asset,state){
  const r=asset.landmarks.faceRig,w=((state.craniumWidth??50)-50)/50,d=((state.craniumDepth??50)-50)/50;
@@ -30,7 +43,11 @@ export function composeStoneC(asset,state){
    normals.push(...deformNormal(field,...p,...n,'Face').map(v=>v*32767));}
   return {...m,positions,normals};
  });
- return {...asset,maps:asset.maps,meshes};
+ const hairMaterial=asset.materials.length;
+ return {...asset,
+  materials:[...asset.materials,{name:'StoneC_HAIR',color:[1,1,1,1],double:true,blend:0,texture:null}],
+  maps:[...asset.maps,null],
+  meshes:meshes.map((m,i)=>m.name==='Face'?{...m,groups:splitStoneCHair(asset.meshes[i],asset.hairTriangles,hairMaterial).groups}:m)};
 }
 export function installStoneCMaterial(material,THREE,state,kind){
  material.flatShading=false;material.userData.stoneC=kind;material.userData.colorRole=null;
