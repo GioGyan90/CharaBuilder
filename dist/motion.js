@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import library from './assets/motion/quaternius.js?v=26';
 import {updateCharacterMotion as proceduralMotion,updatePantsNormals} from './rig.js?v=101';
-import {updateStoneCBlink} from './stone-c-lids.js?v=104';
+import {updateStoneCBlink} from './stone-c-lids.js?v=105';
 export const motionPresets=[
  {id:'relaxed',label:'放松站姿',source:'Idle_Loop'},
  {id:'talk',label:'交谈手势',source:'Idle_Talking_Loop'},

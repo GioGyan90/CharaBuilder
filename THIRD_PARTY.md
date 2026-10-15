@@ -138,3 +138,7 @@ Project-generated standard spheres, spherical iris/pupil caps and static socket 
 ### C articulated eyelids · v104
 
 Project-generated upper/lower skin flaps use the existing C eye cut boundary and standard globes. No external eyelid mesh, animation or texture was added. The original atlas remains unchanged; a localized head-material cleanup removes residual baked eye paint at the cut rim. Curved blink samples and their timeline are authored in `dist/stone-c-lids.js`.
+
+### C brow protection and inner lid lining · v105
+
+Project-authored inner lining joins each existing lid back margin to the standard globe, including both canthi. The head material restricts residual paint cleanup to the lower eye border and protects the original eyebrow atlas per fragment. No external geometry, texture, or animation was introduced; original C assets and attribution remain unchanged.

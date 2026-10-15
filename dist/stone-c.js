@@ -1,6 +1,6 @@
 import {deformNormal} from './parameters.js?v=101';
 import {hunyuanSkinGLSL} from './hunyuan-skin.js?v=97';
-import {composeStoneCEyes} from './stone-c-eyes.js?v=104';
+import {composeStoneCEyes} from './stone-c-eyes.js?v=105';
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 const normalCache=new WeakMap();
 const hairPartitions=new WeakMap();
@@ -63,13 +63,21 @@ export function installStoneCMaterial(material,THREE,state,kind){
  material.onBeforeCompile=shader=>{shader.uniforms.cSkinGain={value:skinGain};shader.fragmentShader='uniform vec3 cSkinGain;\n'+hunyuanSkinGLSL+shader.fragmentShader;
   let cleanup='';if(kind==='head'){
    const base=new THREE.Color('#d8946c');shader.uniforms.cOriginalSkin={value:new THREE.Vector3(base.r,base.g,base.b)};
-   shader.vertexShader='attribute float cEyePaintCleanup; varying float vCEyePaintCleanup;\n'+shader.vertexShader;
-   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvCEyePaintCleanup=cEyePaintCleanup;');
-   shader.fragmentShader='varying float vCEyePaintCleanup; uniform vec3 cOriginalSkin;\n'+shader.fragmentShader;
-   cleanup='\n#ifdef USE_MAP\ndiffuseColor.rgb=mix(diffuseColor.rgb,cOriginalSkin,clamp(vCEyePaintCleanup,0.,1.));\n#endif\n';
+   shader.vertexShader='attribute float cEyePaintCleanup; attribute vec3 cEyeRestPosition; varying float vCEyePaintCleanup; varying vec3 vCEyeRestPosition;\n'+shader.vertexShader;
+   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvCEyePaintCleanup=cEyePaintCleanup; vCEyeRestPosition=cEyeRestPosition;');
+   shader.fragmentShader=`varying float vCEyePaintCleanup; varying vec3 vCEyeRestPosition; uniform vec3 cOriginalSkin;
+float cLowerEyePaintLimit(float x){
+ float y=1.5298;
+ y+=clamp((x-.0178)/.0092,0.,1.)*(-.0004);
+ y+=clamp((x-.027)/.009,0.,1.)*.0003;
+ y+=clamp((x-.036)/.009,0.,1.)*.0024;
+ y+=clamp((x-.045)/.0064,0.,1.)*.003;
+ return y;
+}\n`+shader.fragmentShader;
+   cleanup='\n#ifdef USE_MAP\nfloat cProtectBrow=1.-smoothstep(cLowerEyePaintLimit(abs(vCEyeRestPosition.x))-.00035,cLowerEyePaintLimit(abs(vCEyeRestPosition.x))+.00005,vCEyeRestPosition.y);\ndiffuseColor.rgb=mix(diffuseColor.rgb,cOriginalSkin,clamp(vCEyePaintCleanup*cProtectBrow,0.,1.));\n#endif\n';
   }
   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>'+cleanup+'\ndiffuseColor.rgb=gradeHunyuanSkin(diffuseColor.rgb,cSkinGain);');};
- material.customProgramCacheKey=()=> 'stone-c-v104-'+kind;
+ material.customProgramCacheKey=()=> 'stone-c-v105-'+kind;
  updateStoneCMaterial(material,THREE,state);
 }
 export function updateStoneCMaterial(material,THREE,state){

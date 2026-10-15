@@ -1,4 +1,4 @@
-import {buildStoneCLids} from './stone-c-lids.js?v=104';
+import {buildStoneCLids} from './stone-c-lids.js?v=105';
 // C ocular upgrade: clip the old painted eye patch, then fit independent globes.
 // The original packed asset is immutable; the patch interpolates all render/rig attributes.
 export function prepareStoneCEyes(asset,patch){
@@ -18,12 +18,14 @@ export function prepareStoneCEyes(asset,patch){
  const kept=[];for(let i=0;i<indices.length;i+=3)if(!removed.has(i/3))kept.push(...indices.slice(i,i+3));
  mesh.groups=[{...original.groups[0],indices:[...kept,...patch.replacementIndices]}];
  // Remove baked eye-white/liner remnants just outside the cut. This does not hide geometry.
- mesh.eyePaintCleanup=[];
+ mesh.eyePaintCleanup=[];mesh.eyeRestPositions=mesh.positions;
  const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
  for(let i=0;i<mesh.positions.length;i+=3){const [x,y,z]=mesh.positions.slice(i,i+3).map(v=>v/1e5);let weight=0;
   if(Math.abs(x)>.015&&Math.abs(x)<.055&&y>1.526&&y<1.540&&z>.055){const spec=patch.sockets[x<0?0:1];let distance=Infinity;
    for(let j=0;j<spec.rim.length;j++){const a=spec.rim[j],b=spec.rim[(j+1)%spec.rim.length],dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy||1)));distance=Math.min(distance,Math.hypot(x-a[0]-dx*t,y-a[1]-dy*t));}
-   weight=1-smooth(.0009,.0019,distance);if(y>1.532)weight*=smooth(.027,.031,Math.abs(x));
+   const X=Math.abs(x),knots=[[.0178,1.5298],[.027,1.5294],[.036,1.5297],[.045,1.5321],[.0514,1.5351]];let lower=knots[0][1];
+   for(let j=1;j<knots.length;j++){const a=knots[j-1],b=knots[j],t=Math.max(0,Math.min(1,(X-a[0])/(b[0]-a[0])));lower+=t*(b[1]-a[1]);}
+   weight=(1-smooth(.0009,.0019,distance))*(1-smooth(lower-.00035,lower+.00005,y));
   }mesh.eyePaintCleanup.push(weight);
  }
  return {...asset,eyePatch:patch,meshes:asset.meshes.map(m=>m===original?mesh:m)};

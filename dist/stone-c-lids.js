@@ -23,10 +23,15 @@ export function buildStoneCLids(spec,head,headBone,makeMaterial){
  for(let side=0;side<2;side++){
   const upper=side===0,label=(upper?'Upper':'Lower')+(spec.side<0?'L':'R');
   const material=makeMaterial('StoneCEyelid'+label+'_SKIN',[1,1,1]);
-  const rows=[paths[side].map(p=>p.u),...Array.from({length:3},()=>Array.from({length:65},(_,i)=>i/64))],levels=[0,.22,.62,1],meta=[],front=[],back=[],indices=[];
+  const rows=[paths[side].map(p=>p.u),...Array.from({length:3},()=>Array.from({length:65},(_,i)=>i/64))],levels=[0,.22,.62,1],meta=[],front=[],back=[],wetline=[],indices=[];
   for(let j=0;j<rows.length;j++){front[j]=[];for(const u of rows[j]){front[j].push(meta.length);meta.push({u,v:levels[j],back:false});}}
   for(let j=0;j<rows.length;j++){back[j]=[];for(const u of rows[j]){back[j].push(meta.length);meta.push({u,v:levels[j],back:true});}}
+  for(const u of rows.at(-1)){wetline.push(meta.length);meta.push({u,v:1,back:true,wetline:true});}
   function point(m,blink){
+   if(m.wetline){
+    const a=point({u:m.u,v:1,back:true},blink),x=a[0]+(c[0]-a[0])*.018,y=a[1]+(c[1]-a[1])*.018,z=c[2]+Math.sqrt(Math.max(1e-10,r*r-(x-c[0])**2-(y-c[1])**2))+.000035;
+    const reach=1-smooth((blink-.85)/.15);return a.map((v,k)=>v+([x,y,z][k]-v)*reach);
+   }
    const U=sample(0,m.u),L=sample(1,m.u),root=upper?U:L,gate=Math.sin(Math.PI*m.u),closed=U.map((v,k)=>v*.35+L[k]*.65);
    // Open margins keep a narrow visible skin rim. Both margins share the same closed curve.
    const open=root.map((v,k)=>v+(closed[k]-v)*.035),edge=open.map((v,k)=>v+(closed[k]-v)*blink);
@@ -47,6 +52,9 @@ export function buildStoneCLids(spec,head,headBone,makeMaterial){
   function connect(rowA,rowB,usA,usB,backside){let a=0,b=0;while(a<rowA.length-1||b<rowB.length-1){if(a<rowA.length-1&&(b===rowB.length-1||usA[a+1]<=usB[b+1])){face(rowA[a],rowA[a+1],rowB[b],backside);a++;}else{face(rowA[a],rowB[b+1],rowB[b],backside);b++;}}}
   for(let j=0;j<rows.length-1;j++){connect(front[j],front[j+1],rows[j],rows[j+1],false);connect(back[j],back[j+1],rows[j],rows[j+1],true);}
   const j=rows.length-1;for(let i=0;i<rows[j].length-1;i++){face(front[j][i],front[j][i+1],back[j][i],false,true);face(front[j][i+1],back[j][i+1],back[j][i],false,true);}
+  // Extend behind the movable lip to the globe, including the deep inner canthus.
+  // Upper/lower webs share their corner edges; their reach collapses at full closure.
+  for(let i=0;i<wetline.length-1;i++){face(back[j][i],back[j][i+1],wetline[i],false,true);face(back[j][i+1],wetline[i+1],wetline[i],false,true);}
   const frames=[];
   for(let f=0;f<=8;f++){
    const positions=meta.map(m=>point(m,f/8)),normals=positions.map(()=>[0,0,0]);
@@ -54,7 +62,7 @@ export function buildStoneCLids(spec,head,headBone,makeMaterial){
    for(let i=0;i<meta.length;i++){if(meta[i].v===0){const n=roots.get(key(positions[i]));if(n)normals[i]=n.map(v=>v*(meta[i].back?-1:1));}if(Math.hypot(...normals[i])<1e-14)normals[i]=(roots.get(key(positions[i]))||[0,0,1]).map(v=>v*(meta[i].back?-1:1));const len=Math.hypot(...normals[i])||1;normals[i]=normals[i].map(v=>v/len*32767);}
    frames.push({positions:positions.flatMap(p=>p.map(v=>v*1e5)),normals:normals.flat()});
   }
-  const count=meta.length,mesh={name:'StoneCEyelid'+label,stoneCEye:true,stoneCLid:{side:spec.side,upper,rootVertexIds:meta.map((m,i)=>m.v===0?i:-1).filter(i=>i>=0),marginVertexIds:front[j],marginU:rows[j]},positions:frames[0].positions,normals:frames[0].normals,blinkFrames:frames,uv:Array(count*2).fill(0),skinIndices:[],skinWeights:[],faceRegions:Array(count).fill('Face:skin'),expressions:{},groups:[{material,indices}]};
+  const count=meta.length,mesh={name:'StoneCEyelid'+label,stoneCEye:true,stoneCLid:{side:spec.side,upper,rootVertexIds:meta.map((m,i)=>m.v===0?i:-1).filter(i=>i>=0),marginVertexIds:front[j],wetlineVertexIds:wetline,backMarginVertexIds:back[j],marginU:rows[j]},positions:frames[0].positions,normals:frames[0].normals,blinkFrames:frames,uv:Array(count*2).fill(0),skinIndices:[],skinWeights:[],faceRegions:Array(count).fill('Face:skin'),expressions:{},groups:[{material,indices}]};
   for(let i=0;i<count;i++){mesh.skinIndices.push(headBone,0,0,0);mesh.skinWeights.push(1,0,0,0);}result.push(mesh);
  }
  return result;

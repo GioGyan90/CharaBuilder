@@ -13,6 +13,18 @@ for(const edit of [{},{eyeWidth:100,eyeHeight:100,eyeSpace:0,eyeDepth:100},{eyeW
  const model=createHuman({...state,...edit}),lids=model.userData.stoneCBlink.meshes;assert.equal(lids.length,4);
  const headMesh=model.children.find(m=>m.name==='StoneCHead_SKIN');assert.equal(headMesh.geometry.attributes.cEyePaintCleanup.count,headMesh.geometry.attributes.position.count);
  const shader={uniforms:{},vertexShader:THREE.ShaderLib.toon.vertexShader,fragmentShader:THREE.ShaderLib.toon.fragmentShader};headMesh.material.onBeforeCompile(shader);assert.ok(shader.vertexShader.includes('vCEyePaintCleanup=cEyePaintCleanup'));assert.ok(shader.fragmentShader.includes('mix(diffuseColor.rgb,cOriginalSkin'));assert.ok(shader.uniforms.cOriginalSkin.value.toArray().every(Number.isFinite));
+ const rest=headMesh.geometry.attributes.cEyeRestPosition,paint=headMesh.geometry.attributes.cEyePaintCleanup;
+ assert.equal(rest.count,paint.count);let browSamples=0,lowerCleanup=0;
+ for(let i=0;i<rest.count;i++){const x=Math.abs(rest.getX(i)),y=rest.getY(i);if(x>.018&&x<.052&&y>=1.536&&y<1.555){assert.equal(paint.getX(i),0,'cleanup damages eyebrow');browSamples++;}if(paint.getX(i)>0)lowerCleanup++;}
+ assert.ok(browSamples>20&&lowerCleanup>0,'must check brows while retaining lower-rim cleanup');
+ assert.ok(shader.vertexShader.includes('vCEyeRestPosition=cEyeRestPosition'));
+ assert.ok(shader.fragmentShader.includes('vCEyePaintCleanup*cProtectBrow'),'fragment interpolation must also protect brow');
+ // Every open back margin segment is bridged to its corresponding inner lining.
+ for(const lid of lids){const m=lid.userData.stoneCLid,idx=Array.from(lid.geometry.index.array),p=lid.geometry.attributes.position;
+  assert.equal(m.wetlineVertexIds.length,m.backMarginVertexIds.length);
+  for(let i=0;i<m.wetlineVertexIds.length-1;i++){const a=m.backMarginVertexIds[i],b=m.backMarginVertexIds[i+1],c=m.wetlineVertexIds[i],d=m.wetlineVertexIds[i+1];for(const edge of [[a,c],[b,d],[a,b],[c,d]])assert.ok(idx.some((v,k)=>k%3===0&&edge.every(id=>idx.slice(k,k+3).includes(id))),'unbridged inner lining edge');}
+  for(const i of [0,m.wetlineVertexIds.length-1]){const a=new THREE.Vector3().fromBufferAttribute(p,m.backMarginVertexIds[i]),b=new THREE.Vector3().fromBufferAttribute(p,m.wetlineVertexIds[i]);assert.ok(a.distanceTo(b)>1e-4,'eye corner must have posterior lining');}
+ }
  const roots=lids.map(m=>m.userData.stoneCLid.rootVertexIds.map(i=>Array.from(m.geometry.attributes.position.array.slice(i*3,i*3+3)))),balls=model.children.filter(m=>m.name==='StoneCEyeWhite'),ballPositions=balls.map(m=>m.geometry.attributes.position.array.slice()),whiteTris=balls.flatMap(tris);let minClearance=Infinity;
  for(const amount of [0,.0625,.125,.25,.375,.5,.625,.75,.875,.9375,1]){
   updateStoneCBlink(model,0,amount);
