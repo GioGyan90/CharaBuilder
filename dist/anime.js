@@ -1,4 +1,5 @@
-import {composeStoneC,installStoneCMaterial,updateStoneCMaterial} from './stone-c.js?v=102';
+import {composeStoneC,installStoneCMaterial,updateStoneCMaterial} from './stone-c.js?v=103';
+import {prepareStoneCEyes} from './stone-c-eyes.js?v=103';
 import {installAdultScalp,adultScalpAttributes,updateAdultScalp} from './adult-scalp.js?v=92';
 import {installAdultIrisMaterial} from './adult-eye-material.js?v=92';
 import {composeStoneReference,graftHead,reserveImportedEyes,addImportedFeatures,prepareAdultHead,adultHeadNormals,installAdultHeadNormals} from './stone-avatar.js?v=101';
@@ -34,8 +35,9 @@ async function loadAsset(id, textures = true) {
     }));
     const bytes = Uint8Array.from(atob(parts.join('')), c => c.charCodeAt(0));
     if (bytes.length !== manifest.bytes) throw Error('模型数据不完整');
-    const data = JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
+    let data = JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
     if(id==='stone-c')data.hairTriangles=(await json(new URL('stone-c-hair.json?v=102',root))).hairTriangles;
+    if(id==='stone-c')data=prepareStoneCEyes(data,await json(new URL('stone-c-eyes-v103.json',root)));
     if(id==='stone-head')data.materials=data.materials.map(m=>m.name.includes('FaceBrow')?{...m,texture:'stone-brow.png'}:m);
     const used = new Set(data.meshes.flatMap(m=>m.groups.map(g=>g.material)));
     if(id==='female'||id==='male'){const response=await fetch(new URL(`${id}-rig.b64`,root));if(!response.ok)throw Error('骨骼资源加载失败');const bytes=Uint8Array.from(atob(await response.text()),c=>c.charCodeAt(0));data.rig=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());}
@@ -304,7 +306,7 @@ if(iris && material.map){
     if(data.baseFamily==='adultMale'&&name==='Imported00003_Face_SKIN')installAdultScalp(material,THREE,data.landmarks.faceRig,state);
     if(data.baseFamily==='stoneC'&&name==='StoneCHead_SKIN'&&state.faceStructureView==='regions'){material.vertexColors=true;material.map=null;}
     if(data.baseFamily==='stoneC'&&name==='StoneCHead_SKIN'&&['regions','wire'].includes(state.faceStructureView)){material.map=null;material.color.set(state.faceStructureView==='wire'?'#b9c0ca':'#ffffff');material.userData.colorRole=null;material.flatShading=false;}
-    else if(data.baseFamily==='stoneC'&&skin){if(name==='StoneCNeck_SKIN')material.vertexColors=!clay;installStoneCMaterial(material,THREE,state,name==='StoneReferenceBody_SKIN'?'body':name==='StoneCHead_SKIN'?'head':'neck');}
+    else if(data.baseFamily==='stoneC'&&skin){if(name==='StoneCNeck_SKIN')material.vertexColors=!clay;installStoneCMaterial(material,THREE,state,name==='StoneReferenceBody_SKIN'||name==='StoneCEyeSocket_SKIN'?'body':name==='StoneCHead_SKIN'?'head':'neck');}
     return material;
   });
   // Fade paint into the untextured scalp at the actual shared rest-space boundary.
@@ -496,7 +498,7 @@ if(iris && material.map){
   group.position.y=-(floorY+.001)*scale;
   group.userData.height=new THREE.Box3().setFromObject(group).max.y;
   group.userData.faceY=deform(0,eyeY,data.landmarks.head[2],'Face')[1]+group.position.y;
-  if(data.baseFamily==='stoneC'){group.userData.stoneCRevision=101;group.userData.selectedTopology='C';group.userData.facePresetName='Stone · C 成男基础';}
+  if(data.baseFamily==='stoneC'){group.userData.stoneCRevision=103;group.userData.selectedTopology='C';group.userData.facePresetName='Stone · C 成男基础';}
   group.userData.model=data.baseFamily==='stoneC'?'stone-c-adult':data.baseFamily==='adultMale'?'stone-adult-independent':'vroid-beta-parametric';
   group.userData.baseFamily=data.baseFamily||state.characterType||state.gender;
   group.userData.headReference=data.headReference;

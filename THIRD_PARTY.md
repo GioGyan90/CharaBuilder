@@ -130,3 +130,7 @@ Stone brow coverage derives from the original CC0 VRoid beta male brow alpha; st
 ### C hair material partition · v102
 
 `stone-c-hair.json` assigns existing triangles from the project C head to a separate untextured hair material. It adds no third-party geometry or textures. The original C asset, source atlas and their existing attribution remain unchanged; only the face material continues to use that atlas. Reconstruction: `scripts/split-stone-c-hair.py` (numpy / Pillow).
+
+### C independent ocular geometry · v103
+
+Project-generated standard spheres, spherical iris/pupil caps and static socket cuffs; no new external eye model or texture. The eye cut patch interpolates the existing C asset's geometry, normals, UVs and bone weights. Original C attribution still applies. Rebuild script uses numpy and Shapely as development tools; neither is shipped in the browser runtime. This stage does not include articulated lids or blink animation.

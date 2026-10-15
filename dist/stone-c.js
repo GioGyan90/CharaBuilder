@@ -1,5 +1,6 @@
 import {deformNormal} from './parameters.js?v=101';
 import {hunyuanSkinGLSL} from './hunyuan-skin.js?v=97';
+import {composeStoneCEyes} from './stone-c-eyes.js?v=103';
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 const normalCache=new WeakMap();
 const hairPartitions=new WeakMap();
@@ -8,15 +9,16 @@ const hairPartitions=new WeakMap();
 function splitStoneCHair(mesh,triangles,material){
  let groups=hairPartitions.get(mesh);
  if(!groups){
-  const selected=new Set(triangles),skin=[],hair=[];
+  const selected=new Set(triangles),hairVertices=mesh.stoneCHairIndices?new Set(mesh.stoneCHairIndices):null,skin=[],hair=[];
   const original=mesh.groups[0];
-  for(let i=0;i<original.indices.length;i+=3)(selected.has(i/3)?hair:skin).push(...original.indices.slice(i,i+3));
+  for(let i=0;i<original.indices.length;i+=3)((hairVertices?hairVertices.has(original.indices[i]):selected.has(i/3))?hair:skin).push(...original.indices.slice(i,i+3));
   groups=[{...original,indices:skin},{material,indices:hair}];hairPartitions.set(mesh,groups);
  }
  return {...mesh,groups};
 }
 /** C is a separate adult asset. Never run the old adolescent/adult-head rebuild. */
 export function composeStoneC(asset,state){
+ asset=composeStoneCEyes(asset,state);
  const r=asset.landmarks.faceRig,w=((state.craniumWidth??50)-50)/50,d=((state.craniumDepth??50)-50)/50;
  const value=k=>Math.max(-1,Math.min(1,((state[k]??50)-50)/50));
  const bell=(x,c,r)=>Math.exp(-(((x-c)/r)**2));
@@ -33,9 +35,9 @@ export function composeStoneC(asset,state){
   return [X,Y,Z];
  };
  const meshes=asset.meshes.map(m=>{
-  if(m.name!=='Face')return m;
+  if(m.name!=='Face'&&!m.stoneCEye)return m;
   if(!w&&!d&&['upperLipThickness','lowerLipThickness','upperLipProjection','lowerLipProjection','browWidth','browThickness','facePlaneSoftness'].every(k=>(state[k]??50)===50))return m;
-  const positions=[],normals=[],soft=((state.facePlaneSoftness??50)-50)/50;
+  const positions=[],normals=[],soft=m.name==='Face'?((state.facePlaneSoftness??50)-50)/50:0;
   let averaged=normalCache.get(m);
   if(!averaged){const sums=new Map(),keys=[];for(let i=0;i<m.positions.length;i+=3){const k=m.positions.slice(i,i+3).map(v=>Math.round(v)).join(',');keys.push(k);if(!sums.has(k))sums.set(k,[0,0,0]);const n=sums.get(k);for(let j=0;j<3;j++)n[j]+=m.normals[i+j];}averaged=keys.map(k=>{const n=sums.get(k),l=Math.hypot(...n)||1;return n.map(v=>v/l);});normalCache.set(m,averaged);}
   for(let i=0;i<m.positions.length;i+=3){const p=m.positions.slice(i,i+3).map(v=>v/1e5),q=field(...p),n=m.normals.slice(i,i+3).map(v=>v/32767);positions.push(...q.map(v=>v*1e5));const mask=smooth(r.chin+.015,r.chin+.04,p[1])*(1-smooth(r.eyeY+.07,r.eyeY+.12,p[1]));if(soft>0)for(let j=0;j<3;j++)n[j]+=(averaged[i/3][j]-n[j])*soft*mask;
