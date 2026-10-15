@@ -1,11 +1,11 @@
 import {cameraAngles,cameraYaw,anglePosition,selectedAngle,screenDragSide,moveCameraTarget} from './view.js?v=86';
 import {faceHandleIds,faceEditorGroups,importedFaceEditorGroups,importedStructureLegend,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=90';
 import {openHslPicker} from './colors.js?v=16';
-import {updateCharacterMotion,motionPresets} from './motion.js?v=106';
+import {updateCharacterMotion,motionPresets} from './motion.js?v=107';
 import {parameterDefaults,parameterRanges} from './parameters.js?v=101';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=106';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=107';
 
 import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=93';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
@@ -27,7 +27,7 @@ const facePresets=[
   {label:'清爽青年',values:{faceSource:'vroid',faceWidth:42,jawWidth:38,eyeSize:73,eyeSpace:50,nose:27,mouth:36}},
   {label:'原版日漫',values:{faceSource:'vroid',faceWidth:50,jawWidth:50,eyeSize:50,eyeSpace:50,nose:50,mouth:50,forehead:50,chinLength:50,noseProjection:50,mouthHeight:50}}
 ];
-const labels={characterType:'基础模型',faceStructureView:'结构检查',frontHair:'前发',backHair:'后发',sideHair:'侧发',braid:'发辫 / 马尾',expression:'表情',gender:'性别',bodySource:'身材预设',stoneView:'预览材质',hair:'发型',clothes:'服饰',shoes:'鞋履',skin:'肤色',eyeColor:'瞳孔颜色',sideHairColor:'鬓角 / 耳后短发色',hairColor:'顶部 / 主发色',shirt:'上装颜色',pants:'下装颜色',shoeColor:'鞋履颜色'};
+const labels={characterType:'基础模型',faceStructureView:'结构检查',frontHair:'前发',backHair:'后发',sideHair:'侧发',braid:'发辫 / 马尾',expression:'表情',gender:'性别',bodySource:'身材预设',stoneView:'预览材质',hair:'发型',clothes:'服饰',shoes:'鞋履',skin:'肤色',eyeColor:'瞳孔颜色',sideHairColor:'两侧 / 后脑短发色',hairColor:'顶部 / 主发色',shirt:'上装颜色',pants:'下装颜色',shoeColor:'鞋履颜色'};
 let cameraAnchorY=null;
 let state={...defaults}, activeTab='body', currentView='full', model, renderer, scene, camera, orbit;
 const stage=$('#stage');
@@ -136,7 +136,7 @@ function renderField(key){
 }
 function renderControls(){
  const [num,title,desc,fields]=tabs[activeTab];$('#section-number').textContent=num;$('#section-title').textContent=title;$('#section-desc').textContent=desc;$('#controls').replaceChildren();$('#controls').classList.toggle('face-control-panel',['face','body'].includes(activeTab));
- if(activeTab==='hair'&&state.faceSource==='stoneC'){$('#controls').append(element('p','reference-note','原生发型分为顶部主发与两侧鬓角，两组均为无贴图纯色材质，可分别改色。'),renderField('hairColor'),renderField('sideHairColor'));return;}
+ if(activeTab==='hair'&&state.faceSource==='stoneC'){$('#controls').append(element('p','reference-note','原生发型分为顶部主发与两侧至后脑的短发，两组均为无贴图纯色材质，可分别改色。'),renderField('hairColor'),renderField('sideHairColor'));return;}
  if(activeTab==='hair'){
   const wrap=element('div','field'),box=element('div','options');wrap.append(element('div','field-title','经典发型组合'));for(const preset of classicHairPresets.filter(p=>(!p.gender||p.gender===state.gender)&&!Object.values(p.values).some(v=>['stoneOriginal','imported00003'].includes(v)))){const b=element('button','option',preset.label);b.classList.toggle('selected',Object.entries(preset.values).every(([k,v])=>state[k]===v));b.onclick=()=>{remember();Object.assign(state,preset.values,{frontLength:50,backLength:50,sideLength:50,braidLength:50,hairVolume:50,hairlineHeight:50});update();renderControls();setView('face');};box.append(b);}wrap.append(box);const note=element('p','reference-note','基于现成模型与导入发型分区。 ');for(const preset of classicHairPresets.filter(p=>p.reference&&p.gender===state.gender&&!Object.values(p.values).some(v=>['stoneOriginal','imported00003'].includes(v)))){const a=element('a',null,preset.label+'来源 ');a.href=preset.reference;a.target='_blank';a.rel='noopener';note.append(a);}const allRefs=element('a',null,'全部模型来源');allRefs.href='https://github.com/GioGyan90/CharaBuilder/blob/main/HAIR_REFERENCES.md';allRefs.target='_blank';allRefs.rel='noopener';note.append(allRefs);wrap.append(note);$('#controls').append(wrap);
  }

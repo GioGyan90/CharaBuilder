@@ -146,3 +146,7 @@ Project-authored inner lining joins each existing lid back margin to the standar
 ### C dual hair colors and upper-eye cleanup · v106
 
 Material-region clipping subdivides the existing project C hair surface at the temple/main-hair boundary. New vertices interpolate existing positions, normals, UVs and skin influences; both regions use untextured project materials. Upper eye-paint cleanup uses original surface depth and pixel darkness to preserve the eyebrow atlas. No new external model, texture or animation is included. Original C source files and attribution remain unchanged.
+
+### C continuous rear undercut partition · v107
+
+Extends the existing short-hair material region behind both ears and across the lower rear hair. Only project material ownership and subdivision change; the original source mesh/atlas and existing attribution remain intact. No new third-party assets.

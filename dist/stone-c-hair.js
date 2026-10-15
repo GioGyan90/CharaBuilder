@@ -7,7 +7,6 @@ export function prepareStoneCHair(mesh){
   const ids=original.indices.slice(t,t+3);
   if(!selectedVertices.has(ids[0])){skin.push(...ids);continue;}
   const p=ids.map(id=>mesh.positions.slice(id*3,id*3+3).map(v=>v/1e5)),sign=p.reduce((s,v)=>s+v[0],0)<0?-1:1;
-  const planes=[v=>sign*v[0]-.060,v=>sign*v[0]+.22*v[2]-.0677,v=>v[2]+.070,v=>1.593+.08*v[2]-v[1]];
   const point=w=>[0,1,2].map(k=>w.reduce((s,v,j)=>s+v*p[j][k],0)),cache=new Map();
   function vertex(w){
    const corner=w.findIndex(v=>v>1-1e-12);if(corner>=0)return ids[corner];
@@ -20,14 +19,17 @@ export function prepareStoneCHair(mesh){
    for(let k=0;k<4;k++){mesh.skinIndices.push(influences[k]?.[0]||0);mesh.skinWeights.push((influences[k]?.[1]||0)/total);}mesh.faceRegions.push(mesh.faceRegions[ids[0]]);
    cache.set(key,index);return index;
   }
-  function emit(poly,dst){for(let j=1;j<poly.length-1;j++){const a=point(poly[0]),b=point(poly[j]),c=point(poly[j+1]),ab=b.map((v,k)=>v-a[k]),ac=c.map((v,k)=>v-a[k]);if(Math.hypot(ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0])>1e-13)dst.push(vertex(poly[0]),vertex(poly[j]),vertex(poly[j+1]));}}
-  let poly=[[1,0,0],[0,1,0],[0,0,1]];
-  for(const plane of planes){
+  function emit(poly,dst){for(let j=1;j<poly.length-1;j++){const a=point(poly[0]),b=point(poly[j]),c=point(poly[j+1]),ab=b.map((v,k)=>v-a[k]),ac=c.map((v,k)=>v-a[k]);if(Math.hypot(ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0])>1e-20)dst.push(vertex(poly[0]),vertex(poly[j]),vertex(poly[j+1]));}}
+  function split(poly,plane){
    const inside=[],outside=[];
    for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],da=plane(point(a)),db=plane(point(b)),A=da>=-1e-12,B=db>=-1e-12;(A?inside:outside).push(a);if(A!==B){const q=a.map((v,k)=>v+(b[k]-v)*da/(da-db));inside.push(q);outside.push(q);}}
-   emit(outside,main);poly=inside;if(poly.length<3)break;
+   return [inside,outside];
   }
-  emit(poly,side);
+  // One continuous lower band wraps behind both ears and across the nape.
+  // Only the central forward fringe is excluded; no rear X/Z crop may truncate it.
+  const [lower,crown]=split([[1,0,0],[0,1,0],[0,0,1]],v=>1.593+.08*v[2]-v[1]);emit(crown,main);
+  const [rear,forward]=split(lower,v=>.035-v[2]);emit(rear,side);
+  const [temple,fringe]=split(forward,v=>sign*v[0]-.060);emit(temple,side);emit(fringe,main);
  }
  mesh.groups=[{...original,indices:[...skin,...main,...side]}];
  mesh.stoneCSkinIndices=skin;mesh.stoneCHairMainIndices=main;mesh.stoneCSideHairIndices=side;mesh.stoneCHairIndices=[...main,...side];

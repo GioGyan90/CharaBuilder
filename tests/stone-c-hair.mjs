@@ -23,7 +23,16 @@ for(const edits of [{},{craniumWidth:100,craniumDepth:0,headSize:75}]){
  // Neutral clipping preserves the source surface; nonlinear edits are sampled at new seam points.
  if(!Object.keys(edits).length)assert.ok(Math.abs(area(a)+area(c)-area(sourceHair))<1e-6,'material cut changed hair surface area');
  assert.equal(new Set([...a,...c].filter(i=>i<source.meshes.find(m=>m.name==='Face').positions.length/3)).size,new Set(sourceHair).size,'all original hair corners retained');
- for(const i of c){const pos=head.geometry.attributes.position;assert.ok(Math.abs(pos.getX(i))>0.01,'temple material leaked into central fringe');}
+ const rest=head.geometry.attributes.cEyeRestPosition,rearBands=[0,0,0];
+ const center=ids=>ids.reduce((sum,id)=>sum.map((v,k)=>v+rest.array[id*3+k]/3),[0,0,0]);
+ for(let i=0;i<a.length;i+=3){const [x,y,z]=center(a.slice(i,i+3));assert.ok(!(z<.030&&y<1.593+.08*z-1e-5),'lower rear hair left in main color group');}
+ for(let i=0;i<c.length;i+=3){const [x,y,z]=center(c.slice(i,i+3));assert.ok(!(z>.040&&Math.abs(x)<.0599),'short-hair material leaked into central fringe');if(z<-.070)rearBands[x<-.035?0:x>.035?2:1]++;}
+ assert.ok(rearBands.every(n=>n>30),'rear band must cover left, center and right behind ears');
+ // Material seams must connect from the left side through the rear to the right.
+ const vertices=new Map(),key=id=>[0,1,2].map(k=>Math.round(rest.array[id*3+k]*1e6)).join(',');
+ for(let i=0;i<c.length;i+=3){const keys=c.slice(i,i+3).map(key);for(const k of keys){if(!vertices.has(k))vertices.set(k,new Set());for(const other of keys)vertices.get(k).add(other);}}
+ const seen=new Set(),queue=[vertices.keys().next().value];while(queue.length){const k=queue.pop();if(seen.has(k))continue;seen.add(k);for(const next of vertices.get(k))if(!seen.has(next))queue.push(next);}
+ assert.equal(seen.size,vertices.size,'side/back short hair split into disconnected patches');
  for(const attr of ['position','normal','uv','skinIndex','skinWeight'])for(const region of [hair,side])assert.deepEqual(region.geometry.attributes[attr].array,head.geometry.attributes[attr].array,'shared '+attr);
  const headColor=head.material.color.getHexString(),positions=hair.geometry.attributes.position.array.slice();
  for(const mode of ['rest','walk','talk','inspect']){
