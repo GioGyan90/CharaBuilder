@@ -10,9 +10,9 @@ await loadHumanAssets({textures:false});await ensureHumanPresets(state,{textures
 const eyePatch=JSON.parse(await fs.readFile(new URL('../dist/assets/anime/stone-c-eyes-v103.json',import.meta.url),'utf8'));
 const baseline=JSON.parse(await fs.readFile(new URL('fixtures/stone-c-reference.json',import.meta.url),'utf8'));
 const model=createHuman(state);play(model,0,'rest');
-let deviation=0;for(const m of model.children.filter(x=>x.isMesh&&x.name!=='StoneC_HAIR'&&!x.name.startsWith('StoneCEye'))){
+let deviation=0;for(const m of model.children.filter(x=>x.isMesh&&!['StoneC_HAIR','StoneCSide_HAIR'].includes(x.name)&&!x.name.startsWith('StoneCEye'))){
  const previous=baseline.parts.find(p=>p.name===({StoneCHead_SKIN:'HunyuanHead',StoneCNeck_SKIN:'HunyuanNeckBridge'}[m.name]||m.name));if(!previous)throw Error('Missing baseline '+m.name);
- assert.equal(m.geometry.index.count+(m.name==='StoneCHead_SKIN'?model.children.find(x=>x.name==='StoneC_HAIR').geometry.index.count:0),previous.indexCount+(m.name==='StoneCHead_SKIN'?eyePatch.replacementIndices.length-eyePatch.removedTriangles.length*3:0));
+ assert.equal(m.geometry.index.count+(m.name==='StoneCHead_SKIN'?model.children.filter(x=>['StoneC_HAIR','StoneCSide_HAIR'].includes(x.name)).reduce((sum,x)=>sum+x.geometry.index.count,0):0),previous.indexCount+(m.name==='StoneCHead_SKIN'?eyePatch.replacementIndices.length-eyePatch.removedTriangles.length*3+model.children.filter(x=>['StoneC_HAIR','StoneCSide_HAIR'].includes(x.name)).reduce((sum,x)=>sum+x.geometry.index.count,0)-14033*3:0));
  const p=m.geometry.attributes.position,v=new THREE.Vector3();for(const [i,x,y,z] of previous.samples){v.fromBufferAttribute(p,i);m.applyBoneTransform(i,v);v.applyMatrix4(m.matrixWorld);deviation=Math.max(deviation,v.distanceTo(new THREE.Vector3(x,y,z)));}
 }
 console.log('baseline deviation',deviation);assert.ok(deviation<1e-6);

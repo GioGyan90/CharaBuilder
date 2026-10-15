@@ -19,6 +19,7 @@ for(const edit of [{},{eyeWidth:100,eyeHeight:100,eyeSpace:0,eyeDepth:100},{eyeW
  assert.ok(browSamples>20&&lowerCleanup>0,'must check brows while retaining lower-rim cleanup');
  assert.ok(shader.vertexShader.includes('vCEyeRestPosition=cEyeRestPosition'));
  assert.ok(shader.fragmentShader.includes('vCEyePaintCleanup*cProtectBrow'),'fragment interpolation must also protect brow');
+ assert.ok(shader.fragmentShader.includes('vCEyeRestPosition.z')&&shader.fragmentShader.includes('max(vCEyePaintCleanup*cProtectBrow,cUpperEyePaint)'),'upper liner cleanup must use source depth to protect brow');
  // Every open back margin segment is bridged to its corresponding inner lining.
  for(const lid of lids){const m=lid.userData.stoneCLid,idx=Array.from(lid.geometry.index.array),p=lid.geometry.attributes.position;
   assert.equal(m.wetlineVertexIds.length,m.backMarginVertexIds.length);
@@ -44,7 +45,7 @@ for(const edit of [{},{eyeWidth:100,eyeHeight:100,eyeSpace:0,eyeDepth:100},{eyeW
   const U=lids.find(m=>m.userData.stoneCLid.side===side&&m.userData.stoneCLid.upper),L=lids.find(m=>m.userData.stoneCLid.side===side&&!m.userData.stoneCLid.upper),ids=U.userData.stoneCLid.marginVertexIds,jds=L.userData.stoneCLid.marginVertexIds;
   assert.equal(ids.length,jds.length);for(let i=0;i<ids.length;i++){const a=new THREE.Vector3().fromBufferAttribute(U.geometry.attributes.position,ids[i]),b=new THREE.Vector3().fromBufferAttribute(L.geometry.attributes.position,jds[i]);assert.ok(a.distanceTo(b)<5e-7,'closed margins split');}
  }
- const head=model.children.filter(m=>['StoneCHead_SKIN','StoneC_HAIR'].includes(m.name)).flatMap(tris),cover=lids.flatMap(tris);let checked=0;
+ const head=model.children.filter(m=>['StoneCHead_SKIN','StoneC_HAIR','StoneCSide_HAIR'].includes(m.name)).flatMap(tris),cover=lids.flatMap(tris);let checked=0;
  for(const eye of balls){const t=tris(eye);for(let i=0;i<t.length;i+=7){const p=[0,1,2].map(k=>t[i].reduce((s,p)=>s+p[k],0)/3),front=frontZ(whiteTris,p[0],p[1]);if(front>frontZ(head,p[0],p[1])+1e-5){assert.ok(frontZ(cover,p[0],p[1])>front+1e-5,'closed lids leak sclera');checked++;}}}
  assert.ok(checked>5,'no aperture samples');
  if(!Object.keys(edit).length)for(const [yaw,pitch] of [[45,0],[-45,0],[80,0],[35,25]]){

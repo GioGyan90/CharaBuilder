@@ -1,18 +1,16 @@
 import {deformNormal} from './parameters.js?v=101';
 import {hunyuanSkinGLSL} from './hunyuan-skin.js?v=97';
-import {composeStoneCEyes} from './stone-c-eyes.js?v=105';
+import {composeStoneCEyes} from './stone-c-eyes.js?v=106';
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 const normalCache=new WeakMap();
 const hairPartitions=new WeakMap();
 // Partition original triangles, retaining every position, normal, UV and skin weight.
 // Both parts stay in Face deformation space so shared boundary vertices cannot drift.
-function splitStoneCHair(mesh,triangles,material){
+function splitStoneCHair(mesh,material){
  let groups=hairPartitions.get(mesh);
  if(!groups){
-  const selected=new Set(triangles),hairVertices=mesh.stoneCHairIndices?new Set(mesh.stoneCHairIndices):null,skin=[],hair=[];
   const original=mesh.groups[0];
-  for(let i=0;i<original.indices.length;i+=3)((hairVertices?hairVertices.has(original.indices[i]):selected.has(i/3))?hair:skin).push(...original.indices.slice(i,i+3));
-  groups=[{...original,indices:skin},{material,indices:hair}];hairPartitions.set(mesh,groups);
+  groups=[{...original,indices:mesh.stoneCSkinIndices},{material,indices:mesh.stoneCHairMainIndices},{material:material+1,indices:mesh.stoneCSideHairIndices}];hairPartitions.set(mesh,groups);
  }
  return {...mesh,groups};
 }
@@ -51,9 +49,9 @@ export function composeStoneC(asset,state){
  });
  const hairMaterial=asset.materials.length;
  return {...asset,
-  materials:[...asset.materials,{name:'StoneC_HAIR',color:[1,1,1,1],double:true,blend:0,texture:null}],
-  maps:[...asset.maps,null],
-  meshes:meshes.map((m,i)=>m.name==='Face'?{...m,groups:splitStoneCHair(asset.meshes[i],asset.hairTriangles,hairMaterial).groups}:m)};
+  materials:[...asset.materials,{name:'StoneC_HAIR',color:[1,1,1,1],double:true,blend:0,texture:null},{name:'StoneCSide_HAIR',color:[1,1,1,1],double:true,blend:0,texture:null}],
+  maps:[...asset.maps,null,null],
+  meshes:meshes.map((m,i)=>m.name==='Face'?{...m,groups:splitStoneCHair(asset.meshes[i],hairMaterial).groups}:m)};
 }
 export function installStoneCMaterial(material,THREE,state,kind){
  material.flatShading=false;material.userData.stoneC=kind;material.userData.colorRole=null;
@@ -74,10 +72,10 @@ float cLowerEyePaintLimit(float x){
  y+=clamp((x-.045)/.0064,0.,1.)*.003;
  return y;
 }\n`+shader.fragmentShader;
-   cleanup='\n#ifdef USE_MAP\nfloat cProtectBrow=1.-smoothstep(cLowerEyePaintLimit(abs(vCEyeRestPosition.x))-.00035,cLowerEyePaintLimit(abs(vCEyeRestPosition.x))+.00005,vCEyeRestPosition.y);\ndiffuseColor.rgb=mix(diffuseColor.rgb,cOriginalSkin,clamp(vCEyePaintCleanup*cProtectBrow,0.,1.));\n#endif\n';
+   cleanup='\n#ifdef USE_MAP\nfloat cUpperEyePaint= smoothstep(.015,.017,abs(vCEyeRestPosition.x))*(1.-smoothstep(.053,.055,abs(vCEyeRestPosition.x)))*smoothstep(1.530,1.532,vCEyeRestPosition.y)*(1.-smoothstep(1.539,1.540,vCEyeRestPosition.y))*(1.-smoothstep(.091-max(0.,abs(vCEyeRestPosition.x)-.036)*.8,.093-max(0.,abs(vCEyeRestPosition.x)-.036)*.8,vCEyeRestPosition.z))*(1.-smoothstep(.035,.12,max(diffuseColor.r,max(diffuseColor.g,diffuseColor.b))));\nfloat cProtectBrow=1.-smoothstep(cLowerEyePaintLimit(abs(vCEyeRestPosition.x))-.00035,cLowerEyePaintLimit(abs(vCEyeRestPosition.x))+.00005,vCEyeRestPosition.y);\ndiffuseColor.rgb=mix(diffuseColor.rgb,cOriginalSkin,clamp(max(vCEyePaintCleanup*cProtectBrow,cUpperEyePaint),0.,1.));\n#endif\n';
   }
   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>'+cleanup+'\ndiffuseColor.rgb=gradeHunyuanSkin(diffuseColor.rgb,cSkinGain);');};
- material.customProgramCacheKey=()=> 'stone-c-v105-'+kind;
+ material.customProgramCacheKey=()=> 'stone-c-v106-'+kind;
  updateStoneCMaterial(material,THREE,state);
 }
 export function updateStoneCMaterial(material,THREE,state){

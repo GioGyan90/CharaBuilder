@@ -142,3 +142,7 @@ Project-generated upper/lower skin flaps use the existing C eye cut boundary and
 ### C brow protection and inner lid lining · v105
 
 Project-authored inner lining joins each existing lid back margin to the standard globe, including both canthi. The head material restricts residual paint cleanup to the lower eye border and protects the original eyebrow atlas per fragment. No external geometry, texture, or animation was introduced; original C assets and attribution remain unchanged.
+
+### C dual hair colors and upper-eye cleanup · v106
+
+Material-region clipping subdivides the existing project C hair surface at the temple/main-hair boundary. New vertices interpolate existing positions, normals, UVs and skin influences; both regions use untextured project materials. Upper eye-paint cleanup uses original surface depth and pixel darkness to preserve the eyebrow atlas. No new external model, texture or animation is included. Original C source files and attribution remain unchanged.

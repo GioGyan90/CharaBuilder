@@ -1,4 +1,5 @@
-import {buildStoneCLids} from './stone-c-lids.js?v=105';
+import {prepareStoneCHair} from './stone-c-hair.js?v=106';
+import {buildStoneCLids} from './stone-c-lids.js?v=106';
 // C ocular upgrade: clip the old painted eye patch, then fit independent globes.
 // The original packed asset is immutable; the patch interpolates all render/rig attributes.
 export function prepareStoneCEyes(asset,patch){
@@ -17,6 +18,7 @@ export function prepareStoneCEyes(asset,patch){
  mesh.stoneCHairIndices=asset.hairTriangles.flatMap(t=>indices.slice(t*3,t*3+3));
  const kept=[];for(let i=0;i<indices.length;i+=3)if(!removed.has(i/3))kept.push(...indices.slice(i,i+3));
  mesh.groups=[{...original.groups[0],indices:[...kept,...patch.replacementIndices]}];
+ prepareStoneCHair(mesh);
  // Remove baked eye-white/liner remnants just outside the cut. This does not hide geometry.
  mesh.eyePaintCleanup=[];mesh.eyeRestPositions=mesh.positions;
  const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
