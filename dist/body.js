@@ -1,9 +1,13 @@
+import {createAdultProfileSculpt} from './adult-profile.js?v=101';
+import {createContinuousTrapezius} from './adult-trapezius.js?v=101';
+import {adultNeckDefaults,adultNeckRanges,createAdultNeckSculpt} from './adult-neck.js?v=101';
+import {adultBackDefaults,adultBackRanges,createAdultBackSculpt} from './adult-back.js?v=101';
 import {sculptStoneBlocks} from './stone-body.js?v=34';
 import {muscleGuide} from './muscle-guide.js?v=32';
 // Regional edits stay on the existing CC0 body topology and its bone landmarks.
-export const bodyDefaults={muscleMass:50,trapezius:50,latWidth:50,deltoid:50,torsoLength:50,shoulderSlope:50,shoulderDepth:50,chestDepth:50,bustSize:50,bustHeight:50,backDepth:50,waistHeight:50,abdomen:50,hipDepth:50,hipHeight:50,armLength:50,upperArm:50,forearm:50,handSize:50,thigh:50,calf:50,ankle:50,footLength:50,footWidth:50,legSpace:50,ribWidth:50,pecVolume:50,scapulaVolume:50,gluteVolume:50,thighDepth:50,calfDepth:50,kneeWidth:50};
-export const bodyRanges={ribWidth:['肋廓宽度','窄','宽'],pecVolume:['胸肌体积','平','厚'],scapulaVolume:['肩胛体积','平','厚'],gluteVolume:['臀肌体积','小','大'],thighDepth:['大腿前后厚度','薄','厚'],calfDepth:['小腿前后厚度','薄','厚'],kneeWidth:['膝盖宽度','窄','宽'],muscleMass:['肌肉量','少','多'],trapezius:['斜方肌体积','平','厚'],latWidth:['背阔肌宽度','窄','宽'],deltoid:['肩部肌肉','小','大'],torsoLength:['躯干长度','短','长'],shoulderSlope:['肩部倾斜','平肩','溜肩'],shoulderDepth:['肩部厚度','薄','厚'],chestDepth:['胸廓厚度','薄','厚'],bustSize:['胸部丰满度','平','丰满'],bustHeight:['胸部位置','低','高'],backDepth:['背部厚度','薄','厚'],waistHeight:['腰线位置','低','高'],abdomen:['腹部丰满度','平','丰满'],hipDepth:['臀部厚度','薄','厚'],hipHeight:['臀部位置','低','高'],armLength:['手臂长度','短','长'],upperArm:['上臂粗细','细','粗'],forearm:['前臂粗细','细','粗'],handSize:['手掌大小','小','大'],thigh:['大腿粗细','细','粗'],calf:['小腿粗细','细','粗'],ankle:['脚踝粗细','细','粗'],footLength:['脚掌长度','短','长'],footWidth:['脚掌宽度','窄','宽'],legSpace:['双腿间距','近','远']};
-export const bodyAdjustmentKeys=['height','weight','shoulders','legs','headSize','neckWidth','chest','waist','hips','legThickness',...Object.keys(bodyDefaults)];
+export const bodyDefaults={...adultNeckDefaults,...adultBackDefaults,muscleMass:50,trapeziusRidge:50,trapezius:50,latWidth:50,deltoid:50,torsoLength:50,shoulderSlope:50,shoulderDepth:50,chestDepth:50,bustSize:50,bustHeight:50,backDepth:50,waistHeight:50,abdomen:50,hipDepth:50,hipHeight:50,armLength:50,upperArm:50,forearm:50,handSize:50,thigh:50,calf:50,ankle:50,footLength:50,footWidth:50,legSpace:50,ribWidth:50,pecVolume:50,scapulaVolume:50,gluteVolume:50,thighDepth:50,calfDepth:50,kneeWidth:50};
+export const bodyRanges={...adultNeckRanges,...adultBackRanges,ribWidth:['肋廓宽度','窄','宽'],pecVolume:['胸肌体积','平','厚'],scapulaVolume:['肩胛体积','平','厚'],gluteVolume:['臀肌体积','小','大'],thighDepth:['大腿前后厚度','薄','厚'],calfDepth:['小腿前后厚度','薄','厚'],kneeWidth:['膝盖宽度','窄','宽'],muscleMass:['肌肉量','少','多'],trapeziusRidge:['斜方肌上束棱脊','柔和','隆起'],trapezius:['斜方肌体积','平','厚'],latWidth:['背阔肌宽度','窄','宽'],deltoid:['肩部肌肉','小','大'],torsoLength:['躯干长度','短','长'],shoulderSlope:['肩部倾斜','平肩','溜肩'],shoulderDepth:['肩部厚度','薄','厚'],chestDepth:['胸廓厚度','薄','厚'],bustSize:['胸部丰满度','平','丰满'],bustHeight:['胸部位置','低','高'],backDepth:['背部厚度','薄','厚'],waistHeight:['腰线位置','低','高'],abdomen:['腹部丰满度','平','丰满'],hipDepth:['臀部厚度','薄','厚'],hipHeight:['臀部位置','低','高'],armLength:['手臂长度','短','长'],upperArm:['上臂粗细','细','粗'],forearm:['前臂粗细','细','粗'],handSize:['手掌大小','小','大'],thigh:['大腿粗细','细','粗'],calf:['小腿粗细','细','粗'],ankle:['脚踝粗细','细','粗'],footLength:['脚掌长度','短','长'],footWidth:['脚掌宽度','窄','宽'],legSpace:['双腿间距','近','远']};
+export const bodyAdjustmentKeys=['neckForward','neckTendon','height','weight','shoulders','legs','headSize','neckWidth','chest','waist','hips','legThickness',...Object.keys(bodyDefaults)];
 const smooth=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
 const bell=(v,c,r)=>Math.exp(-(((v-c)/r)**2));
 const norm=v=>Math.max(-3,Math.min(3,((Number.isFinite(v)?v:50)-50)/50));
@@ -21,7 +25,9 @@ export function bodyAnchors(base){
 export function createBodyDeformer(state,l){
  const hip=l.hips[1],neck=l.neck[1],a=l.bodyRig||bodyAnchors({landmarks:l});
  const value=Object.fromEntries(Object.keys(bodyDefaults).map(k=>[k,norm(state[k])]));
- if(Object.values(value).every(v=>v===0))return (x,y,z)=>[x,y,z];
+ const sculptBack=createAdultBackSculpt(state,l),sculptNeck=createAdultNeckSculpt(state,l),sculptProfile=createAdultProfileSculpt(state,l),sculptTrapezius=createContinuousTrapezius(state,l);
+ const adultTrapezius=state.characterType==='man'&&state.foundationRevision>=1&&state.bodySource==='stone';
+ if(!adultTrapezius&&Object.values(value).every(v=>v===0))return (x,y,z)=>[x,y,z];
  // Stone keeps the author's muscle profile and adds a broad, stocky silhouette.
  // Strength remains coupled to the existing muscle slider; other presets are unchanged.
  const burly=state.bodySource==='stone'&&state.gender==='male'&&!l.stoneRebuilt?Math.max(0,value.muscleMass):0;
@@ -30,6 +36,7 @@ export function createBodyDeformer(state,l){
  return (x,y,z,source,legSide)=>{
   const [sx,sy,sz]=source,sign=Math.sign(sx)||1,ax=Math.abs(sx);
   const axial=1-smooth(.12,.22,ax),belowHead=1-smooth(neck-.09,neck-.02,sy),front=smooth(-.015,.04,sz),back=1-smooth(-.03,.015,sz);
+  if(adultTrapezius)[x,y,z]=sculptTrapezius(x,y,z,source);
   const shoulder=bell(sy,neck-.075,.065)*smooth(.045,.15,ax)*belowHead;
   y-=value.shoulderSlope*.024*shoulder;z*=1+value.shoulderDepth*.15*shoulder;
   // Local muscle envelopes follow the author's A-pose landmarks. They do not
@@ -41,11 +48,22 @@ export function createBodyDeformer(state,l){
   const t=(sy-hip)/(neck-hip),sculpt=(l.stoneRebuilt?.10*bell(sy,neck-.20,.14):(authoredMuscleRatio(t,Math.atan2(sz-l.hips[2],sx))-1)*.85)*value.muscleMass*axial*belowHead*smooth(.01,.10,t);
   x*=1+sculpt+value.latWidth*.16*lat;
   z=l.hips[2]+(z-l.hips[2])*(1+sculpt);
-  z-=value.latWidth*.014*lat*back+value.trapezius*(.018-.011*stoneBlend)*trap*back;
-  y+=value.trapezius*(.016-.010*stoneBlend)*trap;
+  z-=value.latWidth*.014*lat*back+(adultTrapezius?0:value.trapezius)*(.018-.011*stoneBlend)*trap*back;
+  if(!adultTrapezius)y+=value.trapezius*(.016-.010*stoneBlend)*trap;
   x+=sign*value.deltoid*.010*shoulderMuscle;
   z*=1+value.deltoid*.22*shoulderMuscle;
   if(burly){
+   // Foundation-specific paired pectorals: preserve sternum and collar continuity.
+   if(l.faceRig?.preset.foundation){
+    const pec=bell(ax,.075,.045)*bell(sy,neck-.205,.065)*front*belowHead;
+    const lowerEdge=bell(ax,.075,.049)*bell(sy,neck-.286,.018)*front*belowHead;
+    z+=burly*(.014*pec-.003*lowerEdge);
+    const abdominal=bell(ax,.034,.022)*[.07,.12,.17].reduce((v,h)=>v+bell(sy,hip+h,.020),0)*front*belowHead;
+    z+=burly*.006*abdominal;
+    x+=sign*burly*.012*lat;
+    z+=burly*.009*shoulderMuscle*front;
+    z-=burly*.009*shoulderMuscle*back;
+   }
    // Continuous rib cage / oblique mass, rather than isolated chest balloons.
    const rib=bell(sy,neck-.20,.145)*axial*belowHead;
    const core=bell(sy,hip+.13,.12)*axial*belowHead;
@@ -113,7 +131,7 @@ export function createBodyDeformer(state,l){
   x+=(sx-sign*legX)*value.kneeWidth*.35*kneeBand;
   // Lift the head and shoulder region together when changing torso length.
   y+=value.torsoLength*.045*Math.max(smooth(hip,neck-.10,sy),armBlend);
-  return [x,y,z];
+  return sculptNeck(...sculptBack(...sculptProfile(x,y,z,source),source),source);
  };
 }
 export function bodyHandlePoints(base){

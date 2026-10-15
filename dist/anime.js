@@ -1,17 +1,20 @@
-import {composeStoneReference,graftHead} from './stone-avatar.js?v=56';
+import {composeStoneC,installStoneCMaterial,updateStoneCMaterial} from './stone-c.js?v=101';
+import {installAdultScalp,adultScalpAttributes,updateAdultScalp} from './adult-scalp.js?v=92';
+import {installAdultIrisMaterial} from './adult-eye-material.js?v=92';
+import {composeStoneReference,graftHead,reserveImportedEyes,addImportedFeatures,prepareAdultHead,adultHeadNormals,installAdultHeadNormals} from './stone-avatar.js?v=101';
 import {refineStoneBody,relaxStoneShoulders} from './stone-body.js?v=34';
-import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=32';
-import {bindCharacter} from './rig.js?v=50';
+import {installStoneDetail,installStoneTemples} from './stone-detail.js?v=64';
+import {bindCharacter} from './rig.js?v=101';
 import * as THREE from 'three';
-import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints} from './parameters.js?v=58';
+import {createDeformer,deformNormal,buildAnimeFace,headEnvelope,clearHair,bodyAnchors,bodyHandlePoints,importedFaceRegion} from './parameters.js?v=101';
 import {clothingMesh,shirtButtonPoints,smoothGarmentNormals} from './wardrobe.js?v=25';
-import {referenceHairMeshes,hairAssetIds} from './hair.js?v=56';
+import {referenceHairMeshes,hairAssetIds} from './hair.js?v=93';
 import {createUnderwearData} from './underwear.js?v=50';
 
 // CC0 VRoid beta HairSample model data, baked into a relaxed pose.
 // This is a lightweight static editor, not the VRoid Studio runtime or a VRM exporter.
 const assets = {};
-let stoneBrowMap=null;
+let stoneBrowMap=null,stoneFaceMap=null,stoneFacePending=null;
 const root = new URL('./assets/anime/', import.meta.url);
 async function json(url) {
   const response = await fetch(url);
@@ -23,7 +26,7 @@ async function loadAsset(id, textures = true) {
   if (assets[id]) return assets[id];
   if (pending.has(id)) return pending.get(id);
   const promise = (async () => {
-    const manifest = await json(new URL(`${id}-manifest.json${id.startsWith('stone-')?'?v=50':''}`, root));
+    const manifest = await json(new URL(`${id}-manifest.json${id==='adult-male'?'?v=86':id.startsWith('stone-')?'?v=50':''}`, root));
     const parts = await Promise.all(manifest.parts.map(async path => {
       const response = await fetch(new URL(path+(id.startsWith('stone-')?'?v=50':''), root));
       if (!response.ok) throw Error(`模型分片加载失败: ${path}`);
@@ -66,12 +69,43 @@ export async function loadHumanAssets({textures = true} = {}) {
   await Promise.all(['female','male'].map(id=>loadAsset(id,textures)));
 }
 export async function ensureHumanPresets(state, {textures = true} = {}) {
+  if(textures&&state.faceSource==='foundation'&&state.stoneView==='painted'&&!stoneFaceMap){
+    if(!stoneFacePending)stoneFacePending=new THREE.TextureLoader().loadAsync(new URL('stone-face-painted-v68.png',root).href).then(map=>{map.flipY=false;map.colorSpace=THREE.SRGBColorSpace;map.anisotropy=4;stoneFaceMap=map;return map;}).finally(()=>{stoneFacePending=null;});
+    await stoneFacePending;
+  }
+  if(textures&&state.faceSource==='foundation'&&!stoneBrowMap){stoneBrowMap=await new THREE.TextureLoader().loadAsync(new URL('stone-brow.png',root).href);stoneBrowMap.flipY=false;stoneBrowMap.colorSpace=THREE.SRGBColorSpace;}
+  if(state.faceSource==='stoneC')await loadAsset('stone-c',textures);
+  if(state.faceSource==='imported00003'&&state.gender==='male')await loadAsset(state.characterType==='man'&&state.foundationRevision===1?'adult-male':'imported-00003',textures);
   if(state.faceSource==='stone'&&state.gender==='male')await loadAsset('stone-head',textures);
   if((state.bodySource==='stone'||state.faceSource==='stone')&&state.gender==='male')await loadAsset('stone-ref',textures);
   const ids=hairAssetIds(state);if(state.clothes!=='underwear')ids.push(...(state.gender==='female'?['long','uniform']:['uniform']));
   await Promise.all([...new Set(ids)].map(id=>loadAsset(id,textures)));
 }
 function compose(state) {
+ if(state.faceSource==='stoneC'){
+  const data=composeStoneC(assets['stone-c'],state);
+  if(state.clothes!=='underwear'||state.shoes==='shoes'){
+   const garments=composeStoneReference({...data,rig:assets['stone-ref'].rig},state);
+   data.materials=[...data.materials];data.maps=[...data.maps];data.meshes=data.meshes.filter(m=>state.clothes==='underwear'||m.name!=='UnderwearBottom');
+   for(const mesh of garments.meshes.filter(m=>['Shirt','ShirtCollar','Pants','Shoes'].includes(m.name))){const groups=mesh.groups.map(g=>{const id=data.materials.length;data.materials.push(garments.materials[g.material]);data.maps.push(null);return {...g,material:id};});data.meshes.push({...mesh,groups});}
+  }
+  return data;
+ }
+ if(state.faceSource==='foundation'&&state.gender==='male')return composeAnime(state);
+ if(state.faceSource==='imported00003'&&state.gender==='male'){
+  const independent=state.characterType==='man'&&state.foundationRevision===1;
+  const headBase=assets[independent?'adult-male':'imported-00003'];if(!headBase)throw Error('导入头模尚未载入');
+  const stoneBody=state.bodySource==='stone',bodyBase=stoneBody?assets['stone-ref']:assets.male;
+  const body=stoneBody?composeStoneReference(bodyBase,state):composeAnime({...state,faceSource:'vroid',frontHair:'none',backHair:'none',sideHair:'none',braid:'none'});
+  const donor=addImportedFeatures(reserveImportedEyes(prepareAdultHead({...headBase,meshes:headBase.meshes.filter(m=>m.name==='Face')},state),state),state);
+  const data=graftHead(body,donor,bodyBase,headBase,stoneBody?{neckProfile:true,trapeziusStructure:independent,headLift:.008,headForward:.028}:{});data.headReference=headBase.reference;data.baseFamily=independent?'adultMale':'legacyImported';
+  data.landmarks.faceRig.preset={...data.landmarks.faceRig.preset,name:independent?'成男 · Stone 独立基础':'导入头模 · 00003'};
+  const target={...assets.male,meshes:data.meshes,materials:data.materials,landmarks:data.landmarks};
+  for(const {owner,mesh} of referenceHairMeshes({...assets,male:target},state)){
+   const offset=data.materials.length;data.materials.push(...owner.materials);data.maps.push(...owner.materials.map((_,i)=>owner.maps[i]||null));data.meshes.push({...mesh,groups:mesh.groups.map(g=>({...g,material:g.material+offset}))});
+  }
+  return data;
+ }
  const stoneBody=state.gender==='male'&&(state.bodySource==='stone'||(!state.bodySource&&state.faceSource==='stone'));
  const stoneHead=state.gender==='male'&&state.faceSource==='stone';
  if(!stoneBody&&!stoneHead)return composeAnime(state);
@@ -102,12 +136,13 @@ function composeAnime(state) {
     data.meshes.push({...source,groups:groups.map(g=>({...g,material:g.material+offset}))});
   }
   const face=base.meshes.find(m=>m.name==='Face');
-  const fitted=buildAnimeFace(base,state.gender,state.faceSource==='stone'?'stone':state.faceSource==='authored');
-  if(state.faceSource==='stone'&&state.gender==='male'){fitted.maps=[...base.maps];for(let i=0;i<fitted.materials.length;i++)if(fitted.materials[i].name.includes('FaceBrow')){fitted.materials[i]={...fitted.materials[i],texture:'stone-brow.png'};fitted.maps[i]=stoneBrowMap;}}
+  const fitted=buildAnimeFace(base,state.gender,state.faceSource==='foundation'?'foundation':state.faceSource==='stone'?'stone':state.faceSource==='authored');
+  if(['stone','foundation'].includes(state.faceSource)&&state.gender==='male'){fitted.maps=[...base.maps];for(let i=0;i<fitted.materials.length;i++)if(fitted.materials[i].name.includes('FaceBrow')){fitted.materials[i]={...fitted.materials[i],texture:'stone-brow.png'};fitted.maps[i]=stoneBrowMap;}}
   data.landmarks={...base.landmarks,...fitted.landmarks,bodyRig:bodyAnchors(base)};
   for(const mesh of fitted.meshes)add(fitted,mesh,mesh.groups);
   const stone=false;
-  const body=stone?refineStoneBody(base):base.meshes.find(m=>m.name==='Body');
+  const originalBody=base.meshes.find(m=>m.name==='Body');
+  const body=state.faceSource==='foundation'?{...originalBody,faceRegions:Array.from({length:originalBody.positions.length/3},(_,i)=>originalBody.positions[i*3+1]/1e5>base.landmarks.neck[1]-.12?'Face:skin':'Body')}:stone?refineStoneBody(base):originalBody;
   const bodyOwner=stone?{...base,meshes:base.meshes.map(m=>m.name==='Body'?body:m)}:base;
   const neck=base.landmarks.neck[1],hip=base.landmarks.hips[1],sleeve=.124+Math.max(0,Math.min(100,state.sleeveLength??50))*(state.gender==='female'?.00276:.00316);
   const skinGroups=body.groups.filter(g=>base.materials[g.material].name.includes('_SKIN')||(state.shoes!=='barefoot'&&base.materials[g.material].name.includes('Shoes')));
@@ -160,21 +195,38 @@ export function createHuman(state) {
     const clothes = name.includes('_CLOTH'), iris=name.includes('EyeIris');
     let color = new THREE.Color().fromArray(m.color);
     if (skin) color.set(state.skin).multiplyScalar(1.07);
-    if (hair || brow) color.set(name==='StoneSide_HAIR'?(state.sideHairColor||'#929590'):state.hairColor);
+    if (hair || brow) color.set((name==='StoneSide_HAIR'||name.startsWith('ImportedBlock'))?(state.sideHairColor||'#929590'):state.hairColor);
     if (iris) color.set(state.eyeColor||'#806449');
+    if(data.baseFamily==='adultMale'&&state.stoneView!=='clay'&&name==='ImportedEyeWhite')color.set('#c8c1b3');
     if (clothes) color.set(name.includes('Shoes')?(state.shoeColor||state.pants):name.includes('Bottoms')||name.includes('AccessoryNeck')?state.pants:state.shirt);
+    const painted=state.faceSource==='foundation'&&state.stoneView==='painted'&&name.includes('Face')&&skin;
     const overlay = /Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(name);
-    const clay=(data.stoneRebuilt||data.mixedHead)&&state.stoneView==='clay';if(clay)color.set(skin?'#c6c8ce':clothes?'#747984':'#c6c8ce');
-    const Material=clay?THREE.MeshStandardMaterial:THREE.MeshToonMaterial;
+    const clay=(data.stoneRebuilt||data.mixedHead||state.faceSource==='foundation')&&state.stoneView==='clay';if(clay)color.set(brow?'#45413e':skin?'#c6c8ce':clothes?'#747984':'#c6c8ce');
+    const Material=(clay||(state.faceSource==='foundation'&&skin))?THREE.MeshStandardMaterial:THREE.MeshToonMaterial;
     const material = new Material({
-      color, map:clothes || (skin && name.includes('Body')) ? null : data.maps[i] || null,
+      color, map:painted?stoneFaceMap:(clay&&skin)||clothes || (skin && name.includes('Body')) ? null : data.maps[i] || null,
       side: m.double || hair || overlay ? THREE.DoubleSide : THREE.FrontSide,
       alphaTest: m.blend ? .35 : 0,
       transparent: overlay, depthWrite: !overlay,
     });
+    if(material.isMeshStandardMaterial){material.roughness=.92;material.metalness=0;}
+    if(painted){const base=new THREE.Color('#d6a17e');material.color.r/=base.r;material.color.g/=base.g;material.color.b/=base.b;material.userData.textureBaseColor=base;material.userData.stonePainted=true;
+      material.onBeforeCompile=shader=>{
+        shader.uniforms.stoneTextureBase={value:base};
+        shader.vertexShader='attribute float stonePaintWeight; varying float vStonePaintWeight;\n'+shader.vertexShader;
+        shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvStonePaintWeight=stonePaintWeight;');
+        shader.fragmentShader='uniform vec3 stoneTextureBase; varying float vStonePaintWeight;\n'+shader.fragmentShader;
+        shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>','#ifdef USE_MAP\nvec4 sampledDiffuseColor=texture2D(map,vMapUv);\ndiffuseColor*=vec4(mix(stoneTextureBase,sampledDiffuseColor.rgb,vStonePaintWeight),sampledDiffuseColor.a);\n#endif');
+      };
+      material.customProgramCacheKey=()=> 'stone-painted-face-v68';
+    }
+    if(name==='Imported00003_Face_SKIN'&&['regions','wire'].includes(state.faceStructureView)){material.color.set('#ffffff');material.map=null;material.vertexColors=state.faceStructureView==='regions';if(state.faceStructureView==='wire'){material.color.set('#b9c0ca');material.polygonOffset=true;material.polygonOffsetFactor=1;material.polygonOffsetUnits=1;}}
+    if(name.startsWith('Imported')&&!/Eye|Pupil/.test(name))material.flatShading=true;
+    const tint=name==='ImportedUpperLip_SKIN'?.68:name==='ImportedLowerLip_SKIN'?.86:name==='ImportedBlockLight_HAIR'?1.18:name==='ImportedBlockDark_HAIR'?.67:1;material.color.multiplyScalar(tint);material.userData.tint=tint;
     if(clay){material.roughness=.85;material.metalness=0;material.userData.stoneClay=true;}
     if(data.stoneRebuilt&&clothes){material.polygonOffset=true;material.polygonOffsetFactor=-1;material.polygonOffsetUnits=-1;}
-    material.userData.colorRole=skin?'skin':name==='StoneSide_HAIR'?'sideHairColor':hair||brow?'hairColor':iris?'eyeColor':clothes?(name.includes('Shoes')?'shoeColor':name.includes('Bottoms')||name.includes('AccessoryNeck')?'pants':'shirt'):null;
+    material.userData.colorRole=skin?'skin':(name==='StoneSide_HAIR'||name.startsWith('ImportedBlock'))?'sideHairColor':hair||brow?'hairColor':iris?'eyeColor':clothes?(name.includes('Shoes')?'shoeColor':name.includes('Bottoms')||name.includes('AccessoryNeck')?'pants':'shirt'):null;
+    if(name==='Imported00003_Face_SKIN'&&['regions','wire'].includes(state.faceStructureView))material.userData.colorRole=null;
     if(hair && material.map){
       material.onBeforeCompile=shader=>{
         shader.uniforms.hairMapReference={value:material.map.userData.hairReference||.65};
@@ -203,7 +255,7 @@ if(iris && material.map){
     }
     // The source face map contains a peach skin base. Remove that base in linear
     // space before multiplying by the selected skin color; keep local painted detail.
-    if (skin && name.includes('Face') && material.map) {
+    if (skin && name.includes('Face') && material.map && !painted) {
       const reference = new THREE.Color(state.gender==='female'?'#f3cdb7':'#f3d1b7');
       material.onBeforeCompile = shader => {
         shader.uniforms.faceSkinReference = {value:reference};
@@ -231,8 +283,33 @@ if(iris && material.map){
     material.gradientMap=gradient;
     material.userData.ownedGradient=gradient;
     if (overlay) {material.polygonOffset=true;material.polygonOffsetFactor=-1;material.polygonOffsetUnits=-1;}
+    if(name==='Imported00003_Face_SKIN'&&state.faceStructureView!=='wire'){
+      const a=deform(data.landmarks.head[0],data.landmarks.headJoinY+.035,data.landmarks.head[2]+.055,'Face:skin'),b=deform(data.landmarks.head[0],data.landmarks.headJoinY+.100,data.landmarks.head[2]+.085,'Face:skin');
+      material.onBeforeCompile=shader=>{
+        shader.uniforms.neckSmoothBounds={value:new THREE.Vector4(a[1],b[1],a[2],b[2])};
+        shader.vertexShader='varying vec3 vNeckSmoothNormal;\n varying vec3 vNeckRestPosition;\n'+shader.vertexShader;
+        shader.vertexShader=shader.vertexShader.replace('#include <defaultnormal_vertex>','#include <defaultnormal_vertex>\nvNeckSmoothNormal=normalize(transformedNormal);');
+        shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvNeckRestPosition=position;');
+        shader.fragmentShader='varying vec3 vNeckSmoothNormal;\nvarying vec3 vNeckRestPosition;\nuniform vec4 neckSmoothBounds;\n'+shader.fragmentShader;
+        shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_begin>',`#include <normal_fragment_begin>
+          float neckBlend=(1.-smoothstep(neckSmoothBounds.x,neckSmoothBounds.y,vNeckRestPosition.y))*(1.-smoothstep(neckSmoothBounds.z,neckSmoothBounds.w,vNeckRestPosition.z));
+          normal=normalize(mix(normal,normalize(vNeckSmoothNormal),neckBlend));
+        `);
+      };
+      material.customProgramCacheKey=()=> 'imported-neck-continuity-v66';
+    }
+    if(data.adultHeadPrepared&&name==='Imported00003_Face_SKIN'&&(state.facePlaneSoftness??50)>0)installAdultHeadNormals(material);
+    if(data.baseFamily==='adultMale'&&!clay&&name==='ImportedEyeIris')installAdultIrisMaterial(THREE,material);
+    if(data.baseFamily==='adultMale'&&name==='Imported00003_Face_SKIN')installAdultScalp(material,THREE,data.landmarks.faceRig,state);
+    if(data.baseFamily==='stoneC'&&name==='StoneCHead_SKIN'&&state.faceStructureView==='regions'){material.vertexColors=true;material.map=null;}
+    if(data.baseFamily==='stoneC'&&name==='StoneCHead_SKIN'&&['regions','wire'].includes(state.faceStructureView)){material.map=null;material.color.set(state.faceStructureView==='wire'?'#b9c0ca':'#ffffff');material.userData.colorRole=null;material.flatShading=false;}
+    else if(data.baseFamily==='stoneC'&&skin){if(name==='StoneCNeck_SKIN')material.vertexColors=!clay;installStoneCMaterial(material,THREE,state,name==='StoneReferenceBody_SKIN'?'body':name==='StoneCHead_SKIN'?'head':'neck');}
     return material;
   });
+  // Fade paint into the untextured scalp at the actual shared rest-space boundary.
+  const bodyPositions=new Set(data.meshes.filter(m=>m.name==='Body').flatMap(m=>m.positions.filter((_,i)=>i%3===0).map((_,i)=>m.positions.slice(i*3,i*3+3).join(','))));
+  const paintBoundary=[];
+  if(state.faceSource==='foundation'&&state.stoneView==='painted')for(const m of data.meshes.filter(m=>m.name.startsWith('Face')))for(let i=0;i<m.positions.length;i+=3)if(bodyPositions.has(m.positions.slice(i,i+3).join(',')))paintBoundary.push(m.positions.slice(i,i+3).map(v=>v/1e5));
   let envelope=null,editedChin=Infinity;const envelopePoints=[],envelopeIndices=[];
   for (const source of data.meshes) {
     const p=new Float32Array(source.positions.length);
@@ -259,6 +336,23 @@ if(iris && material.map){
         const q=deform(...anchor,'Body',legSide);p.set(q.map((v,j)=>v+n[j]*.0065*scale),i);normals.set(n,i);
       }
     }
+    // Project the brow overlay onto the edited skin, not its undeformed donor plane.
+    if(source.name==='Face'&&state.faceSource==='foundation'){
+      const skinTriangles=source.groups.filter(g=>data.materials[g.material].name.includes('_SKIN')).flatMap(g=>g.indices);
+      const browIds=new Set(source.groups.filter(g=>data.materials[g.material].name.includes('FaceBrow')).flatMap(g=>g.indices));
+      const gap=(.0006+Math.max(0,Math.min(100,state.browSurfaceOffset??50))*.000012)*scale;
+      for(const id of browIds){
+        const x=p[id*3],y=p[id*3+1];let hit=-Infinity;
+        for(let j=0;j<skinTriangles.length;j+=3){
+          const [a,b,c]=skinTriangles.slice(j,j+3).map(i=>i*3);
+          const den=(p[b+1]-p[c+1])*(p[a]-p[c])+(p[c]-p[b])*(p[a+1]-p[c+1]);if(Math.abs(den)<1e-12)continue;
+          const u=((p[b+1]-p[c+1])*(x-p[c])+(p[c]-p[b])*(y-p[c+1]))/den;
+          const v=((p[c+1]-p[a+1])*(x-p[c])+(p[a]-p[c])*(y-p[c+1]))/den;
+          if(u>=-.00001&&v>=-.00001&&u+v<=1.00001)hit=Math.max(hit,u*p[a+2]+v*p[b+2]+(1-u-v)*p[c+2]);
+        }
+        if(Number.isFinite(hit))p[id*3+2]=hit+gap;
+      }
+    }
     if(source.name==='Face'&&state.faceSource==='stone'){
       const groups=source.groups.filter(g=>data.materials[g.material].name.includes('_SKIN')),smooth=smoothGarmentNormals(p,groups);
       for(const id of new Set(groups.flatMap(g=>g.indices)))normals.set(smooth.subarray(id*3,id*3+3),id*3);
@@ -273,24 +367,61 @@ if(iris && material.map){
     }
     if(data.landmarks.faceRig){
       if(source.name==='Face'||source.name==='Body'||source.name==='FaceScalp'||(source.name==='FaceEars'&&!['sideHair','backHair'].some(k=>state[k]==='stoneOriginal'))){
-        const offset=envelopePoints.length/3;envelopePoints.push(...p);
+        const offset=envelopePoints.length/3;for(const value of p)envelopePoints.push(value);
         for(const g of source.groups)if(data.materials[g.material].name.includes('_SKIN')){envelopeIndices.push(...g.indices.map(id=>id+offset));if(source.name==='Face')for(const id of g.indices)editedChin=Math.min(editedChin,p[id*3+1]);}
       }else if(source.name.startsWith('Hair')){
         if(!envelope){const c=deform(...data.landmarks.head,'Body');envelope=headEnvelope(envelopePoints,envelopeIndices,c[0],c[2],editedChin);}
-        clearHair(p,envelope,source.name);
-        const fitted=new THREE.BufferGeometry();fitted.setAttribute('position',new THREE.BufferAttribute(p,3));fitted.setIndex(source.groups.flatMap(g=>g.indices));fitted.computeVertexNormals();normals.set(fitted.attributes.normal.array);fitted.dispose();
+        if(source.adultUndercut){
+          // The adult shell already follows the edited skull and wraps around the ears.
+        }else if(['imported00003','stoneC'].includes(state.faceSource)&&source.name.endsWith('Undercut')){
+          const original=p.slice(),earTop=deform(data.landmarks.head[0],eyeY+.035,data.landmarks.head[2],'Face:skin')[1];clearHair(p,envelope,source.name);
+          for(let i=0;i<p.length;i+=3)if(original[i+1]<earTop)p.set(original.subarray(i,i+3),i);
+        }else clearHair(p,envelope,source.name);
+        const fitted=new THREE.BufferGeometry();fitted.setAttribute('position',new THREE.BufferAttribute(p,3));fitted.setIndex(source.normalIndices||source.groups.flatMap(g=>g.indices));fitted.computeVertexNormals();normals.set(fitted.attributes.normal.array);fitted.dispose();
       }
     }
+    if(source.trapeziusSupportVertices){
+      const fitted=new THREE.BufferGeometry();fitted.setAttribute('position',new THREE.BufferAttribute(p,3));fitted.setIndex(source.groups.flatMap(g=>g.indices));fitted.computeVertexNormals();
+      // Keep original collar normals; recompute only the refined shoulder field.
+      for(let i=0;i<p.length;i+=3){const y=source.positions[i+1]/1e5;if(y<(source.neckSupportVertices?data.landmarks.neck[1]+.095:data.landmarks.neck[1]-.02))normals.set(fitted.attributes.normal.array.subarray(i,i+3),i);}
+      fitted.dispose();
+    }
+    const adultSurface=adultHeadNormals(p,source,data.materials,data.landmarks,state,normals);
+    if(adultSurface)normals.set(adultSurface.normals);
     for(const part of source.groups) {
+      if(!part.indices.length)continue;
       const description=data.materials[part.material].name;
+      if(source.adultCrown)materials[part.material].flatShading=false;
       // EyeExtra is the special closed-eye graphic, only used by the original Extra expression.
       if(description.includes('EyeExtra'))continue;
       const geometry=new THREE.BufferGeometry();
       geometry.setAttribute('position',new THREE.BufferAttribute(p,3));
       geometry.setAttribute('uv',new THREE.Float32BufferAttribute(source.uv.map(v=>v/65535),2));
+      if(materials[part.material].userData.adultScalp)geometry.setAttribute('adultScalpPosition',new THREE.BufferAttribute(adultScalpAttributes(source),3));
       geometry.setIndex(part.indices);
+      if(materials[part.material].userData.stonePainted){
+        const weights=new Float32Array(p.length/3);
+        for(let i=0;i<weights.length;i++){
+          const q=source.positions.slice(i*3,i*3+3).map(v=>v/1e5);
+          const d=Math.min(...paintBoundary.map(b=>Math.hypot(q[0]-b[0],q[1]-b[1],q[2]-b[2])));
+          const t=Math.max(0,Math.min(1,d/.035));weights[i]=t*t*(3-2*t);
+          // The atlas contains a baked dark nose-to-lip stroke. Let the new
+          // philtrum geometry carry that shading instead of doubling it.
+          const r=data.landmarks.faceRig;
+          const philtrum=Math.exp(-(((q[0]-r.headX)/.010)**2+((q[1]-r.mouth[1]-.017)/.009)**2))*Math.max(0,Math.min(1,(q[2]-r.headZ-.035)/.035));
+          weights[i]*=1-.25*philtrum;
+        }
+        geometry.setAttribute('stonePaintWeight',new THREE.BufferAttribute(weights,1));
+      }
+      if(source.name==='Face'&&['imported00003','stoneC'].includes(state.faceSource)&&state.faceStructureView==='regions'){
+       const colors=new Float32Array(p.length),palette=new Map();
+       for(let i=0;i<p.length;i+=3){const domain=importedFaceRegion(...source.positions.slice(i,i+3).map(v=>v/1e5),data.landmarks.faceRig);if(!palette.has(domain.id))palette.set(domain.id,new THREE.Color(domain.color));palette.get(domain.id).toArray(colors,i);}
+       geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+      }
+      if(source.vertexColors)geometry.setAttribute('color',new THREE.Float32BufferAttribute(source.vertexColors,3));
       // Transform smooth source normals with the same parameter deformation.
       geometry.setAttribute('normal',new THREE.BufferAttribute(normals,3));
+      if(adultSurface&&description==='Imported00003_Face_SKIN')geometry.setAttribute('adultSurfaceBlend',new THREE.BufferAttribute(adultSurface.smoothWeights,1));
       // Shared buffers also contain hidden shoes/garments; bounds must use visible indices.
       geometry.boundingBox=new THREE.Box3();const vertex=new THREE.Vector3();
       for(const id of part.indices)geometry.boundingBox.expandByPoint(vertex.fromArray(p,id*3));
@@ -299,7 +430,11 @@ if(iris && material.map){
       mesh.castShadow=!/Face|Eye|Hair/.test(description);mesh.receiveShadow=false;
       mesh.renderOrder=/Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(description)?2:0;
       group.add(mesh);
-      if(description.startsWith('AnimeReferenceFace')&&description.includes('_SKIN')&&!data.stoneRebuilt&&!data.mixedHead){
+      if(state.faceStructureView==='wire'&&((state.faceSource==='foundation'&&description.includes('_SKIN'))||(source.name==='Face'&&['imported00003','stoneC'].includes(state.faceSource)))){
+       const wireMaterial=new THREE.MeshBasicMaterial({color:'#273442',wireframe:true,depthWrite:false});materials.push(wireMaterial);
+       const wire=new THREE.Mesh(geometry.clone(),wireMaterial);wire.name='Imported00003_Wire';wire.userData={part:state.faceSource==='foundation'?source.name:'FaceWire',rigSource:source,inspectionWire:true};wire.renderOrder=1;group.add(wire);
+      }
+      if(state.faceSource!=='foundation'&&description.startsWith('AnimeReferenceFace')&&description.includes('_SKIN')&&!data.stoneRebuilt&&!data.mixedHead){
         const outlineGeometry=geometry.clone(),op=outlineGeometry.attributes.position;
         for(let id=0;id<op.count;id++){const taper=Math.max(0,Math.min(1,(source.positions[id*3+1]/100000-base.landmarks.neck[1]-.025)/.04)),width=.00085*scale*taper;op.setXYZ(id,op.getX(id)+normals[id*3]*width,op.getY(id)+normals[id*3+1]*width,op.getZ(id)+normals[id*3+2]*width);}
         const outlineMaterial=new THREE.MeshBasicMaterial({color:'#47352e',side:THREE.BackSide});materials.push(outlineMaterial);
@@ -331,15 +466,38 @@ if(iris && material.map){
    {group:'chin',side:1,position:deform(rig.headX,rig.chin+.010,rig.mouth[2]+.010,'Face:skin')}
   ];
   group.userData.bodyHandles=bodyHandlePoints(base).map(h=>({...h,position:deform(...h.position,'Body')}));
+  if(state.faceSource==='foundation'||data.baseFamily==='adultMale'){
+    const neckLow=deform(0,data.landmarks.neck[1]-.16,0,'Body')[1],neckHigh=deform(0,data.landmarks.neck[1]+.10,0,'Body')[1];
+    const buckets=new Map();
+    for(const mesh of group.children.filter(m=>m.isMesh&&m.name.includes('_SKIN'))){
+      const p=mesh.geometry.attributes.position,n=mesh.geometry.attributes.normal;
+      for(const id of new Set(mesh.geometry.index.array)){
+        if(data.baseFamily==='adultMale'&&(p.getY(id)<neckLow||p.getY(id)>neckHigh))continue;
+        const key=[p.getX(id),p.getY(id),p.getZ(id)].map(v=>Math.round(v*1e6)).join(',');
+        if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push([n,id]);
+      }
+    }
+    for(const entries of buckets.values())if(entries.length>1){const n=new THREE.Vector3();for(const [a,i] of entries)n.add(new THREE.Vector3().fromBufferAttribute(a,i));n.normalize();for(const [a,i] of entries)a.setXYZ(i,n.x,n.y,n.z);}
+    if(state.faceSource==='foundation')group.userData.foundationTopology='CC0 native face/scalp/neck/body; no runtime graft';
+    else group.userData.neckNormalContinuity=true;
+  }
   bindCharacter(group,base,deform);
   if(data.stoneRebuilt){group.userData.bodyRefinement={originalVertices:base.reference.vertices,addedVertices:0,referenceFaces:base.reference.faces};group.userData.stoneRebuilt=true;}
   group.userData.materials=materials;
+  const scalpMaterial=materials.find(m=>m.userData.adultScalp);if(scalpMaterial)group.userData.adultScalpLayer={...scalpMaterial.userData.adultScalp,mode:'existing-head-skin-material'};
+  if(data.adultHeadPrepared)group.userData.adultHeadCalibration={...data.adultHeadPrepared};
   const bodySource=data.meshes.find(m=>m.name==='Body');
+  if(data.lowerNeckSmoothed)group.userData.lowerNeckSmoothed={...data.lowerNeckSmoothed};
+  if(data.eyeReliefRemoved)group.userData.eyeSockets={...data.eyeReliefRemoved,forwardRange:.002,backwardRange:.005};
+  if(data.neckTopology)group.userData.neckAnatomy={...data.neckTopology,surfaceRegularized:!!data.neckSurfaceRegularized,controls:['scmSternal','scmClavicular','clavicleContour','supraclavicularFossa','napeTransition','throatVolume']};
+  if(data.baseFamily==='adultMale')group.userData.adultBackStructure={supportVertices:bodySource.trapeziusSupportVertices||0,bodyTriangles:bodySource.groups.reduce((n,g)=>n+g.indices.length/3,0),controls:['lowerTrapezius','scapulaSpine','scapulaAngle','rearAxillary','latTaper','erectorSpinae']};
   let floorY=Infinity;for(const part of bodySource.groups)for(const id of part.indices)floorY=Math.min(floorY,bodySource.positions[id*3+1]/100000);
   group.position.y=-(floorY+.001)*scale;
   group.userData.height=new THREE.Box3().setFromObject(group).max.y;
   group.userData.faceY=deform(0,eyeY,data.landmarks.head[2],'Face')[1]+group.position.y;
-  group.userData.model='vroid-beta-parametric';
+  if(data.baseFamily==='stoneC'){group.userData.stoneCRevision=101;group.userData.selectedTopology='C';group.userData.facePresetName='Stone · C 成男基础';}
+  group.userData.model=data.baseFamily==='stoneC'?'stone-c-adult':data.baseFamily==='adultMale'?'stone-adult-independent':'vroid-beta-parametric';
+  group.userData.baseFamily=data.baseFamily||state.characterType||state.gender;
   group.userData.headReference=data.headReference;
   group.userData.bodySource=state.bodySource||((state.faceSource==='stone'&&state.gender==='male')?'stone':'vroid');group.userData.mixedHead=!!data.mixedHead;
   group.userData.parameterVersion=2;group.userData.facePresetName=data.landmarks.faceRig?.preset.name||'原版日漫';group.userData.faceSource=state.faceSource||'vroid';
@@ -347,16 +505,17 @@ if(iris && material.map){
 }
 export function disposeHuman(group) {
   group.traverse(o=>o.geometry?.dispose());group.userData.skeleton?.dispose();
-  for(const material of group.userData.materials||[]) {material.userData.ownedGradient?.dispose();material.dispose();}
+  for(const material of group.userData.materials||[]) {material.userData.ownedGradient?.dispose();material.userData.ownedAdultIrisTexture?.dispose();material.userData.adultScalpTexture?.dispose();material.dispose();}
   // Original maps are shared by all character instances and kept in the asset cache.
 }
 
 // Color changes update shared materials immediately, without rebuilding geometry or poses.
 export function applyHumanColors(group,state){
  if(!group)return;
- for(const material of group.userData.materials||[]){const role=material.userData.colorRole;if(!role||material.userData.stoneClay)continue;
+ for(const material of group.userData.materials||[]){if(material.userData.stoneC){updateStoneCMaterial(material,THREE,state);continue;}updateAdultScalp(material,state,THREE);const role=material.userData.colorRole;if(!role||material.userData.stoneClay)continue;
   material.color.set(role==='shirtButton'?state.shirt:(state[role]||(role==='shoeColor'?state.pants:role==='sideHairColor'?'#929590':'#806449')));
-  if(role==='skin')material.color.multiplyScalar(1.07);
+  if(role==='skin'){material.color.multiplyScalar(1.07);const base=material.userData.textureBaseColor;if(base){material.color.r/=base.r;material.color.g/=base.g;material.color.b/=base.b;}}
+  material.color.multiplyScalar(material.userData.tint||1);
   if(role==='shirtButton')material.color.multiplyScalar(.73);
  }
 }

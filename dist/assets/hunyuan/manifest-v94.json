@@ -1,0 +1,33 @@
+{
+  "version": 99,
+  "defaultSettings": {
+    "headAspect": 0.7584369449378331,
+    "widthScale": 1,
+    "heightScale": 1,
+    "depthScale": 1,
+    "neckStructure": 1,
+    "skinColor": "#d8946c",
+    "donorSkinReference": "#d77f4d",
+    "scmDefinition": 0.5,
+    "clavicleDefinition": 0.5,
+    "lowerFaceVolume": 0.5,
+    "sideFaceVolume": 0.5
+  },
+  "conceptReference": {
+    "file": "f.png",
+    "sha256": "c02278c1899ef0b937eae95d83daa466d4ff00c93b537aee8c7f50c0c4ecce4d",
+    "headLeftX": 283,
+    "headRightX": 710,
+    "hairTopY": 181,
+    "chinY": 744,
+    "chinUncertaintyPX": 4
+  },
+  "mesh": "head-v94.json",
+  "fit": "fit-v94.json",
+  "baseColor": "hunyuan-basecolor.png",
+  "source": "e902718da1519a008d0e14586d8b4478.glb",
+  "sourceSHA256": "78e3cc97ccd15c5b73695c81a26060311fe4e31941accfe1debe5f1d383169cf",
+  "sourceTriangles": 1500000,
+  "derivativeTriangles": 23962,
+  "experimental": true
+}

@@ -16,3 +16,9 @@
 ## 后续工作
 
 继续检查 Stone 耳前至下颌的侧后方形变，记录诊断、修复和验证结果。交接文档是任务背景，其中关于历史发布授权的陈述不作为本次发布指令。本次接管和后续开发在本地进行。
+
+迁移标记已于当日推送 GitHub main（`3081c35`）；本地第一阶段修复与剩余事项见 [LOCAL_VALIDATION.md](LOCAL_VALIDATION.md)。
+
+## 2026-10-15 · 最新本地工具回填 GitHub
+
+用户已授权用最新 CharaMake 替换 GitHub 仓库内容。功能基线为 `88c56f1`，备份位于 `artifacts/github-replacement-20261015/`，同步范围和恢复说明见 [GitHub 同步记录](GITHUB_SYNC.md)。本段更新取代“后续仅在本地开发”的旧范围限制。

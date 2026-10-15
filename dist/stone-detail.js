@@ -54,3 +54,23 @@ export function installStoneTemples(material,head,eyeY,size){
  };
  material.customProgramCacheKey=()=> 'stone-grey-temples-v32';
 }
+
+// Short silver strands interspersed with dark roots; UVs stay attached when posed.
+export function installSaltPepper(material){
+ material.onBeforeCompile=shader=>{
+  shader.vertexShader='varying vec2 vPepperUv;\n'+shader.vertexShader;
+  shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvPepperUv=uv;');
+  shader.fragmentShader='varying vec2 vPepperUv;\n'+shader.fragmentShader;
+  shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+   vec2 strand=vPepperUv*vec2(185.,58.); strand.x+=strand.y*.22;
+   vec2 cell=floor(strand); vec2 f=fract(strand);
+   float seed=fract(sin(dot(cell,vec2(127.1,311.7)))*43758.5453);
+   float line=1.-smoothstep(.13,.32,abs(f.x-.5));
+   float tip=smoothstep(.02,.20,f.y)*(1.-smoothstep(.72,.98,f.y));
+   float silver=line*tip*step(.36,seed);
+   float root=smoothstep(.04,.35,vPepperUv.y);
+   diffuseColor.rgb*=mix(.25+.13*seed,1.65,silver*root);
+  `);
+ };
+ material.customProgramCacheKey=()=> 'imported-salt-pepper-v64';
+}

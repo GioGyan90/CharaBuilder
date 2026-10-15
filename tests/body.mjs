@@ -6,9 +6,9 @@ const distURL=new URL('../dist/',import.meta.url);
 const base=fileURLToPath(distURL);
 const moduleURL=path=>pathToFileURL(path).href;
 const temp=await fs.mkdtemp(path.join(os.tmpdir(),'charabuilder-modular-'));
-let hair=await fs.readFile(base+'hair.js','utf8');hair=hair.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'hair.mjs'),hair);
+let hair=await fs.readFile(base+'hair.js','utf8');hair=hair.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));hair=hair.replace(/'\.\/([^']+)'/g,(_,p)=>JSON.stringify(moduleURL(base+p.split('?')[0])));await fs.writeFile(path.join(temp,'hair.mjs'),hair);
 let rig=await fs.readFile(base+'rig.js','utf8');rig=rig.replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js')));await fs.writeFile(path.join(temp,'rig.mjs'),rig);
-let code=await fs.readFile(base+'anime.js','utf8');code=code.replace("'./stone-avatar.js?v=56'",JSON.stringify(moduleURL(base+'stone-avatar.js'))).replace("'./stone-body.js?v=34'",JSON.stringify(moduleURL(base+'stone-body.js'))).replace("'./stone-detail.js?v=32'",JSON.stringify(moduleURL(base+'stone-detail.js'))).replace("'./rig.js?v=50'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace("'./parameters.js?v=58'",JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=50'",JSON.stringify(moduleURL(base+'underwear.js'))).replace("'./hair.js?v=56'",JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);await fs.writeFile(path.join(temp,'model.mjs'),code);
+let code=await fs.readFile(base+'anime.js','utf8');code=code.replace(/'\.\/stone-avatar\.js\?v=\d+'/,JSON.stringify(moduleURL(base+'stone-avatar.js'))).replace("'./stone-body.js?v=34'",JSON.stringify(moduleURL(base+'stone-body.js'))).replace("'./stone-detail.js?v=64'",JSON.stringify(moduleURL(base+'stone-detail.js'))).replace("'./rig.js?v=50'",JSON.stringify(moduleURL(path.join(temp,'rig.mjs')))).replace("'three'",JSON.stringify(moduleURL(base+'vendor/three.module.js'))).replace(/'\.\/parameters\.js\?v=\d+'/,JSON.stringify(moduleURL(base+'parameters.js'))).replace("'./wardrobe.js?v=25'",JSON.stringify(moduleURL(base+'wardrobe.js'))).replace("'./underwear.js?v=50'",JSON.stringify(moduleURL(base+'underwear.js'))).replace(/'\.\/hair\.js\?v=\d+'/,JSON.stringify(moduleURL(path.join(temp,'hair.mjs')))).replace("new URL('./assets/anime/', import.meta.url)",`new URL(${JSON.stringify(new URL('assets/anime/',distURL).href)})`);code=code.replace(/'\.\/(adult-scalp|adult-eye-material)\.js\?v=\d+'/g,(_,id)=>JSON.stringify(moduleURL(base+id+'.js')));await fs.writeFile(path.join(temp,'model.mjs'),code);
 global.fetch=async url=>{try{return new Response(await fs.readFile(new URL(url)),{status:200});}catch{return new Response('',{status:404});}};
 const {loadHumanAssets,ensureHumanPresets,createHuman,disposeHuman}=await import(moduleURL(path.join(temp,'model.mjs')));
 const {hairDefaults,hairChoices,hairRanges}=await import(moduleURL(path.join(temp,'hair.mjs')));
@@ -17,6 +17,8 @@ await loadHumanAssets({textures:false});
 const defaults={...parameterDefaults,...wardrobeDefaults,...hairDefaults,gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jaw:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',shirt:'#d7c8b0',pants:'#343b50'};
 import {gunzipSync} from 'node:zlib';
 const skinIds={};
+// Native assets exclude Stone-foundation neck sculpt controls; their tests live
+// in continuous-foundation.mjs. Adult back controls have adult-back.mjs coverage.
 for(const gender of ['female','male']){
  const root=base+'assets/anime/';const manifest=JSON.parse(await fs.readFile(root+gender+'-manifest.json','utf8'));
  const fragments=await Promise.all(manifest.parts.map(p=>fs.readFile(root+p,'utf8')));
@@ -31,7 +33,7 @@ const {bodyAdjustmentKeys}=await import(moduleURL(base+'parameters.js'));
 for(const gender of ['female','male']){
  const state={...defaults,gender,clothes:'underwear',frontHair:'none',backHair:'none',sideHair:'none',braid:'none',shoes:'barefoot'};
  await ensureHumanPresets(state,{textures:false});
- for(const key of bodyAdjustmentKeys){
+ for(const key of bodyAdjustmentKeys.filter(k=>!['scmSternal','scmClavicular','clavicleContour','supraclavicularFossa','napeTransition','throatVolume','neckForward','neckTendon','trapeziusRidge', 'lowerTrapezius', 'scapulaSpine', 'scapulaAngle', 'rearAxillary', 'latTaper', 'erectorSpinae'].includes(k))){
   const models=[-50,150].map(value=>createHuman({...state,[key]:value}));
   const skin=models.map(model=>model.children.find(m=>m.isMesh&&m.name.includes('Body')&&m.name.includes('_SKIN')));let max=0;
   for(const id of new Set(skin[0].geometry.index.array)){let d=0;for(let a=0;a<3;a++)d+=(skin[0].geometry.attributes.position.array[id*3+a]-skin[1].geometry.attributes.position.array[id*3+a])**2;max=Math.max(max,Math.sqrt(d));}
@@ -42,7 +44,7 @@ for(const gender of ['female','male']){
 }
 for(const gender of ['female','male'])for(const clothes of ['underwear','shirtPants'])for(const value of [-50,150]){
  const state={...defaults,gender,clothes,frontHair:'none',backHair:'none',sideHair:'none',braid:'none',shoes:'barefoot'};
- for(const key of bodyAdjustmentKeys)state[key]=value;
+ for(const key of bodyAdjustmentKeys.filter(k=>!['scmSternal','scmClavicular','clavicleContour','supraclavicularFossa','napeTransition','throatVolume','neckForward','neckTendon','trapeziusRidge', 'lowerTrapezius', 'scapulaSpine', 'scapulaAngle', 'rearAxillary', 'latTaper', 'erectorSpinae'].includes(k)))state[key]=value;
  await ensureHumanPresets(state,{textures:false});const model=createHuman(state);let floor=Infinity;
  model.updateMatrixWorld(true);model.userData.skeleton.update();
  model.traverse(m=>{if(!m.isMesh)return;const p=m.geometry.attributes.position,n=m.geometry.attributes.normal,w=m.geometry.attributes.skinWeight;if(!p.array.every(Number.isFinite)||!n.array.every(Number.isFinite))throw Error('nonfinite new body');

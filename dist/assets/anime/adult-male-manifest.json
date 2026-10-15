@@ -1,0 +1,33 @@
+{
+  "parts": [
+    "adult-male-v81.b64"
+  ],
+  "bytes": 21086,
+  "reference": {
+    "source": "ComfyUI_00003_.glb",
+    "sha256": "28da63f38b4ba735fabb0a5b307c36f4298acfcdb03bba247ff92dcb5325f287",
+    "sourceFaces": 416422,
+    "mainFaces": 273768,
+    "faceFaces": 1099,
+    "hairFaces": 2063,
+    "texture": false,
+    "independentEyes": false,
+    "sourceScale": 0.19,
+    "version": 65,
+    "repairedSmallHoles": 9,
+    "previousFaceFaces": 3200,
+    "reductionMethod": "quadric reduction for larger concept-art planes; runtime eyes and lips added separately",
+    "reconstructed": [
+      "upper forehead above donor y=0.06",
+      "bald scalp",
+      "neck collar"
+    ],
+    "baseFamily": "adultMale",
+    "sourceAsset": "ComfyUI_00003_.glb",
+    "revision": 81,
+    "lineage": "Independent adult asset from the user Stone GLB reduction; no VRoid Face vertices. Not new manual retopology.",
+    "secondaryReference": "Quaternius Superhero Male / CC0-1.0",
+    "secondarySHA256": "d6f3b64cab629f6ddca9ba063811aeffd3663a8a4e49ade47cd9505dc2bbd70f",
+    "blend": "Up to 28% local nearest-surface support; eye, nose, mouth, ear protection; collar pinned; displacement capped at 0.0035. Same Stone topology."
+  }
+}

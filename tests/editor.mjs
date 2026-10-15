@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import {faceEditorGroups,bodyEditorGroups,dragValues,bindDrag} from '../dist/editor.js';
+import {faceEditorGroups,importedFaceEditorGroups,bodyEditorGroups,dragValues,bindDrag} from '../dist/editor.js';
 import {faceAdjustmentKeys,bodyAdjustmentKeys} from '../dist/parameters.js';
-assert.deepEqual(new Set(faceEditorGroups.flatMap(g=>g.keys).filter(k=>faceAdjustmentKeys.includes(k))),new Set(faceAdjustmentKeys));
+assert.deepEqual(new Set(importedFaceEditorGroups.flatMap(g=>g.keys).filter(k=>faceAdjustmentKeys.includes(k))),new Set(faceAdjustmentKeys));
+for(const g of importedFaceEditorGroups)for(const axis of g.axes)assert.ok(axis.slice(0,2).every(k=>g.keys.includes(k)));
 assert.equal(faceEditorGroups.flatMap(g=>g.keys).filter(k=>faceAdjustmentKeys.includes(k)).length,48);
 const axis=['eyeSpace','eyeVertical'],initial={eyeSpace:50,eyeVertical:50};
 assert.deepEqual(dragValues(initial,20,-40,axis),{eyeSpace:61,eyeVertical:72});

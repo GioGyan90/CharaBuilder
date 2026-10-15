@@ -1,0 +1,26 @@
+{
+  "parts": [
+    "imported-00003.b64"
+  ],
+  "bytes": 49447,
+  "reference": {
+    "source": "ComfyUI_00003_.glb",
+    "sha256": "28da63f38b4ba735fabb0a5b307c36f4298acfcdb03bba247ff92dcb5325f287",
+    "sourceFaces": 416422,
+    "mainFaces": 273768,
+    "faceFaces": 1099,
+    "hairFaces": 2063,
+    "texture": false,
+    "independentEyes": false,
+    "sourceScale": 0.19,
+    "version": 65,
+    "repairedSmallHoles": 9,
+    "previousFaceFaces": 3200,
+    "reductionMethod": "quadric reduction for larger concept-art planes; runtime eyes and lips added separately",
+    "reconstructed": [
+      "upper forehead above donor y=0.06",
+      "bald scalp",
+      "neck collar"
+    ]
+  }
+}

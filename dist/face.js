@@ -1,11 +1,13 @@
 import {faceGuides} from './face-guides.js?v=18';
+import {deformImportedFace} from './imported-face.js?v=86';
+export {importedFaceRegion} from './imported-face.js?v=86';
 const smooth=(a,b,v)=>{const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
 const bell=(x,c,r)=>Math.exp(-(((x-c)/r)**2));
 const bounded=v=>Math.max(-2,Math.min(2,((Number.isFinite(v)?v:50)-50)/50));
 const presets={female:{name:'绫 · 成女脸',eyeScale:1.02,jawMix:.38},male:{name:'隼 · 熟男脸',eyeScale:.90,jawMix:.42,eyeLift:.006,midStretch:.008},stone:{name:'Stone · 硬朗熟男脸',eyeScale:.96,eyeWidthScale:1.08,eyeHeightScale:.58,irisScale:.58,jawMix:.48,mature:true,eyeLift:.012,midStretch:.016}};
 function center(points){return [0,1,2].map(a=>(Math.min(...points.map(p=>p[a]))+Math.max(...points.map(p=>p[a])))*.5);}
 export function buildAnimeFace(base,gender,reference=true){
- const source=base.meshes.find(m=>m.name==='Face'),guide=faceGuides[gender],preset=reference==='stone'&&gender==='male'?presets.stone:reference?presets[gender]:{name:'原版日漫',eyeScale:1,jawMix:0};
+ const source=base.meshes.find(m=>m.name==='Face'),guide=faceGuides[gender],preset=reference==='foundation'&&gender==='male'?{...presets.stone,name:'Stone · 连续素体',foundation:true,mature:false,jawMix:0,eyeHeightScale:.72,eyeLift:0,midStretch:.008,irisScale:.70}:reference==='stone'&&gender==='male'?presets.stone:reference?presets[gender]:{name:'原版日漫',eyeScale:1,jawMix:0};
  const points=source.positions.map(v=>v/100000),regions=Array(points.length/3).fill('Face:skin');
  const find=name=>source.groups.filter(g=>base.materials[g.material].name.includes(name));
  const groupPoints=groups=>[...new Set(groups.flatMap(g=>g.indices))].map(id=>points.slice(id*3,id*3+3));
@@ -36,6 +38,7 @@ export function buildAnimeFace(base,gender,reference=true){
  return {materials,maps:base.maps,meshes,landmarks:{...base.landmarks,faceRig:rig},presetName:preset.name};
 }
 export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
+ if(rig.preset.imported&&rig.structure)return deformImportedFace(x,y,z,state,rig);
  const {eyeY,chin,headX,headZ,mouth,nose,preset,guide}=rig;
  const source=[x,y,z],lipAngleGuard=1-(1-smooth(.030,.055,Math.abs(x-headX)))*(1-smooth(.009,.025,Math.abs(y-mouth[1])));
  const tilt=(key,cy,cz,weight)=>{const angle=-bounded(state[key])*.25,dy=source[1]-cy,dz=source[2]-cz;y+=(dy*Math.cos(angle)-dz*Math.sin(angle)-dy)*weight;z+=(dy*Math.sin(angle)+dz*Math.cos(angle)-dz)*weight;};
@@ -43,7 +46,13 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  // Lower-face support ends below the cheekbones; mature jaw corners sit lower.
  const jawCenter=chin+height*((preset.mature||preset.eyeLift)?.30:.36);
  const jawFront=smooth(headZ+.025,headZ+.065,source[2]);
- const jawSupport=bell(source[1],jawCenter,.040)*(1-smooth(chin+height*.48,chin+height*.72,source[1]))*smooth(chin-.005,chin+.020,source[1])*jawFront;
+ // Wrap the control field around the lateral mandible. A front-only z mask
+ // pinned the posterior corner while the anterior body moved, stretching the
+ // intervening triangles into a wedge. Keep the posterior midline/neck fixed.
+ const jawWrap=jawFront+(1-jawFront)*smooth(.025,.050,Math.abs(source[0]-headX))*smooth(headZ-.035,headZ+.010,source[2]);
+ const jawEnvelope=bell(source[1],jawCenter,.040)*(1-smooth(chin+height*.48,chin+height*.72,source[1]))*smooth(chin-.005,chin+.020,source[1]);
+ // Preserve the neutral preset; only editable controls use the wrapped field.
+ const jawSupport=jawEnvelope*jawFront;
  // Sample the acquired jaw guide, then blend into the anime preset's envelope.
  if(t>0&&t<1.08){
   const u=Math.max(0,Math.min(4,(t-.18)/.1925)),i=Math.min(3,Math.floor(u));const ratio=guide.jawRatios[i]*(1-(u-i))+guide.jawRatios[i+1]*(u-i);
@@ -56,13 +65,14 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  // width/height/angularity. Adapt those regions to the authored anime topology.
  if(region==='Face:skin'){
   const side=smooth(.012,.045,Math.abs(source[0]-headX));
-  const jawBand=jawSupport*side*lipAngleGuard;
+  const jawBand=jawEnvelope*jawWrap*side*lipAngleGuard;
   x+=(source[0]-headX)*bounded(state.jawWidth)*.18*jawBand;
   z+=bounded(state.jawDepth)*.016*jawBand;
-  const jawVertical=smooth(chin+.005,chin+height*.28,source[1])*(1-smooth(chin+height*.28,chin+height*.72,source[1]))*jawFront*side*lipAngleGuard;
+  const jawVertical=smooth(chin+.005,chin+height*.28,source[1])*(1-smooth(chin+height*.28,chin+height*.72,source[1]))*jawWrap*side*lipAngleGuard;
   y+=bounded(state.jawHeight)*.004*jawVertical;
   // Adjust the corner silhouette without shifting its vertical position.
-  x+=(source[0]-headX)*bounded(state.jawAngle)*.10*jawBand;
+  const corner=bell(source[2],headZ+.023,.030);
+  x+=(source[0]-headX)*bounded(state.jawAngle)*.10*jawBand*corner;
 
   const cheekBand=bell(source[1],eyeY-.030,.023)*front*side;
   x+=(source[0]-headX)*bounded(state.cheekboneWidth)*.18*cheekBand;
@@ -73,7 +83,7 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
   z+=hard*(.007*crest-.005*hollow);
   const angleFront=smooth(headZ+.040,headZ+.065,source[2])*lipAngleGuard;
   tilt('cheekboneAngle',eyeY-.030,headZ+.065,cheekBand*angleFront);
-  tilt('jawTilt',jawCenter,headZ+.055,jawBand*angleFront);
+  tilt('jawTilt',jawCenter,headZ+.025,jawBand);
   const chinBand=bell(source[0],headX,.028)*bell(source[1],chin+.012,.022)*front;
   z+=bounded(state.chinProjection)*.038*chinBand;
  }
@@ -86,11 +96,18 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
   y+=(tx*Math.sin(angle)+ty*Math.cos(angle)-dy)*weight+(bounded(state.eyeVertical)*.028+(preset.eyeLift||0))*weight;
   z+=bounded(state.eyeDepth)*.016*weight;
  };
- if(eyeId!==null)moveEye(rig.eyes[eyeId],eyeId,1);
+ if(eyeId!==null&&region.startsWith('Face:brow')&&preset.foundation){
+  // Brows follow the eye socket's translation, not the eye's size/flattening.
+  const sign=Math.sign(rig.eyes[eyeId][0]-headX);
+  x+=sign*bounded(state.eyeSpace)*.012;
+  y+=bounded(state.eyeVertical)*.028;
+  z+=bounded(state.eyeDepth)*.016;
+ }else if(eyeId!==null)moveEye(rig.eyes[eyeId],eyeId,1);
  else if(preset.mature&&region==='Face:skin'){const i=source[0]<headX?0:1,eye=rig.eyes[i],w=(1-smooth(.030,.055,Math.abs(source[0]-eye[0])))*(1-smooth(.022,.040,Math.abs(source[1]-eye[1])))*front;moveEye(eye,i,w);}
  else for(let i=0;i<2;i++){const eye=rig.eyes[i];moveEye(eye,i,bell(source[0],eye[0],.042)*bell(source[1],eye[1],.041)*front);}
  for(let i=0;i<2;i++){
   const b=rig.brows[i],ridgeY=b[1]+bounded(state.browRidgeHeight)*.012,w=region==='Face:brow'+i?1:bell(source[0],b[0],.034)*bell(source[1],b[1],.019)*front;
+  if(preset.foundation&&region==='Face:brow'+i)x+=(source[0]-b[0])*bounded(state.browWidth)*.35;
   if(region==='Face:brow'+i)y+=(source[1]-b[1])*(Math.max(.2,1+bounded(state.browThickness)*.55)-1);
   if(region==='Face:skin'){
    const ridge=bell(source[0],b[0],.038)*bell(source[1],ridgeY-.010,.023)*front;
@@ -100,7 +117,8 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
   }else if(region==='Face:brow'+i){z+=bounded(state.browRidge)*.009;y+=bounded(state.browRidgeHeight)*.012;}
   y+=(bounded(state.browHeight)*.013+(source[0]-b[0])*Math.sign(b[0]-headX)*bounded(state.browAngle)*.30)*w;
  }
- const nw=bell(source[0],headX,.021)*bell(source[1],nose[1],.028)*front;
+ const noseGuard=preset.foundation?smooth(mouth[1]+.007,mouth[1]+.023,source[1]):1;
+ const nw=bell(source[0],headX,.021)*bell(source[1],nose[1],.028)*front*noseGuard;
  // Small anime nose; parameter changes affect both its width and projection.
  x+=(source[0]-headX)*(Math.max(.15,1+bounded(state.nose)*.38+bounded(state.noseWidth)*.35)-1)*nw;
  y+=(bounded(state.noseHeight)*.020-bounded(state.noseLength)*.018)*nw;
@@ -115,10 +133,29 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  }
  const mw=region==='Face:mouth'?1:bell(source[0],headX,.037)*bell(source[1],mouth[1],.021)*front;
  x+=(source[0]-mouth[0])*bounded(state.mouth)*.42*mw;
- y+=(bounded(state.mouthHeight)*.014+(source[1]-mouth[1])*bounded(state.mouthThickness)*.40+bounded(state.mouthCorner)*.010*Math.min(1,Math.abs(source[0]-mouth[0])/.022))*mw;
+ const mouthHeightGuard=preset.foundation?1-smooth(mouth[1]+.010,mouth[1]+.023,source[1]):1;
+ y+=(bounded(state.mouthHeight)*.014*mouthHeightGuard+(source[1]-mouth[1])*bounded(state.mouthThickness)*.40+bounded(state.mouthCorner)*.010*Math.min(1,Math.abs(source[0]-mouth[0])/.022))*mw;
 
  // Lip relief stays on the authored anime facial plane, including the mouth opening.
  z+=((rig.reference?-.002:0)+bounded(state.mouthProjection)*.012)*mw;
+ if(preset.foundation&&(region==='Face:skin'||region==='Face:mouth')){
+  // Continuous oral mound, two vermilion volumes, then the philtral groove.
+  // Shared skin/lip vertices receive identical fields; no detached lip shells.
+  const dx=source[0]-headX,dy=source[1]-mouth[1];
+  const oral=bell(dx,0,.030)*bell(dy,0,.018)*front;
+  const lipWidth=bell(dx,0,.022)*front;
+  const upper=bell(dy,.005,.0045)*smooth(0,.002,dy)*lipWidth;
+  const lower=bell(dy,-.006,.0055)*(1-smooth(-.002,0,dy))*lipWidth;
+  z+=(.0035+bounded(state.muzzleDepth)*.008)*oral;
+  z+=(.0025+bounded(state.upperLipProjection)*.006)*upper;
+  z+=(.0030+bounded(state.lowerLipProjection)*.006)*lower;
+  y+=bounded(state.upperLipThickness)*.004*upper-bounded(state.lowerLipThickness)*.005*lower;
+  const philtrum=bell(dy,.016,.007)*front;
+  const columns=bell(Math.abs(dx),.005,.0028)*philtrum;
+  const groove=bell(dx,0,.0028)*philtrum;
+  z+=.0015*columns-(.001+bounded(state.philtrumDepth)*.002)*groove;
+  y-=bounded(state.philtrumLength)*.007*oral*mouthHeightGuard;
+ }
  const cw=bell(source[0],headX,.045)*bell(source[1],chin+.012,.026)*front*(1-smooth(mouth[1]-.020,mouth[1]-.004,source[1]));
  y-=bounded(state.chinLength)*.027*cw;
  x+=(source[0]-headX)*(bounded(state.chinWidth)*.50+bounded(state.chinSize)*.25)*cw;
@@ -185,7 +222,71 @@ export function deformAnimeFace(x,y,z,state,rig,region='Face:skin'){
  y+=(midDelta*upper+lowDelta*lowerBand)*stretchScale*front;
  if(preset.mature){const lipBand=region==='Face:mouth'?1:(1-smooth(.026,.055,Math.abs(source[0]-headX)))*(1-smooth(.011,.045,Math.abs(source[1]-mouth[1])))*front;y+=.022*lipBand;}
  // Pin only the collar: pinning the entire chin silently saturated chin length.
- if(!rig.rebuilt&&source[1]<Math.min(eyeY-.09,rig.neckY+.026))y=Math.max(rig.neckY+.022,y);
+ if(!rig.rebuilt&&!preset.foundation&&source[1]<Math.min(eyeY-.09,rig.neckY+.026))y=Math.max(rig.neckY+.022,y);
+ if(preset.foundation){
+  // Broad continuous volumes, evaluated identically on face, scalp and neck.
+  const ax=Math.abs(source[0]-headX),wrap=smooth(.025,.05,ax)*smooth(headZ-.025,headZ+.03,source[2]);
+  const ramus=bell(source[1],chin+.040,.028)*bell(source[2],headZ+.035,.033)*wrap;
+  y-=bounded(state.jawRamus)*.018*ramus;
+  const basal=bell(source[1],chin+.021,.022)*wrap;
+  x+=Math.sign(source[0]-headX)*bounded(state.jawBase)*.010*basal;
+  const chewing=bell(source[1],eyeY-.059,.029)*bell(source[2],headZ+.046,.032)*wrap;
+  x+=Math.sign(source[0]-headX)*bounded(state.masseter)*.008*chewing;
+  z+=bounded(state.masseter)*.004*chewing;
+
+  // Adult structural controls: source-space fields preserve coincident seam vertices.
+  // Stone defines the silhouette; Quaternius supplies a secondary anatomy reference.
+  const dx=source[0]-headX, sy=source[1], sz=source[2];
+  const anterior=smooth(headZ+.015,headZ+.065,sz);
+  const arch=bell(sy,eyeY-.025,.022)*bell(sz,headZ+.032,.040)*smooth(.030,.060,ax);
+  x+=Math.sign(dx)*bounded(state.zygomaticArchDepth)*.007*arch;
+  z+=bounded(state.jawCornerDepth)*.010*ramus;
+  const chinShelf=bell(sy,chin+.009,.017)*bell(dx,0,.035)*anterior;
+  y+=bounded(state.chinSquareness)*.007*chinShelf;
+  x+=dx*bounded(state.chinSquareness)*.20*chinShelf;
+  const chinFold=bell(sy,mouth[1]-.017,.006)*bell(dx,0,.024)*anterior;
+  z-=bounded(state.mentolabialDepth)*.003*chinFold;
+  const nasalBase=bell(sy,nose[1]-.010,.010)*bell(dx,0,.022)*anterior*smooth(mouth[1]+.010,mouth[1]+.022,sy);
+  z+=bounded(state.noseBaseDepth)*.005*nasalBase;
+  const lipMask=bell(dx,0,.026)*anterior;
+  const upperWidth=bell(sy,mouth[1]+.005,.0045)*smooth(mouth[1],mouth[1]+.002,sy)*lipMask;
+  const lowerWidth=bell(sy,mouth[1]-.006,.0055)*(1-smooth(mouth[1]-.002,mouth[1],sy))*lipMask;
+  x+=dx*.30*(bounded(state.upperLipWidth)*upperWidth+bounded(state.lowerLipWidth)*lowerWidth);
+  const underChin=bell(sy,chin-.008,.022)*bell(dx,0,.040)*smooth(headZ+.010,headZ+.055,sz);
+  z+=bounded(state.submentalDepth)*.007*underChin;
+  const foreheadPlane=smooth(eyeY+.025,eyeY+.105,sy)*(1-smooth(eyeY+.110,eyeY+.170,sy))*anterior;
+  z+=bounded(state.foreheadSlope)*.010*foreheadPlane;
+
+  const head=smooth(rig.neckY+.018,rig.neckY+.095,source[1]);
+  const jaw=bell(source[1],chin+.027,.032)*smooth(.018,.043,Math.abs(source[0]-headX));
+  x=headX+(x-headX)*(1+.065*jaw+.015*head);z+=.008*head;
+  const front=smooth(headZ+.02,headZ+.07,source[2]);
+  // Distinguish the zygomatic crest from the soft cheek below it.
+  const lateral=smooth(.023,.049,Math.abs(source[0]-headX))*front;
+  const hollow=bell(source[1],eyeY-.060,.024)*lateral;
+  const crest=bell(source[1],eyeY-.027,.012)*lateral;
+  x=headX+(x-headX)*(1-.020*hollow+.020*crest);
+  z-=.001*hollow;z+=.002*crest;
+  // Broad skeletal support from the zygoma to the oral side plane, not a cheek bulge.
+  const sidePlane=smooth(.016,.040,ax)*smooth(headZ-.005,headZ+.040,source[2])*bell(source[1],eyeY-.055,.043);
+  const support=.35+bounded(state.midfaceSupport)*.65;
+  x+=Math.sign(source[0]-headX)*.002*support*sidePlane;
+  z+=.008*support*sidePlane;
+  // Keep a mandibular body behind the chin instead of tapering immediately to a point.
+  const body=bell(source[1],chin+.033,.029)*smooth(.020,.048,ax)*smooth(headZ-.020,headZ+.025,source[2]);
+  const depth=.30+bounded(state.jawBodySupport)*.70;
+  x+=Math.sign(source[0]-headX)*.0035*depth*body;
+  y-=.007*depth*body;
+  z+=.006*depth*body;
+
+
+  y+=.005*(1-smooth(chin,chin+.025,source[1]))*(1-smooth(.025,.045,Math.abs(source[0]-headX)))*front;
+  z+=.010*bell(source[0],headX,.016)*bell(source[1],eyeY-.025,.030)*front;
+  z+=.006*bell(source[0],headX,.014)*bell(source[1],nose[1]-.010,.018)*front;
+  y-=.018*smooth(eyeY+.035,eyeY+.13,source[1]);
+  const neck=smooth(rig.neckY-.105,rig.neckY-.025,source[1])*(1-smooth(rig.neckY+.025,rig.neckY+.080,source[1]));
+  x=headX+(x-headX)*(1+.12*neck);z+=.006*neck;
+ }
  return [x,y,z];
 }
 // Keep hair outside the actual edited head rather than the imported donor skull.

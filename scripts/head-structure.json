@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "Surface editing domains inspired by facial skeletal landmarks; not internal anatomical bones.",
+  "domains": [
+    {"id":"frontal","label":"额骨 / 额头","group":"contour","color":"#e5bf67","center":[0,0.24,0.35],"radius":[0.48,0.39,0.52]},
+    {"id":"temporal","label":"颞部 / 太阳穴","group":"temples","color":"#ac88d6","center":[0.37,0.015,0.09],"radius":[0.20,0.28,0.34],"paired":true},
+    {"id":"brow","label":"眉弓","group":"brows","color":"#e29557","center":[0.165,0.005,0.48],"radius":[0.24,0.095,0.28],"paired":true},
+    {"id":"orbit","label":"眼眶","group":"eyes","color":"#69b9de","center":[0.154,-0.085,0.465],"radius":[0.18,0.12,0.25],"paired":true},
+    {"id":"zygoma","label":"颧骨 / 颧弓","group":"cheekbones","color":"#ed7e91","center":[0.275,-0.21,0.31],"radius":[0.25,0.17,0.35],"paired":true},
+    {"id":"nasal","label":"鼻骨 / 鼻部","group":"nose","color":"#78c9a4","center":[0,-0.19,0.54],"radius":[0.12,0.23,0.30]},
+    {"id":"maxilla","label":"上颌 / 面中部","group":"maxilla","color":"#e8d687","center":[0.12,-0.325,0.40],"radius":[0.27,0.17,0.32],"paired":true},
+    {"id":"mandible","label":"下颌体 / 下颌角","group":"jaw","color":"#8ca1e4","center":[0.275,-0.46,0.12],"radius":[0.29,0.22,0.46],"paired":true},
+    {"id":"chin","label":"颏部 / 下巴","group":"chin","color":"#e7a2ce","center":[0,-0.55,0.34],"radius":[0.24,0.17,0.31]},
+    {"id":"lip","label":"口唇软组织","group":"mouth","color":"#d66773","center":[0,-0.386,0.50],"radius":[0.22,0.075,0.22]},
+    {"id":"ear","label":"耳部（保护区）","group":null,"color":"#94bf9b","center":[0.43,-0.20,0.015],"radius":[0.17,0.24,0.18],"paired":true}
+  ],
+  "support":{"id":"support","label":"头皮 / 颈口支撑","color":"#a6adb7"}
+}

@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import assert from 'node:assert/strict';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 const dir=fileURLToPath(new URL('../dist/',import.meta.url));
 const {parameterDefaults,parameterRanges,faceAdjustmentKeys,bodyAdjustmentKeys}=await import(pathToFileURL(dir+'parameters.js').href);
@@ -16,8 +17,8 @@ for(const gender of ['male','female'])for(const [frontHair] of hairOptionsFor('f
 }
 for(const key of Object.keys({...parameterDefaults,...wardrobeDefaults,...hairRanges})){
  if(normalizeState({})[key]!==(key==='jawWidth'?45:50))throw Error('default '+key);
- if(normalizeState({[key]:999})[key]!==(bodyAdjustmentKeys.includes(key)?200:faceAdjustmentKeys.includes(key)?150:100))throw Error('upper bound');
- if(normalizeState({[key]:-999})[key]!==(bodyAdjustmentKeys.includes(key)?-100:faceAdjustmentKeys.includes(key)?-50:0))throw Error('lower bound');
+ if(normalizeState({[key]:999})[key]!==(['craniumWidth','craniumDepth','facePlaneSoftness'].includes(key)?100:bodyAdjustmentKeys.includes(key)?200:faceAdjustmentKeys.includes(key)?150:100))throw Error('upper bound');
+ if(normalizeState({[key]:-999})[key]!==(['craniumWidth','craniumDepth','facePlaneSoftness'].includes(key)?0:bodyAdjustmentKeys.includes(key)?-100:faceAdjustmentKeys.includes(key)?-50:0))throw Error('lower bound');
  if(normalizeState({[key]:NaN})[key]!==(key==='jawWidth'?45:50))throw Error('finite guard');
 }
 for(const gender of ['female','male'])for(const clothes of ['shirtPants','underwear'])for(const shoes of ['shoes','barefoot']){
@@ -69,3 +70,76 @@ console.log('PASS independent temple hair color archive');
 
 for(const key of ['cheekboneAngle','jawTilt','chinAngle'])for(const value of [-50,50,150])if(normalizeState({[key]:value})[key]!==value)throw Error('angle archive lost '+key);
 console.log('PASS independent regional angle export/import values');
+
+const imported=normalizeState({gender:'male',bodySource:'vroid',faceSource:'imported00003',frontHair:'imported00003',sideHair:'none',backHair:'imported00003'});
+assert.equal(imported.faceSource,'imported00003');assert.equal(imported.bodySource,'vroid');
+for(const key of ['frontHair','sideHair','backHair'])assert.equal(normalizeState(JSON.parse(JSON.stringify(imported)))[key],imported[key]);
+assert.equal(normalizeState({...imported,gender:'female'}).faceSource,'vroid');
+console.log('PASS imported head and independent extracted hair archive roundtrip, with female fallback');
+
+for(const key of ['maxillaDepth','templeWidth','jawWidth']){
+ assert.equal(normalizeState({gender:'male',faceSource:'imported00003',[key]:150})[key],100);
+ assert.equal(normalizeState({gender:'male',faceSource:'imported00003',[key]:-50})[key],0);
+}
+for(const faceStructureView of ['skin','regions','wire'])assert.equal(normalizeState({gender:'male',faceSource:'imported00003',faceStructureView}).faceStructureView,faceStructureView);
+console.log('PASS imported structural edit bounds and inspection view archive roundtrip');
+
+for(const key of ['eyeballDepth','pupilSize','gazeX','gazeY','browWidth','upperLipThickness','lowerLipThickness','upperLipProjection','lowerLipProjection']){
+ const state=normalizeState({gender:'male',faceSource:'imported00003',[key]:73});assert.equal(state[key],73);assert.equal(normalizeState(JSON.parse(JSON.stringify(state)))[key],73);
+}
+console.log('PASS eye, brow and independent lip parameter archive roundtrips');
+
+const foundation=normalizeState({gender:'male',faceSource:'foundation',bodySource:'stone',stoneView:'clay',faceStructureView:'wire'});
+assert.equal(foundation.faceSource,'foundation');
+assert.deepEqual(normalizeState(JSON.parse(JSON.stringify(foundation))),foundation);
+assert.equal(normalizeState({...foundation,gender:'female'}).faceSource,'vroid');
+console.log('PASS continuous foundation archive roundtrip and female fallback');
+
+const painted=normalizeState({...foundation,stoneView:'painted'});
+assert.equal(painted.stoneView,'painted');
+assert.deepEqual(normalizeState(JSON.parse(JSON.stringify(painted))),painted);
+console.log('PASS painted face archive roundtrip');
+
+for(const key of ['jawRamus','jawBase','masseter','neckForward','neckTendon','browSurfaceOffset']){const s=normalizeState({...foundation,[key]:78});assert.equal(normalizeState(JSON.parse(JSON.stringify(s)))[key],78);}
+
+for(const key of ['muzzleDepth','philtrumDepth','philtrumLength']){const s=normalizeState({...foundation,[key]:78});assert.equal(normalizeState(JSON.parse(JSON.stringify(s)))[key],78);}
+
+for(const key of ['midfaceSupport','jawBodySupport']){const s=normalizeState({...foundation,[key]:78});assert.equal(normalizeState(JSON.parse(JSON.stringify(s)))[key],78);}
+
+for(const [characterType,gender,faceSource,bodySource] of [['boy','male','vroid','vroid'],['girl','female','vroid','vroid'],['man','male','imported00003','stone']]){
+ const a=normalizeState({characterType,foundationRevision:1,jawWidth:67,stoneView:'clay'});
+ assert.equal(a.gender,gender);assert.equal(a.faceSource,faceSource);assert.equal(a.bodySource,bodySource);
+ assert.deepEqual(normalizeState(JSON.parse(JSON.stringify(a))),a);
+}
+assert.throws(()=>normalizeState({characterType:'woman',foundationRevision:1}),/尚未建立/);
+assert.equal(normalizeState({characterType:'man',foundationRevision:1,faceSource:'foundation'}).faceSource,'imported00003');
+console.log('PASS explicit foundation identities, adult source isolation and pending adult-female guard');
+
+for(const key of ['lowerTrapezius', 'scapulaSpine', 'scapulaAngle', 'rearAxillary', 'latTaper', 'erectorSpinae']){const state=normalizeState({characterType:"man",foundationRevision:1,[key]:78});assert.equal(state[key],78);assert.equal(normalizeState(JSON.parse(JSON.stringify(state)))[key],78);assert.equal(normalizeState({characterType:"man",foundationRevision:1})[key],50);}
+console.log("PASS six adult back structure archive fields and neutral defaults");
+
+for(const key of ["scmSternal","scmClavicular","clavicleContour","supraclavicularFossa","napeTransition","throatVolume","neckTendon"]){const state=normalizeState({characterType:"man",foundationRevision:1,[key]:77});assert.equal(state[key],77);assert.equal(normalizeState(JSON.parse(JSON.stringify(state)))[key],77);assert.equal(normalizeState({characterType:"man",foundationRevision:1})[key],50);}
+console.log("PASS neck attachment structure archive values and neutral defaults");
+
+for(const key of ['craniumWidth','craniumDepth','facePlaneSoftness']){for(const value of [0,50,100]){const saved=normalizeState({characterType:'man',foundationRevision:1,[key]:value});assert.equal(saved[key],value);assert.deepEqual(normalizeState(JSON.parse(JSON.stringify(saved))),saved);}assert.equal(normalizeState({[key]:-999})[key],0);assert.equal(normalizeState({[key]:999})[key],100);}
+console.log('PASS adult cranium and surface controls bounded archive roundtrip');
+
+for(const key of ['craniumWidth','eyeWidth','jawWidth','mouthHeight','upperLipThickness','scmSternal','clavicleContour'])for(const value of [0,50,100]){
+ const c=normalizeState({characterType:'man',foundationRevision:2,faceSource:'foundation',[key]:value,stoneView:'painted'});
+ assert.equal(c.faceSource,'stoneC');assert.equal(c.bodySource,'stone');assert.equal(c.foundationRevision,2);assert.equal(c[key],value);assert.equal(c.stoneView,'skin');assert.deepEqual(normalizeState(JSON.parse(JSON.stringify(c))),c);
+}
+assert.equal(normalizeState({characterType:'boy',foundationRevision:2}).foundationRevision,1);
+assert.equal(normalizeState({characterType:'girl',foundationRevision:2,faceSource:'stoneC'}).faceSource,'vroid');
+assert.ok(!text.includes('载入完整 Stone 预设')&&!text.includes('试用 Stone 面部贴图')&&!text.includes('载入连续素体验证'));
+assert.ok(!text.includes('const paintedFacePreset=')&&!text.includes("label:'Stone · 硬朗熟男脸'"));
+console.log('PASS C foundation v2 archive, old revisions, independent groups and removed Stone trial entries');
+
+const switchCode=text.slice(text.indexOf('function switchFoundation('),text.indexOf('function patch('));
+const manFactory=new Function('parameterDefaults','parameterRanges','wardrobeDefaults','wardrobeRanges','hairDefaults','hairChoices','hairRanges','hairOptionsFor','filterHairForGender',prefix+`let state={...defaults},faceBaseline,bodyBaseline,motionMode,motionTime;const foundationDrafts=new Map();function finishDirectEdit(){}function syncMotionControls(){}function update(){}function renderControls(){}function setView(){}`+normalize+switchCode+`switchFoundation('man',{fresh:true});return state;`);
+const man=manFactory(parameterDefaults,parameterRanges,wardrobeDefaults,wardrobeRanges,hairDefaults,hairChoices,hairRanges,hairOptionsFor,filterHairForGender);
+const calibrated=JSON.parse(await fs.readFile(dir+'assets/anime/stone-c-defaults.json','utf8'));
+for(const [key,v] of Object.entries(calibrated))if(typeof v==='number'&&Object.hasOwn(man,key))assert.equal(man[key],v,'new man differs from selected C: '+key);
+for(const key of ['faceSource','skin','clothes','shoes','pants'])assert.equal(man[key],calibrated[key]);
+console.log('PASS actual new-man UI action matches calibrated C defaults');
+
+assert.ok(text.includes("'./motion.js?v=101'"),'motion must load the C-safe normal updater after a cached old session');
