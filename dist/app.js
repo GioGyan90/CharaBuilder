@@ -1,18 +1,18 @@
 import {cameraAngles,cameraYaw,anglePosition,selectedAngle,screenDragSide,moveCameraTarget} from './view.js?v=86';
 import {faceHandleIds,faceEditorGroups,importedFaceEditorGroups,importedStructureLegend,bodyEditorGroups,bindDrag,clampValue} from './editor.js?v=90';
 import {openHslPicker} from './colors.js?v=16';
-import {updateCharacterMotion,motionPresets} from './motion.js?v=101';
+import {updateCharacterMotion,motionPresets} from './motion.js?v=104';
 import {parameterDefaults,parameterRanges} from './parameters.js?v=101';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=103';
+import { loadHumanAssets, createHuman, disposeHuman, ensureHumanPresets, applyHumanColors } from './anime.js?v=104';
 
 import {hairDefaults,hairChoices,hairRanges,classicHairPresets,hairOptionsFor,filterHairForGender} from './hair.js?v=93';
 import {wardrobeDefaults,wardrobeRanges} from './wardrobe.js?v=25';
 const $ = s => document.querySelector(s);
 const defaults = {characterType:'girl',foundationRevision:1,bodySource:'vroid',stoneView:'skin',faceStructureView:'skin',...parameterDefaults,...hairDefaults,...wardrobeDefaults,faceSource:'vroid',name:'新角色',gender:'female',height:50,weight:45,shoulders:45,legs:50,faceWidth:50,jawWidth:45,eyeSize:50,eyeSpace:50,nose:50,mouth:50,hair:'modular',clothes:'shirtPants',shoes:'shoes',expression:'neutral',skin:'#f1cbb2',hairColor:'#332821',eyeColor:'#806449',shirt:'#778f87',pants:'#343b50',shoeColor:'#343b50'};
 const adultHeadKeys=['craniumWidth','craniumDepth','facePlaneSoftness'];
-const choices = {characterType:[['boy','少年'],['girl','少女'],['man','成男'],['woman','成女']],faceStructureView:[['skin','皮肤'],['regions','骨性结构分区'],['wire','减面线框']],bodySource:[['vroid','日漫标准身材'],['stone','Stone · 魁梧肌肉']],stoneView:[['clay','素体白模'],['skin','肤色检查'],['painted','Stone 面部贴图']],faceSource:[['stoneC','Stone · C 成男基础'],['foundation','Stone · 连续素体'],['imported00003','导入头模 · 00003'],['vroid','原版日漫'],['authored','参考日漫'],['stone','Stone · 硬朗熟男']],gender:[['female','女性'],['male','男性']],...hairChoices,hair:[['modular','分区发型']],clothes:[['shirtPants','衬衫 · 长裤'],['underwear','贴身内衣']],shoes:[['shoes','穿鞋'],['barefoot','光脚']],expression:[['neutral','自然'],['fun','微笑'],['joy','开心'],['angry','认真'],['sorrow','忧伤'],['blink','闭眼']]};
+const choices = {characterType:[['boy','少年'],['girl','少女'],['man','成男'],['woman','成女']],faceStructureView:[['skin','皮肤'],['regions','骨性结构分区'],['wire','减面线框']],bodySource:[['vroid','日漫标准身材'],['stone','Stone · 魁梧肌肉']],stoneView:[['clay','素体白模'],['skin','肤色检查'],['painted','Stone 面部贴图']],faceSource:[['stoneC','Stone · C 成男基础'],['foundation','Stone · 连续素体'],['imported00003','导入头模 · 00003'],['vroid','原版日漫'],['authored','参考日漫'],['stone','Stone · 硬朗熟男']],gender:[['female','女性'],['male','男性']],...hairChoices,hair:[['modular','分区发型']],clothes:[['shirtPants','衬衫 · 长裤'],['underwear','贴身内衣']],shoes:[['shoes','穿鞋'],['barefoot','光脚']],expression:[['neutral','自然'],['fun','微笑'],['joy','开心'],['angry','认真'],['sorrow','忧伤'],['blink','闭眼'],['autoBlink','自然眨眼']]};
 const cUnavailable=['eyeballDepth','browSurfaceOffset'];
 const palettes = {eyeColor:['#806449','#427b99','#538368','#a67845','#8773a1','#8f454a'],skin:['#f1cbb2','#d6a17e','#b87c55','#86543c','#51372c'],sideHairColor:['#929590','#b7b9b3','#d0d0c8','#747874','#515550','#332821'],hairColor:['#201d20','#332821','#815137','#c5a15e','#b7b9c4','#854d67'],shirt:['#778f87','#d7c8b0','#a24d54','#537892','#373c49','#bca0c2'],pants:['#343b50','#292c31','#a09380','#655850'],shoeColor:['#292c31','#343b50','#655850','#a09380','#e0ded7']};
 const ranges = {...parameterRanges,...hairRanges,...wardrobeRanges,height:['身高','较矮','较高'],weight:['体型','纤细','丰满'],shoulders:['肩宽','窄','宽'],legs:['腿长比例','短','长'],faceWidth:['脸部宽度','窄','宽'],eyeSize:['眼睛大小','小','大'],eyeSpace:['眼间距','近','远'],nose:['鼻子大小','小','大'],mouth:['嘴部宽度','窄','宽']};
@@ -33,7 +33,7 @@ let state={...defaults}, activeTab='body', currentView='full', model, renderer, 
 const stage=$('#stage');
 let humanReady=false,buildRequest=0;
 const presetLoading=element('div','model-loading','正在生成角色…');
-function choicesFor(key){if(key==='stoneView'&&state.faceSource==='stoneC')return [['skin','完整贴图'],['clay','白模检查']];if(key==='stoneView'&&state.faceSource!=='foundation')return choices.stoneView.filter(([v])=>v!=='painted');return hairChoices[key]?hairOptionsFor(key,state.gender,state.faceSource).filter(([id])=>!['stoneOriginal','imported00003'].includes(id)):choices[key];}
+function choicesFor(key){if(key==='expression')return state.faceSource==='stoneC'?[['neutral','睁眼'],['blink','闭眼'],['autoBlink','自然眨眼']]:choices.expression.filter(([id])=>id!=='autoBlink');if(key==='stoneView'&&state.faceSource==='stoneC')return [['skin','完整贴图'],['clay','白模检查']];if(key==='stoneView'&&state.faceSource!=='foundation')return choices.stoneView.filter(([v])=>v!=='painted');return hairChoices[key]?hairOptionsFor(key,state.gender,state.faceSource).filter(([id])=>!['stoneOriginal','imported00003'].includes(id)):choices[key];}
 let toastTimer;
 function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),2400);}
 function normalize(value){
@@ -60,6 +60,8 @@ function normalize(value){
  // Earlier Stone archives selected the entire foundation with faceSource.
  if(!Object.hasOwn(value,'bodySource')&&value.faceSource==='stone'&&out.gender==='male')out.bodySource='stone';
  if(out.gender!=='male'){out.bodySource='vroid';if(['stone','imported00003','foundation','stoneC'].includes(out.faceSource))out.faceSource='vroid';}
+ if(out.faceSource==='stoneC'&&!['neutral','blink','autoBlink'].includes(out.expression))out.expression='neutral';
+ if(out.faceSource!=='stoneC'&&out.expression==='autoBlink')out.expression='neutral';
  if(!Object.hasOwn(value,'shoeColor'))out.shoeColor=out.pants;
  // Old complete hairstyles migrate to editable sections; clothing becomes shirt + pants.
  if(!Object.hasOwn(value,'frontHair')){
@@ -95,7 +97,7 @@ function syncFields(){for(const key of Object.keys(ranges)){const input=$('#cont
 function selectGroup(id){selectedFaceGroup=id;document.querySelectorAll('.part-card').forEach(card=>card.classList.toggle('editing',card.dataset.group===id));}
 function beginDirectEdit(){if(!['face','body'].includes(activeTab))return;directFaceEdit=true;motionMode='rest';motionTime=0;motionPlaying=false;syncMotionControls();if(orbit){orbit.autoRotate=false;$('#rotate').classList.remove('selected');$('#rotate').setAttribute('aria-pressed','false');orbit.enabled=true;}const view=activeTab==='face'?'face':'full';if(currentView!==view)setView(view);const b=$('#direct-face');if(b){b.classList.add('selected');b.setAttribute('aria-pressed','true');}syncHandleVisibility();}
 function finishDirectEdit(){directFaceEdit=false;if(orbit)orbit.enabled=true;const b=$('#direct-face');if(b){b.classList.remove('selected');b.setAttribute('aria-pressed','false');}syncHandleVisibility();}
-const currentFaceGroups=()=>state.faceSource==='stoneC'?importedFaceEditorGroups.map(g=>({...g,keys:g.keys.filter(k=>!cUnavailable.includes(k)),axes:g.axes.filter(a=>!a.slice(0,2).some(k=>cUnavailable.includes(k)))})):['imported00003','stoneC'].includes(state.faceSource)?importedFaceEditorGroups:faceEditorGroups;
+const currentFaceGroups=()=>state.faceSource==='stoneC'?[...importedFaceEditorGroups.map(g=>({...g,keys:g.keys.filter(k=>!cUnavailable.includes(k)),axes:g.axes.filter(a=>!a.slice(0,2).some(k=>cUnavailable.includes(k)))})),{id:'expression',title:'眼睑与眨眼',keys:['expression'],axes:[]}]:['imported00003','stoneC'].includes(state.faceSource)?importedFaceEditorGroups:faceEditorGroups;
 function paintPad(pad){const group=[...currentFaceGroups(),...bodyEditorGroups].find(g=>g.id===pad.dataset.group),axis=group.axes[dragModes.get(group.id)||0]||group.axes[0],dot=pad.querySelector('.pad-dot');const bx=bounds(axis[0]),by=bounds(axis[1]);dot.style.left=(15+(state[axis[0]]-bx[0])/(bx[1]-bx[0])*70)+'%';dot.style.top=(85-(state[axis[1]]-by[0])/(by[1]-by[0])*70)+'%';pad.querySelector('.pad-value').textContent=axis[2]+' '+state[axis[0]]+' / '+axis[3]+' '+state[axis[1]];}
 function makePad(group){
  const wrap=element('div','part-drag'),switches=element('div','axis-switch');
@@ -142,7 +144,7 @@ function renderControls(){
   const wrap=element('div','field face-presets'),box=element('div','options');wrap.append(element('div','field-title','脸型预设'));
   const presets=state.characterType==='man'?[{label:'Stone · C 成男基础',values:{faceSource:'stoneC',foundationRevision:2,...faceNeutral}}]:facePresets.filter(p=>(!p.gender||p.gender===state.gender)&&(state.foundationRevision>=1?p.values.faceSource==='vroid':true));
   for(const preset of presets){const b=element('button','option',preset.label);b.classList.toggle('selected',state.faceSource===preset.values.faceSource);b.onclick=()=>{remember();if(state.characterType==='man'){switchFoundation('man',{fresh:true});return;}Object.assign(state,faceNeutral,preset.values);faceBaseline={...state};update();renderControls();setView('face');};box.append(b);}wrap.append(box);
-  if(state.faceSource==='stoneC')wrap.append(element('p','reference-note','C 方案 · 已修复颈侧突起。沿用原生贴图与五官，支持骨性体块、眼眶、鼻唇、头身比例及骨骼动作。独立成男眼球已安装，支持眼色、较小瞳孔、虹膜和视线。眼皮与闭眼形变将在下一步制作。'));
+  if(state.faceSource==='stoneC')wrap.append(element('p','reference-note','C 方案 · 已修复颈侧突起。沿用原生贴图与五官，支持骨性体块、眼眶、鼻唇、头身比例及骨骼动作。独立成男眼球已安装，支持眼色、较小瞳孔、虹膜和视线。上下眼皮已支持睁眼、闭眼与自然眨眼；可在「眼睑与眨眼」中切换。'));
   $('#controls').append(wrap);
  }
  if(activeTab==='face'&&state.faceSource==='foundation')$('#controls').append(renderField('stoneView'));
@@ -163,7 +165,7 @@ function renderControls(){
   const undo=element('button',null,'撤销'),redo=element('button',null,'重做');undo.id='face-undo';redo.id='face-redo';undo.onclick=()=>{if(!undoStates.length)return;redoStates.push({...state});state=undoStates.pop();update();renderControls();};redo.onclick=()=>{if(!redoStates.length)return;undoStates.push({...state});state=redoStates.pop();update();renderControls();};toolbar.append(drag,undo,redo);
   $('#controls').append(toolbar,element('p','face-help',activeTab==='face'?(['imported00003','stoneC'].includes(state.faceSource)?'结构编辑范围 0～100 · 双侧同步调整':'自由范围 −50～150 · 双侧同步调整')+'\n悬停脸部显示区域与名称，拖拽调整；Shift 微调；空白处可旋转查看。':'体型结构参数 · 自由范围 −100～200\n拖动卡片或身体点位，Shift 微调；空白处旋转/缩放，右键平移；可随时切换机位。'));
   const groups=activeTab==='face'?currentFaceGroups():bodyEditorGroups,baseline=activeTab==='face'?faceBaseline:bodyBaseline;
-  for(const group of groups){if(group.adultOnly&&!(state.characterType==='man'&&state.foundationRevision>=1))continue;const keys=group.keys.filter(k=>(state.faceSource!=='stoneC'||!cUnavailable.includes(k))&&fields.includes(k)&&!(k==='expression'&&['authored','stone','imported00003','stoneC'].includes(state.faceSource)));if(!keys.length)continue;
+  for(const group of groups){if(group.adultOnly&&!(state.characterType==='man'&&state.foundationRevision>=1))continue;const keys=group.keys.filter(k=>(state.faceSource!=='stoneC'||!cUnavailable.includes(k))&&fields.includes(k)&&!(k==='expression'&&['authored','stone','imported00003'].includes(state.faceSource)));if(!keys.length)continue;
    const card=element('details','part-card');card.dataset.group=group.id;card.open=openCards.has(group.id);card.classList.toggle('editing',selectedFaceGroup===group.id);const summary=element('summary');summary.append(element('span',null,group.title),element('small',null,keys.length+' 项'));
    const reset=element('button','part-reset','重置');reset.setAttribute('aria-label','重置'+group.title);reset.onclick=e=>{e.preventDefault();e.stopPropagation();remember();for(const key of keys)state[key]=baseline[key]??defaults[key];applyHumanColors(model,state);syncFields();update();renderControls();};summary.append(reset);card.append(summary);
    card.ontoggle=()=>{if(card.open){openCards.add(group.id);selectGroup(group.id);}else openCards.delete(group.id);};const content=element('div','part-content');if(group.axes.length)content.append(makePad(group));keys.forEach(k=>{const field=renderField(k);if(field)content.append(field);});card.append(content);$('#controls').append(card);

@@ -1,5 +1,6 @@
-import {composeStoneC,installStoneCMaterial,updateStoneCMaterial} from './stone-c.js?v=103';
-import {prepareStoneCEyes} from './stone-c-eyes.js?v=103';
+import {composeStoneC,installStoneCMaterial,updateStoneCMaterial} from './stone-c.js?v=104';
+import {prepareStoneCEyes} from './stone-c-eyes.js?v=104';
+import {updateStoneCBlink} from './stone-c-lids.js?v=104';
 import {installAdultScalp,adultScalpAttributes,updateAdultScalp} from './adult-scalp.js?v=92';
 import {installAdultIrisMaterial} from './adult-eye-material.js?v=92';
 import {composeStoneReference,graftHead,reserveImportedEyes,addImportedFeatures,prepareAdultHead,adultHeadNormals,installAdultHeadNormals} from './stone-avatar.js?v=101';
@@ -306,7 +307,7 @@ if(iris && material.map){
     if(data.baseFamily==='adultMale'&&name==='Imported00003_Face_SKIN')installAdultScalp(material,THREE,data.landmarks.faceRig,state);
     if(data.baseFamily==='stoneC'&&name==='StoneCHead_SKIN'&&state.faceStructureView==='regions'){material.vertexColors=true;material.map=null;}
     if(data.baseFamily==='stoneC'&&name==='StoneCHead_SKIN'&&['regions','wire'].includes(state.faceStructureView)){material.map=null;material.color.set(state.faceStructureView==='wire'?'#b9c0ca':'#ffffff');material.userData.colorRole=null;material.flatShading=false;}
-    else if(data.baseFamily==='stoneC'&&skin){if(name==='StoneCNeck_SKIN')material.vertexColors=!clay;installStoneCMaterial(material,THREE,state,name==='StoneReferenceBody_SKIN'||name==='StoneCEyeSocket_SKIN'?'body':name==='StoneCHead_SKIN'?'head':'neck');}
+    else if(data.baseFamily==='stoneC'&&skin){if(name==='StoneCNeck_SKIN')material.vertexColors=!clay;installStoneCMaterial(material,THREE,state,name==='StoneReferenceBody_SKIN'||name.startsWith('StoneCEyelid')?'body':name==='StoneCHead_SKIN'?'head':'neck');}
     return material;
   });
   // Fade paint into the untextured scalp at the actual shared rest-space boundary.
@@ -391,6 +392,11 @@ if(iris && material.map){
     }
     const adultSurface=adultHeadNormals(p,source,data.materials,data.landmarks,state,normals);
     if(adultSurface)normals.set(adultSurface.normals);
+    const blinkStates=source.blinkFrames?.map((frame,fi)=>{
+     if(fi===0)return {position:p.slice(),normal:normals.slice()};
+     const position=new Float32Array(p.length),normal=new Float32Array(p.length);
+     for(let i=0;i<p.length;i+=3){const q=frame.positions.slice(i,i+3).map(v=>v/1e5),n=frame.normals.slice(i,i+3).map(v=>v/32767);position.set(deform(...q,'Face:skin'),i);normal.set(deformNormal(deform,...q,...n,'Face:skin'),i);}return {position,normal};
+    });
     for(const part of source.groups) {
       if(!part.indices.length)continue;
       const description=data.materials[part.material].name;
@@ -400,6 +406,7 @@ if(iris && material.map){
       const geometry=new THREE.BufferGeometry();
       geometry.setAttribute('position',new THREE.BufferAttribute(p,3));
       geometry.setAttribute('uv',new THREE.Float32BufferAttribute(source.uv.map(v=>v/65535),2));
+      if(source.eyePaintCleanup)geometry.setAttribute('cEyePaintCleanup',new THREE.Float32BufferAttribute(source.eyePaintCleanup,1));
       if(materials[part.material].userData.adultScalp)geometry.setAttribute('adultScalpPosition',new THREE.BufferAttribute(adultScalpAttributes(source),3));
       geometry.setIndex(part.indices);
       if(materials[part.material].userData.stonePainted){
@@ -430,6 +437,7 @@ if(iris && material.map){
       for(const id of part.indices)geometry.boundingBox.expandByPoint(vertex.fromArray(p,id*3));
       geometry.boundingSphere=geometry.boundingBox.getBoundingSphere(new THREE.Sphere());
       const mesh=new THREE.Mesh(geometry,materials[part.material]);mesh.name=description;mesh.userData.texture=data.materials[part.material].texture;mesh.userData.part=source.name;mesh.userData.rigSource=source;
+      if(blinkStates){mesh.userData.stoneCBlinkFrames=blinkStates;mesh.userData.stoneCLid=source.stoneCLid;}
       mesh.castShadow=!/Face|Eye|Hair/.test(description);mesh.receiveShadow=false;
       mesh.renderOrder=/Eyeline|Eyelash|EyeHighlight|FaceBrow/.test(description)?2:0;
       group.add(mesh);
@@ -498,7 +506,7 @@ if(iris && material.map){
   group.position.y=-(floorY+.001)*scale;
   group.userData.height=new THREE.Box3().setFromObject(group).max.y;
   group.userData.faceY=deform(0,eyeY,data.landmarks.head[2],'Face')[1]+group.position.y;
-  if(data.baseFamily==='stoneC'){group.userData.stoneCRevision=103;group.userData.selectedTopology='C';group.userData.facePresetName='Stone · C 成男基础';}
+  if(data.baseFamily==='stoneC'){group.userData.stoneCRevision=104;group.userData.selectedTopology='C';group.userData.facePresetName='Stone · C 成男基础';group.userData.stoneCBlink={mode:state.expression,amount:null,meshes:group.children.filter(m=>m.userData.stoneCBlinkFrames)};updateStoneCBlink(group,0);}
   group.userData.model=data.baseFamily==='stoneC'?'stone-c-adult':data.baseFamily==='adultMale'?'stone-adult-independent':'vroid-beta-parametric';
   group.userData.baseFamily=data.baseFamily||state.characterType||state.gender;
   group.userData.headReference=data.headReference;

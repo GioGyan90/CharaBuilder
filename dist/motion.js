@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import library from './assets/motion/quaternius.js?v=26';
 import {updateCharacterMotion as proceduralMotion,updatePantsNormals} from './rig.js?v=101';
+import {updateStoneCBlink} from './stone-c-lids.js?v=104';
 export const motionPresets=[
  {id:'relaxed',label:'放松站姿',source:'Idle_Loop'},
  {id:'talk',label:'交谈手势',source:'Idle_Talking_Loop'},
@@ -72,6 +73,7 @@ function setup(group){
 }
 export function updateCharacterMotion(group,time,mode='idle'){
  if(!group?.userData.motion)return;
+ updateStoneCBlink(group,time);
  const p=setup(group),{bones,humanoid}=group.userData.motion,custom=mode==='idle'||mode==='inspect',clip=library.clips[custom?'relaxed':mode],inspect=mode==='inspect'?inspectionPhase(time):null;
  if(p.mode!==mode){p.from=bones.map(b=>b.quaternion.clone());p.fromHip=bones[humanoid.hips]?.position.y-p.rest[humanoid.hips]?.y||0;p.mode=mode;p.start=time;}
  group.position.y=p.baseY;for(let i=0;i<bones.length;i++){bones[i].position.copy(p.rest[i]);bones[i].scale.set(1,1,1);}

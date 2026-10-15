@@ -142,4 +142,9 @@ for(const [key,v] of Object.entries(calibrated))if(typeof v==='number'&&Object.h
 for(const key of ['faceSource','skin','clothes','shoes','pants'])assert.equal(man[key],calibrated[key]);
 console.log('PASS actual new-man UI action matches calibrated C defaults');
 
-assert.ok(text.includes("'./motion.js?v=101'"),'motion must load the C-safe normal updater after a cached old session');
+assert.ok(text.includes("'./motion.js?v=104'"),'motion must load the C-safe normal updater after a cached old session');
+
+for(const expression of ['neutral','blink','autoBlink']){const s={...man,expression};assert.equal(normalizeState(JSON.parse(JSON.stringify(s))).expression,expression);}
+assert.equal(normalizeState({...man,expression:'joy'}).expression,'neutral');
+assert.equal(normalizeState({gender:'male',faceSource:'vroid',expression:'autoBlink'}).expression,'neutral');
+console.log('PASS C open/closed/auto-blink archive states and non-C fallback');

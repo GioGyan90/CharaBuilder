@@ -1,6 +1,6 @@
 import {deformNormal} from './parameters.js?v=101';
 import {hunyuanSkinGLSL} from './hunyuan-skin.js?v=97';
-import {composeStoneCEyes} from './stone-c-eyes.js?v=103';
+import {composeStoneCEyes} from './stone-c-eyes.js?v=104';
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 const normalCache=new WeakMap();
 const hairPartitions=new WeakMap();
@@ -37,6 +37,10 @@ export function composeStoneC(asset,state){
  const meshes=asset.meshes.map(m=>{
   if(m.name!=='Face'&&!m.stoneCEye)return m;
   if(!w&&!d&&['upperLipThickness','lowerLipThickness','upperLipProjection','lowerLipProjection','browWidth','browThickness','facePlaneSoftness'].every(k=>(state[k]??50)===50))return m;
+  if(m.blinkFrames){
+   const frames=m.blinkFrames.map(frame=>{const positions=[],normals=[];for(let i=0;i<frame.positions.length;i+=3){const p=frame.positions.slice(i,i+3).map(v=>v/1e5);positions.push(...field(...p).map(v=>v*1e5));normals.push(...deformNormal(field,...p,...frame.normals.slice(i,i+3).map(v=>v/32767),'Face').map(v=>v*32767));}return {positions,normals};});
+   return {...m,positions:frames[0].positions,normals:frames[0].normals,blinkFrames:frames};
+  }
   const positions=[],normals=[],soft=m.name==='Face'?((state.facePlaneSoftness??50)-50)/50:0;
   let averaged=normalCache.get(m);
   if(!averaged){const sums=new Map(),keys=[];for(let i=0;i<m.positions.length;i+=3){const k=m.positions.slice(i,i+3).map(v=>Math.round(v)).join(',');keys.push(k);if(!sums.has(k))sums.set(k,[0,0,0]);const n=sums.get(k);for(let j=0;j<3;j++)n[j]+=m.normals[i+j];}averaged=keys.map(k=>{const n=sums.get(k),l=Math.hypot(...n)||1;return n.map(v=>v/l);});normalCache.set(m,averaged);}
@@ -56,8 +60,16 @@ export function installStoneCMaterial(material,THREE,state,kind){
  if(kind==='body')return updateStoneCMaterial(material,THREE,state);
  const skinGain=new THREE.Vector3(1,1,1);material.userData.cSkinGain=skinGain;
  material.color.set('#ffffff');
- material.onBeforeCompile=shader=>{shader.uniforms.cSkinGain={value:skinGain};shader.fragmentShader='uniform vec3 cSkinGain;\n'+hunyuanSkinGLSL+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb=gradeHunyuanSkin(diffuseColor.rgb,cSkinGain);');};
- material.customProgramCacheKey=()=> 'stone-c-v101-'+kind;
+ material.onBeforeCompile=shader=>{shader.uniforms.cSkinGain={value:skinGain};shader.fragmentShader='uniform vec3 cSkinGain;\n'+hunyuanSkinGLSL+shader.fragmentShader;
+  let cleanup='';if(kind==='head'){
+   const base=new THREE.Color('#d8946c');shader.uniforms.cOriginalSkin={value:new THREE.Vector3(base.r,base.g,base.b)};
+   shader.vertexShader='attribute float cEyePaintCleanup; varying float vCEyePaintCleanup;\n'+shader.vertexShader;
+   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvCEyePaintCleanup=cEyePaintCleanup;');
+   shader.fragmentShader='varying float vCEyePaintCleanup; uniform vec3 cOriginalSkin;\n'+shader.fragmentShader;
+   cleanup='\n#ifdef USE_MAP\ndiffuseColor.rgb=mix(diffuseColor.rgb,cOriginalSkin,clamp(vCEyePaintCleanup,0.,1.));\n#endif\n';
+  }
+  shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>'+cleanup+'\ndiffuseColor.rgb=gradeHunyuanSkin(diffuseColor.rgb,cSkinGain);');};
+ material.customProgramCacheKey=()=> 'stone-c-v104-'+kind;
  updateStoneCMaterial(material,THREE,state);
 }
 export function updateStoneCMaterial(material,THREE,state){

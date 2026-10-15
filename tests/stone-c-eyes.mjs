@@ -14,11 +14,11 @@ function frontZ(mesh,x,y){
  }return best;
 }
 for(const edit of [{},{eyeWidth:75,eyeHeight:25,eyeSpace:75},{craniumWidth:100,craniumDepth:0,headSize:75},{irisSize:0,pupilSize:0,gazeX:0,gazeY:100},{irisSize:100,pupilSize:100,gazeX:100,gazeY:0}]){
- const s={...state,...edit},m=createHuman(s),eyes=m.children.filter(x=>x.name.startsWith('StoneCEye'));assert.equal(eyes.length,8);
+ const s={...state,...edit},m=createHuman(s),eyes=m.children.filter(x=>x.name.startsWith('StoneCEye'));assert.equal(eyes.length,10);
  for(const e of eyes){assert.ok(e.isSkinnedMesh);assert.equal(e.material.map,null);for(const k of ['position','normal','skinWeight'])for(const v of e.geometry.attributes[k].array)assert.ok(Number.isFinite(v));}
  const irises=eyes.filter(x=>x.name==='StoneCEyeIris'),pupils=eyes.filter(x=>x.name==='StoneCEyePupil');assert.equal(irises.length,2);assert.equal(pupils.length,2);
  for(const pupil of pupils){
-  const p=pupil.geometry.attributes.position.array,cover=Math.max(...m.children.filter(x=>['StoneCHead_SKIN','StoneCEyeSocket_SKIN'].includes(x.name)).map(x=>frontZ(x,p[0],p[1])));
+  const p=pupil.geometry.attributes.position.array,cover=Math.max(...m.children.filter(x=>(x.name==='StoneCHead_SKIN'||x.name.startsWith('StoneCEyelid'))).map(x=>frontZ(x,p[0],p[1])));
   assert.ok(p[2]>cover+1e-5,'new pupil is buried in head/socket');
  }
  applyHumanColors(m,{...s,eyeColor:'#427b99'});for(const iris of irises)assert.equal(iris.material.color.getHexString(),'427b99');

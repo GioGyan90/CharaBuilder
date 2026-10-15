@@ -1,3 +1,4 @@
+import {buildStoneCLids} from './stone-c-lids.js?v=104';
 // C ocular upgrade: clip the old painted eye patch, then fit independent globes.
 // The original packed asset is immutable; the patch interpolates all render/rig attributes.
 export function prepareStoneCEyes(asset,patch){
@@ -16,6 +17,15 @@ export function prepareStoneCEyes(asset,patch){
  mesh.stoneCHairIndices=asset.hairTriangles.flatMap(t=>indices.slice(t*3,t*3+3));
  const kept=[];for(let i=0;i<indices.length;i+=3)if(!removed.has(i/3))kept.push(...indices.slice(i,i+3));
  mesh.groups=[{...original.groups[0],indices:[...kept,...patch.replacementIndices]}];
+ // Remove baked eye-white/liner remnants just outside the cut. This does not hide geometry.
+ mesh.eyePaintCleanup=[];
+ const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
+ for(let i=0;i<mesh.positions.length;i+=3){const [x,y,z]=mesh.positions.slice(i,i+3).map(v=>v/1e5);let weight=0;
+  if(Math.abs(x)>.015&&Math.abs(x)<.055&&y>1.526&&y<1.540&&z>.055){const spec=patch.sockets[x<0?0:1];let distance=Infinity;
+   for(let j=0;j<spec.rim.length;j++){const a=spec.rim[j],b=spec.rim[(j+1)%spec.rim.length],dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy||1)));distance=Math.min(distance,Math.hypot(x-a[0]-dx*t,y-a[1]-dy*t));}
+   weight=1-smooth(.0009,.0019,distance);if(y>1.532)weight*=smooth(.027,.031,Math.abs(x));
+  }mesh.eyePaintCleanup.push(weight);
+ }
  return {...asset,eyePatch:patch,meshes:asset.meshes.map(m=>m===original?mesh:m)};
 }
 const unit=v=>{const l=Math.hypot(...v)||1;return v.map(x=>x/l);};
@@ -25,7 +35,7 @@ export function composeStoneCEyes(asset,state){
  const headBone=asset.meshes.find(m=>m.name==='Face').skinIndices[0];
  const value=k=>Math.max(-1,Math.min(1,((state[k]??50)-50)/50));
  const material=(name,color)=>{const id=materials.length;materials.push({name,color:[...color,1],double:true,blend:0,texture:null});maps.push(null);return id;};
- const white=material('StoneCEyeWhite',[.93,.925,.90]),iris=material('StoneCEyeIris',[1,1,1]),pupil=material('StoneCEyePupil',[.009,.007,.006]),socket=material('StoneCEyeSocket_SKIN',[1,1,1]);
+ const white=material('StoneCEyeWhite',[.93,.925,.90]),iris=material('StoneCEyeIris',[1,1,1]),pupil=material('StoneCEyePupil',[.009,.007,.006]);
  function builder(name,mat){
   const m={name,stoneCEye:true,positions:[],normals:[],uv:[],skinIndices:[],skinWeights:[],faceRegions:[],expressions:{},groups:[{material:mat,indices:[]}]};
   const vertex=(p,n=[0,0,1])=>{const i=m.positions.length/3;m.positions.push(...p.map(v=>v*1e5));m.normals.push(...unit(n).map(v=>v*32767));m.uv.push(0,0);m.skinIndices.push(headBone,0,0,0);m.skinWeights.push(1,0,0,0);m.faceRegions.push('Face:skin');return i;};
@@ -50,11 +60,7 @@ export function composeStoneCEyes(asset,state){
   }
   const irisRadius=.0044*(1+value('irisSize')*.30),pupilRadius=Math.min(irisRadius*.65,.00145*(1+value('pupilSize')*.50));
   cap('StoneCEyeIris',iris,irisRadius,.00008);cap('StoneCEyePupil',pupil,pupilRadius,.00016);
-  // Temporary untextured socket lining joins the exact cut rim to the globe.
-  // This is a stationary support cuff, not an articulated eyelid or a blink.
-  const cuff=builder('StoneCEyeSocket'+label,socket),N=spec.rim.length;
-  for(let j=0;j<=2;j++)for(const p of spec.rim){const t=j/2,x=p[0]+(c[0]-p[0])*.025*t,y=p[1]+(c[1]-p[1])*.025*t,z=c[2]+Math.sqrt(Math.max(1e-10,r*r-(x-c[0])**2-(y-c[1])**2))-.0001;const q=[x,y,p[2]+(z-p[2])*t];cuff.vertex(q,[x-c[0],y-c[1],z-c[2]]);}
-  for(let j=0;j<2;j++)for(let i=0;i<N;i++){const a=j*N+i,b=j*N+(i+1)%N;const flip=spec.side>0;for(const tri of [[a,b,a+N],[b,b+N,a+N]])cuff.face(...(flip?tri.reverse():tri));}cuff.done();
+  meshes.push(...buildStoneCLids({...spec,center:c},asset.meshes.find(m=>m.name==='Face'),headBone,material));
  }
  return {...asset,materials,maps,meshes};
 }

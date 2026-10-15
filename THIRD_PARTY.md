@@ -134,3 +134,7 @@ Stone brow coverage derives from the original CC0 VRoid beta male brow alpha; st
 ### C independent ocular geometry · v103
 
 Project-generated standard spheres, spherical iris/pupil caps and static socket cuffs; no new external eye model or texture. The eye cut patch interpolates the existing C asset's geometry, normals, UVs and bone weights. Original C attribution still applies. Rebuild script uses numpy and Shapely as development tools; neither is shipped in the browser runtime. This stage does not include articulated lids or blink animation.
+
+### C articulated eyelids · v104
+
+Project-generated upper/lower skin flaps use the existing C eye cut boundary and standard globes. No external eyelid mesh, animation or texture was added. The original atlas remains unchanged; a localized head-material cleanup removes residual baked eye paint at the cut rim. Curved blink samples and their timeline are authored in `dist/stone-c-lids.js`.
