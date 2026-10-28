@@ -1,1 +1,15 @@
-{"version":1,"overlays":[]}
+{
+  "version": 1,
+  "overlays": [
+    {
+      "name": "cue",
+      "file": "cue.png",
+      "space": "fixed"
+    },
+    {
+      "name": "grip",
+      "file": "grip.png",
+      "space": "fixed"
+    }
+  ]
+}

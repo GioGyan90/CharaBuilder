@@ -12,8 +12,8 @@
       <span class="eyebrow">2D / CHARACTERS</span><h1>让角色开口。</h1><p class="muted">为故事准备的动态立绘</p>
       <div class="character-card"><div class="portrait"><img src="./dist/assets/dialogue/lucky-npc/source.png" alt="持杆的短发角色原画"></div><div><strong>持杆少女</strong><small>原画实验 · 01</small></div><span class="dot"></span></div>
       <div class="section-label">查看方式</div><div class="view-buttons" role="group" aria-label="立绘取景"><button data-view="half" class="selected">半身</button><button data-view="full">全身</button><button data-view="face">面部</button></div>
-      <label class="toggle"><input id="inspect" type="checkbox">拆层检查</label>
-      <div id="layer-list" hidden><p class="muted">选择查看实际渲染图层</p><select id="layer" aria-label="渲染图层"><option value="source.png">原始立绘</option><option value="built/base.png">主体 · 已移除眼睛</option><option value="built/hairmask.png">头发影响遮罩</option><option value="built/eye0_ball.png">左侧眼球</option><option value="built/eye1_ball.png">右侧眼球</option><option value="built/eye0_lash.png">左侧睫毛</option><option value="built/eye1_lash.png">右侧睫毛</option><option value="built/sprites/eyes_closed_0.png">左侧闭眼补图</option><option value="built/sprites/eyes_closed_1.png">右侧闭眼补图</option><option value="built/sprites/mouth_a.png">说话嘴型补图</option></select><p class="note">主体采用连续网格变形；头发遮罩限制摆动范围。手、球杆与身体保持同层。</p></div>
+      <label class="toggle"><input id="show-prop" type="checkbox" checked>独立球杆层</label><p class="note">球杆与握杆接触层固定，头部独立运动。</p><label class="toggle"><input id="inspect" type="checkbox">拆层检查</label>
+      <div id="layer-list" hidden><p class="muted">选择查看实际渲染图层</p><select id="layer" aria-label="渲染图层"><option value="built/overlays/cue.png">球杆 · 固定层</option><option value="built/overlays/grip.png">握杆接触 · 固定层</option><option value="source.png">原始立绘</option><option value="built/base.png">主体 · 已移除眼睛</option><option value="built/hairmask.png">头发影响遮罩</option><option value="built/eye0_ball.png">左侧眼球</option><option value="built/eye1_ball.png">右侧眼球</option><option value="built/eye0_lash.png">左侧睫毛</option><option value="built/eye1_lash.png">右侧睫毛</option><option value="built/sprites/eyes_closed_0.png">左侧闭眼补图</option><option value="built/sprites/eyes_closed_1.png">右侧闭眼补图</option><option value="built/sprites/mouth_a.png">说话嘴型补图</option></select><p class="note">主体采用连续网格变形；头发遮罩限制摆动范围。球杆和握杆接触区域已拆为独立固定层。</p></div>
       <div class="library-footer"><span class="eyebrow">LUCKY BREAK</span><p>二维立绘与三维角色<br>独立编辑、独立保存</p><a href="./docs/2D_DIALOGUE_EXPERIMENT.md" target="_blank" rel="noopener">制作记录 ↗</a></div>
     </aside>
     <section class="preview" aria-label="二维角色动画预览" data-view="half">
@@ -40,5 +40,5 @@
       <div class="scope-note">实验版 · 两态眼睛 / 单一开口绘制<br>支持轻度头部与呼吸变形，嘴型不代表精确音素。</div>
     </aside>
   </main>
-  <script type="module" src="./dist/dialogue.js?v=4"></script>
+  <script type="module" src="./dist/dialogue.js?v=5"></script>
 </body></html>

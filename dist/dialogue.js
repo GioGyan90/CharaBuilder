@@ -1,4 +1,4 @@
-import {loadMeshAvatar} from './vendor/mesh-avatar/index.js';
+import {loadMeshAvatar} from './vendor/mesh-avatar/index.js?v=props1';
 import {STORAGE_KEY, defaults, normalize, performanceAt, lineAt, demoLines} from './dialogue-timeline.js?v=3';
 
 const $ = s => document.querySelector(s);
@@ -8,6 +8,7 @@ try { settings = normalize(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null
 let avatar, playing=false, paused=false, elapsed=0, idleTime=0, previous=0, trigger=null, triggerTime=0;
 let audio=null, audioUrl=null, audioContext=null, analyser=null, samples=null, raf=0, audioStarting=false, generation=0;
 const labels={neutral:'自然',smile:'微笑',surprise:'惊讶'};
+const propLayers=()=>avatar?.setOverlays($('#show-prop')?.checked?['cue','grip']:['grip']);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 if (reducedMotion) settings.gain=0;
 
@@ -126,6 +127,7 @@ function frame(now) {
 }
 
 $('#motion-demo').onclick=()=>{stop();settings.lines=demoLines.map(l=>({...l}));settings.duration=13;settings.gain=reducedMotion?0:85;settings.view='face';renderCues();applySettings();void play();if(reducedMotion)$('#save-status').textContent='系统已启用减少动态效果；如需预览头部动作，请手动调高动作幅度。';};
+$('#show-prop').onchange=propLayers;
 $('#play').onclick=play;
 $('#restart').onclick=()=>{stop();void play();};
 $('#idle').onclick=()=>{stop();trigger=null;};
@@ -166,8 +168,8 @@ window.addEventListener('pagehide',()=>{cancelAnimationFrame(raf);stop();avatar?
 window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
 
 try {
-  avatar=await loadMeshAvatar($('#avatar'),base,{manual:true,padTop:0,padSide:.03});
-  avatar.setAutoIdle(false);avatar.setAutoMotion(false);avatar.setSwayGain(reducedMotion?0:.25);
+  avatar=await loadMeshAvatar($('#avatar'),base,{manual:true,padTop:0,padSide:.03,version:'props1'});
+  avatar.setOverlays(['cue','grip']);avatar.setAutoIdle(false);avatar.setAutoMotion(false);avatar.setSwayGain(reducedMotion?0:.25);
   for(const b of document.querySelectorAll('#play,#restart,#idle,#motion-demo,[data-motion]'))b.disabled=false;
   document.documentElement.dataset.avatarReady='true';
   updateUI();raf=requestAnimationFrame(frame);

@@ -39,15 +39,15 @@ export function performanceAt(time, settings, speaking, voiceLevel = null, trigg
   let nod=0,tilt=0,shake=0;
   if(speaking){
     const t=(cue.elapsed-cue.line.at)*cue.scale;
-    if(cue.line.motion==='nod')nod=pulse(t,0,1.6,-24);
-    if(cue.line.motion==='tilt')tilt=pulse(t,0,2.4,24);
+    if(cue.line.motion==='nod')nod=pulse(t,0,1.6,-18);
+    if(cue.line.motion==='tilt')tilt=pulse(t,0,2.4,20);
     if(cue.line.motion==='blink')blink=Math.max(blink,pulse(t,0,.32,1));
     if(cue.line.motion==='shake' && t>=0 && t<=1.8)shake=Math.sin(t/1.8*Math.PI*4)*Math.sin(t/1.8*Math.PI)*10;
   }
   if (trigger) {
     blink = Math.max(blink, trigger.id==='blink' ? pulse(trigger.elapsed,0,.32,1) : 0);
-    nod += trigger.id==='nod' ? pulse(trigger.elapsed,0,1.6,-24) : 0;
-    tilt += trigger.id==='tilt' ? pulse(trigger.elapsed,0,2.4,24) : 0;
+    nod += trigger.id==='nod' ? pulse(trigger.elapsed,0,1.6,-18) : 0;
+    tilt += trigger.id==='tilt' ? pulse(trigger.elapsed,0,2.4,20) : 0;
   }
   const chars = Array.from(cue.line.text);
   const char = chars[Math.min(chars.length-1, Math.floor(cue.elapsed/cue.duration*chars.length))];
