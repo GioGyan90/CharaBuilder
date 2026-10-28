@@ -41,3 +41,22 @@ assert(performanceAt(.8,authored,true).parameters.angleZ>2);
 assert.equal(lineAt(6,{...authored,duration:10}).index,1);
 assert.equal(normalize({lines:[{duration:-3,at:99,motion:'bad'}]}).lines[0].at,.9);
 console.log('PASS: cue boundaries, authored expression/motion, audio time scaling and input bounds');
+const {motions,motionPose,varietyLines}=await import('../dist/dialogue-timeline.js');
+for(const [id,m]of Object.entries(motions)){
+ for(let t=-.1;t<m.duration+.2;t+=.04){
+  const pose=motionPose(id,t);
+  for(const key of ['x','y','z','gx','gy','lid','blink'])assert(Number.isFinite(pose[key]));
+  assert(Math.max(Math.abs(pose.x),Math.abs(pose.y),Math.abs(pose.z))<=30);
+ }
+ assert.equal(motionPose(id,m.duration+.01).x,0);
+ assert.equal(motionPose(id,m.duration+.01).y,0);
+ assert.equal(motionPose(id,m.duration+.01).z,0);
+}
+assert(motionPose('lookAside',1).x < -20);
+assert(motionPose('shy',1).y < -20);
+assert(motionPose('recoil',.4).y > 20);
+assert.equal(motionPose('recoil',.4).expression,'surprise');
+assert(motionPose('agree',.375).y < -20);
+assert(motionPose('agree',1.225).y < -20);
+assert.equal(normalize({lines:varietyLines}).lines[1].motion,'lookAside');
+console.log('PASS: distinct gesture directions, range, return to rest, expression and save compatibility');

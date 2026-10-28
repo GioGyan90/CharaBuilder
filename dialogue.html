@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>二维对话实验 · 角色工坊</title>
-  <link rel="stylesheet" href="./dist/dialogue.css?v=2">
+  <link rel="stylesheet" href="./dist/dialogue.css?v=6">
 </head>
 <body>
   <header class="topbar"><a class="brand" href="./index.html"><b>◈</b><span>角色工坊<small>CHARACTER STUDIO</small></span></a><nav aria-label="工作区"><a href="./index.html">三维工作区</a><a href="./dialogue.html" aria-current="page">二维工作区</a></nav><span class="experiment">DIALOGUE LAB <i>01</i></span></header>
@@ -22,7 +22,7 @@
       <div id="canvas-wrap"><canvas id="avatar" aria-label="持杆少女动态立绘"></canvas></div>
       <div id="layer-preview" hidden><img id="layer-image" alt="所选拆解图层"></div>
       <div id="error" role="alert" hidden></div>
-      <div class="dialogue-box"><div class="speaker"><span id="speaker">持杆少女</span><small id="emotion-label">自然</small></div><p id="line">准备好了？来一局吧。</p><div class="dialogue-meta"><span id="playback-label">无配音 · 文字节奏嘴型预览</span><span id="time">00:00 / 00:15</span></div><div class="progress"><i id="progress"></i></div></div>
+      <div class="dialogue-box"><div class="speaker"><span id="speaker">持杆少女</span><small id="emotion-label">自然</small></div><p id="line">准备好了？来一局吧。</p><div class="dialogue-meta"><span id="playback-label">无配音 · 文字节奏嘴型预览</span><span id="motion-label" role="status">动作待机</span><span id="time">00:00 / 00:15</span></div><div class="progress"><i id="progress"></i></div></div>
       <div class="transport"><button id="motion-demo" class="primary" disabled>▶ 动作演示</button><button id="play" class="primary" disabled>▶ 播放对话</button><button id="restart" disabled>↺ 从头播放</button><button id="idle" disabled>回到待机</button></div>
     </section>
     <aside class="director panel"><span class="eyebrow">PERFORMANCE</span><h2>对话编排</h2><p class="muted">小动作，让台词更有温度。</p>
@@ -32,7 +32,7 @@
       <div id="cue-list"></div>
       <div class="save-actions"><button id="add-line">＋ 添加一句</button><button id="demo">载入「准备好了？」</button></div>
       <label class="field">待机表情<select id="expression"><option value="neutral">自然</option><option value="smile">微笑</option><option value="surprise">惊讶</option></select></label>
-      <div class="section-label">动作预览</div><div class="motion-buttons"><button data-motion="blink" disabled>眨眼</button><button data-motion="nod" disabled>点头</button><button data-motion="tilt" disabled>歪头</button></div>
+      <div class="section-label">动作预览 · 点击单独表演</div><button id="variety-demo" class="primary" disabled>▶ 播放五种动作合集</button><p class="note">摇头、侧目、低头、后仰、连续点头。每种约 4 秒，可逐句选用。</p><div id="motion-buttons" class="motion-buttons"></div>
       <label class="field range-label">动作幅度 <output id="gain-value">45%</output><input id="gain" type="range" min="0" max="100" value="45"></label>
       <label class="field range-label">整段时长 <output id="duration-value">15 秒</output><input id="duration" type="range" min="5" max="30" value="15"></label>
       <div class="audio-field"><label for="voice" class="file-label">＋ 载入本地配音</label><input id="voice" type="file" accept="audio/*"><small id="audio-label">可选 · 有配音时按声音强弱开合嘴</small><button id="clear-voice" hidden>移除配音</button></div>
@@ -40,5 +40,5 @@
       <div class="scope-note">实验版 · 两态眼睛 / 单一开口绘制<br>支持轻度头部与呼吸变形，嘴型不代表精确音素。</div>
     </aside>
   </main>
-  <script type="module" src="./dist/dialogue.js?v=5"></script>
+  <script type="module" src="./dist/dialogue.js?v=6"></script>
 </body></html>
