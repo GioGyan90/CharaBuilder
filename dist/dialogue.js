@@ -1,0 +1,146 @@
+import {loadMeshAvatar} from './vendor/mesh-avatar/index.js';
+import {STORAGE_KEY, defaults, normalize, performanceAt} from './dialogue-timeline.js';
+
+const $ = s => document.querySelector(s);
+const base = './dist/assets/dialogue/lucky-npc/';
+let settings = {...defaults};
+try { settings = normalize(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || defaults); } catch { /* Storage can be unavailable. */ }
+let avatar, playing=false, paused=false, elapsed=0, idleTime=0, previous=0, trigger=null, triggerTime=0;
+let audio=null, audioUrl=null, audioContext=null, analyser=null, samples=null, raf=0, audioStarting=false, generation=0;
+const labels={neutral:'自然',smile:'微笑',surprise:'惊讶'};
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reducedMotion) settings.gain=0;
+
+function applySettings() {
+  $('#name').value=settings.name; $('#script').value=settings.text;
+  $('#expression').value=settings.expression; $('#gain').value=settings.gain; $('#duration').value=settings.duration;
+  $('#gain-value').textContent=`${settings.gain}%`; $('#duration-value').textContent=`${settings.duration} 秒`;
+  $('.preview').dataset.view=settings.view;
+  document.querySelectorAll('[data-view]').forEach(b=>{if(b.tagName==='BUTTON') b.classList.toggle('selected',b.dataset.view===settings.view);});
+  $('#speaker').textContent=settings.name || '未命名角色';
+}
+applySettings();
+function readSettings() {
+  settings=normalize({...settings,name:$('#name').value,text:$('#script').value,expression:$('#expression').value,gain:$('#gain').value,duration:$('#duration').value});
+  applySettings();
+}
+function duration() { return audio && Number.isFinite(audio.duration) && audio.duration>0 ? audio.duration : settings.duration; }
+function updateUI() {
+  const length=duration();
+  const t=Math.min(elapsed,length), progress=t/length;
+  const chars=Array.from(settings.text);
+  $('#line').textContent=playing || paused ? chars.slice(0,Math.max(1,Math.ceil(progress*chars.length))).join('') : settings.text;
+  const fmt=n=>`00:${String(Math.floor(n)).padStart(2,'0')}`;
+  $('#time').textContent=`${fmt(t)} / ${fmt(length)}`;
+  $('#progress').style.width=`${progress*100}%`;
+  $('#play').textContent=playing?'Ⅱ 暂停':paused?'▶ 继续播放':'▶ 播放对话';
+  $('#status').textContent=playing?'对话表演中':paused?'表演已暂停':'角色已就绪';
+  $('#playback-label').textContent=audio?'本地配音 · 音量驱动嘴型':'无配音 · 文字节奏嘴型预览';
+}
+function pause() { generation++; audioStarting=false; if(playing){playing=false;paused=true;} audio?.pause(); updateUI(); }
+function stop(reset=true) {
+  generation++; audioStarting=false; playing=false; paused=false; audio?.pause();
+  if(audio) audio.currentTime=0;
+  if(reset) elapsed=0;
+  avatar?.setParameters({mouthOpen:0}); updateUI();
+}
+async function play() {
+  if(!avatar || audioStarting) return;
+  if($('#inspect').checked) {
+    $('#inspect').checked=false; $('#layer-list').hidden=true;
+    $('#layer-preview').hidden=true; $('#canvas-wrap').hidden=false;
+  }
+  if(playing) { pause(); return; }
+  if(!paused) elapsed=0;
+  const token=++generation;
+  try {
+    if(audio) {
+      audioStarting=true;
+      if(!audioContext) {
+        audioContext=new AudioContext(); analyser=audioContext.createAnalyser(); analyser.fftSize=1024;
+        audioContext.createMediaElementSource(audio).connect(analyser); analyser.connect(audioContext.destination);
+        samples=new Float32Array(analyser.fftSize);
+      }
+      await audioContext.resume();
+      if(token!==generation) return;
+      audio.currentTime=elapsed; await audio.play();
+      if(token!==generation){audio.pause();return;}
+    }
+    audioStarting=false; playing=true; paused=false; updateUI();
+  } catch(error) { audioStarting=false; stop(); $('#save-status').textContent=`配音无法播放：${error.message}`; }
+}
+function voiceLevel() {
+  if(!audio || !analyser || !samples) return null;
+  analyser.getFloatTimeDomainData(samples);
+  return Math.min(1,Math.sqrt(samples.reduce((sum,x)=>sum+x*x,0)/samples.length)*7);
+}
+function frame(now) {
+  const dt=previous?Math.min((now-previous)/1000,.05):0; previous=now;
+  if(!document.hidden && !$('#inspect').checked && avatar) {
+    if(!paused) idleTime+=dt;
+    if(playing) {
+      elapsed=audio?audio.currentTime:elapsed+dt;
+      if(elapsed>=duration()) {elapsed=duration();stop(false);}
+    }
+    if(!paused) {
+      if(trigger) {trigger.elapsed=idleTime-triggerTime;if(trigger.elapsed>2.5)trigger=null;}
+      const state=performanceAt(playing?elapsed:idleTime,{...settings,duration:duration()},playing,playing?voiceLevel():null,trigger);
+      avatar.setExpression(state.expression); avatar.setParameters(state.parameters);
+      avatar.advance(dt);
+      $('#emotion-label').textContent=labels[state.expression];
+    }
+    updateUI();
+  }
+  raf=requestAnimationFrame(frame);
+}
+
+$('#play').onclick=play;
+$('#restart').onclick=()=>{stop();void play();};
+$('#idle').onclick=()=>{stop();trigger=null;};
+for(const id of ['name','script','expression','gain','duration']) $('#'+id).addEventListener('input',()=>{stop();readSettings();});
+document.querySelectorAll('button[data-view]').forEach(button=>button.onclick=()=>{settings.view=button.dataset.view;applySettings();});
+document.querySelectorAll('[data-motion]').forEach(button=>button.onclick=()=>{paused=false;trigger={id:button.dataset.motion,elapsed:0};triggerTime=idleTime;});
+$('#inspect').onchange=()=>{
+  pause(); const inspect=$('#inspect').checked;
+  $('#layer-list').hidden=!inspect; $('#layer-preview').hidden=!inspect; $('#canvas-wrap').hidden=inspect;
+  if(!inspect) paused=false;
+};
+$('#layer').onchange=()=>{$('#layer-image').src=base+$('#layer').value;};
+$('#layer').dispatchEvent(new Event('change'));
+$('#save').onclick=()=>{readSettings();try {localStorage.setItem(STORAGE_KEY,JSON.stringify(settings));$('#save-status').textContent='二维编排已保存。配音文件需下次重新选择。';}catch{$('#save-status').textContent='浏览器无法保存，请使用导出编排。';}};
+$('#export').onclick=()=>{
+  readSettings();const blob=new Blob([JSON.stringify({format:'lucky-break-dialogue-2d',version:1,avatar:'lucky-npc',...settings},null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='dialogue-2d.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+async function clearAudio() {
+  stop(); audio?.removeAttribute('src'); audio?.load(); audio=null;
+  if(audioUrl) URL.revokeObjectURL(audioUrl); audioUrl=null;
+  const context=audioContext; audioContext=null; analyser=null; samples=null;
+  if(context) void context.close().catch(()=>{});
+  $('#voice').value='';$('#audio-label').textContent='可选 · 有配音时按声音强弱开合嘴';$('#clear-voice').hidden=true;updateUI();
+}
+$('#clear-voice').onclick=clearAudio;
+$('#voice').onchange=async()=>{
+  const file=$('#voice').files[0];if(!file)return;
+  await clearAudio();audioUrl=URL.createObjectURL(file);audio=new Audio(audioUrl);
+  const current=audio;
+  audio.onloadedmetadata=()=>{if(audio===current){$('#audio-label').textContent=`${file.name} · ${Number.isFinite(audio.duration)?audio.duration.toFixed(1):'?'} 秒`;updateUI();}};
+  audio.onended=()=>{if(audio===current){elapsed=duration();stop(false);}};
+  audio.onerror=()=>{if(audio===current){stop();$('#audio-label').textContent='无法读取此音频，请换一个文件。';}};
+  $('#clear-voice').hidden=false;
+};
+document.addEventListener('visibilitychange',()=>{if(document.hidden && playing)pause();previous=0;});
+window.addEventListener('pagehide',()=>{cancelAnimationFrame(raf);stop();avatar?.destroy();void clearAudio();});
+window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
+
+try {
+  avatar=await loadMeshAvatar($('#avatar'),base,{manual:true,padTop:0,padSide:.03});
+  avatar.setAutoIdle(false);avatar.setAutoMotion(false);avatar.setSwayGain(reducedMotion?0:.25);
+  for(const b of document.querySelectorAll('#play,#restart,#idle,[data-motion]'))b.disabled=false;
+  document.documentElement.dataset.avatarReady='true';
+  updateUI();raf=requestAnimationFrame(frame);
+} catch(error) {
+  $('#status').textContent='预览未启动';$('#error').hidden=false;
+  $('#error').textContent=`无法加载动态立绘：${error.message}。请通过本地 HTTP 服务打开，并确认浏览器支持 WebGL2。仍可使用拆层检查查看原画与补图。`;
+  document.documentElement.dataset.avatarReady='error';console.error(error);
+}
