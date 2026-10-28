@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {createOverlayLayers} from '../dist/vendor/mesh-avatar/extensions/overlays.js';
+const layers=[];
+const renderer={addLayer(name,img,mesh){const layer={name,mesh};layers.push(layer);return layer;}};
+const grid=()=>({rest:[0,0,2,2],pos:[0,0,2,2]});
+const image={width:4,height:4};
+const controller=createOverlayLayers(renderer,{overlays:[{name:'cue',space:'fixed'},{name:'glasses'}]}, {cue:image,glasses:image},grid,()=>new Uint8Array(16).fill(255),()=>({}),16,4,4,x=>x);
+controller.set(['cue','glasses']);
+for(let t=0;t<30;t++)controller.update({}, {},(x,y,w,p,phys,out)=>{out[0]=x+t;out[1]=y-t;},[]);
+assert.deepEqual(layers[0].mesh.pos,[0,0,2,2]);
+assert.deepEqual(layers[1].mesh.pos,[29,-29,31,-27]);
+controller.set(['glasses']);assert.equal(layers[0].visible,false);
+console.log('PASS: fixed prop vertices stay identical across 30 changing poses; normal overlays still deform; visibility independent');

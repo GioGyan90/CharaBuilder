@@ -57,3 +57,11 @@ uv run --with pillow --with numpy --with opencv-python-headless scripts/build-di
 ## 已知限制
 
 这是一个指定人物的制作实验，不是通用二维捏人器。大角度侧转、手臂换姿势、完整击球、精确中文对口型和更多表情需要额外补图与绑定。原画刘海遮住一只眼睛，眼睛与头发交界、放大面部时的补图融合仍应由美术按最终显示尺寸验收。
+
+## 独立球杆实验 · 2026-10-28
+
+球杆可见部分与握杆接触区域已从准备好的 base 拆成 `built/overlays/cue.png`、`grip.png`。这次仅提取原画可见像素，没有补绘被手指遮住的完整杆身，因此不支持直接移动球杆脱离手掌。`base-before-props.png` 保留拆分前主体；`python scripts/split-dialogue-prop.py` 可重复生成，并验证三层按原位置组合后逐像素还原原主体。原画和眼口贴片不覆盖。
+
+运行库新增 overlay `space: "fixed"`：该层维持源图坐标，跳过人物网格变形；缺省仍按原方式跟随人物。两个接触层均固定，保留持杆姿势。界面可独立隐藏球杆并检查球杆／握杆层。此阶段是指定角色的人工轮廓拆层，不是任意立绘自动道具识别或通用轮廓编辑器。
+
+本地扩展源码：`dist/vendor/mesh-avatar/extensions/overlays.js`，同步修改 bundled `index.js` 对应 createOverlayLayers。重新打包上游时需将扩展源码覆盖上游同名模块再构建。检查 `node tests/dialogue-props.mjs`：固定层跨姿势顶点完全不变，普通叠加层仍变形，显示开关独立。头部点头／歪头幅度略收敛，高刷新率修复保留。本轮不改资源导出。

@@ -1535,7 +1535,7 @@ function createOverlayLayers(renderer, sheet, images, buildGrid, alphaOf2, baseW
     }
     const layer = renderer.addLayer(`overlay_${item.name}`, crop(img, rect), mesh);
     layer.visible = false;
-    items.set(item.name, { mesh, weights, layer });
+    items.set(item.name, { mesh, weights, layer, fixed: item.space === 'fixed' });
   }
   return {
     /** Shows the named overlays and hides the rest. Unknown names are ignored. */
@@ -1544,8 +1544,8 @@ function createOverlayLayers(renderer, sheet, images, buildGrid, alphaOf2, baseW
       for (const [name, item] of items) item.layer.visible = selected.has(name);
     },
     update(P, phys, deformBase, out) {
-      for (const { mesh, weights, layer } of items.values()) {
-        if (!layer.visible) continue;
+      for (const { mesh, weights, layer, fixed } of items.values()) {
+        if (!layer.visible || fixed) continue;
         for (let i2 = 0; i2 < weights.length; i2++) {
           deformBase(mesh.rest[i2 * 2], mesh.rest[i2 * 2 + 1], weights[i2], P, phys, out);
           mesh.pos[i2 * 2] = out[0];
