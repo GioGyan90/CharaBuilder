@@ -10,10 +10,10 @@
     "rx": 154,
     "ry": 166,
     "shiftX": 12,
-    "shiftY": 8,
+    "shiftY": 18,
     "pivotX": 546,
     "pivotY": 333,
-    "maxRoll": 0.065,
+    "maxRoll": 0.22,
     "weightBand": [
       312,
       380

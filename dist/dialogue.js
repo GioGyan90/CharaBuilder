@@ -1,5 +1,5 @@
 import {loadMeshAvatar} from './vendor/mesh-avatar/index.js';
-import {STORAGE_KEY, defaults, normalize, performanceAt, lineAt, demoLines} from './dialogue-timeline.js?v=2';
+import {STORAGE_KEY, defaults, normalize, performanceAt, lineAt, demoLines} from './dialogue-timeline.js?v=3';
 
 const $ = s => document.querySelector(s);
 const base = './dist/assets/dialogue/lucky-npc/';
@@ -124,6 +124,7 @@ function frame(now) {
   raf=requestAnimationFrame(frame);
 }
 
+$('#motion-demo').onclick=()=>{stop();settings.lines=demoLines.map(l=>({...l}));settings.duration=13;settings.gain=reducedMotion?0:85;settings.view='face';renderCues();applySettings();void play();if(reducedMotion)$('#save-status').textContent='系统已启用减少动态效果；如需预览头部动作，请手动调高动作幅度。';};
 $('#play').onclick=play;
 $('#restart').onclick=()=>{stop();void play();};
 $('#idle').onclick=()=>{stop();trigger=null;};
@@ -166,7 +167,7 @@ window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();
 try {
   avatar=await loadMeshAvatar($('#avatar'),base,{manual:true,padTop:0,padSide:.03});
   avatar.setAutoIdle(false);avatar.setAutoMotion(false);avatar.setSwayGain(reducedMotion?0:.25);
-  for(const b of document.querySelectorAll('#play,#restart,#idle,[data-motion]'))b.disabled=false;
+  for(const b of document.querySelectorAll('#play,#restart,#idle,#motion-demo,[data-motion]'))b.disabled=false;
   document.documentElement.dataset.avatarReady='true';
   updateUI();raf=requestAnimationFrame(frame);
 } catch(error) {
