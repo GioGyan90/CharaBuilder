@@ -1,5 +1,5 @@
 import {loadMeshAvatar} from './vendor/mesh-avatar/index.js';
-import {STORAGE_KEY, defaults, normalize, performanceAt} from './dialogue-timeline.js';
+import {STORAGE_KEY, defaults, normalize, performanceAt, lineAt, demoLines} from './dialogue-timeline.js?v=2';
 
 const $ = s => document.querySelector(s);
 const base = './dist/assets/dialogue/lucky-npc/';
@@ -12,7 +12,7 @@ const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 if (reducedMotion) settings.gain=0;
 
 function applySettings() {
-  $('#name').value=settings.name; $('#script').value=settings.text;
+  $('#name').value=settings.name;
   $('#expression').value=settings.expression; $('#gain').value=settings.gain; $('#duration').value=settings.duration;
   $('#gain-value').textContent=`${settings.gain}%`; $('#duration-value').textContent=`${settings.duration} 秒`;
   $('.preview').dataset.view=settings.view;
@@ -20,16 +20,46 @@ function applySettings() {
   $('#speaker').textContent=settings.name || '未命名角色';
 }
 applySettings();
+renderCues();
+function renderCues() {
+  const list=$('#cue-list');list.replaceChildren();
+  settings.lines.forEach((line,index)=>{
+    const card=document.createElement('fieldset');card.className='cue';
+    const legend=document.createElement('legend');legend.textContent=`第 ${index+1} 句`;card.append(legend);
+    function field(label,key,type,options){
+      const wrap=document.createElement('label');wrap.textContent=label;
+      const input=document.createElement(type);input.dataset.key=key;input.dataset.index=index;
+      if(options)for(const [value,text] of options){const o=new Option(text,value);input.add(o);}
+      if(type==='input'){input.type='number';input.min=key==='duration'?1:0;input.max=key==='duration'?30:line.duration-.1;input.step=.1;}
+      if(type==='textarea'){input.rows=2;input.maxLength=300;}
+      input.value=line[key];input.onchange=()=>{stop();settings.lines[index][key]=input.value;settings=normalize(settings);settings.duration=Math.min(30,Math.max(5,settings.lines.reduce((n,l)=>n+l.duration,0)));renderCues();applySettings();updateUI();};
+      wrap.append(input);card.append(wrap);
+    }
+    field('台词','text','textarea');
+    field('表情','expression','select',Object.entries(labels));
+    field('动作','motion','select',[['none','无'],['tilt','歪头'],['nod','点头'],['shake','摇头'],['blink','眨眼']]);
+    field('动作触发（句内秒）','at','input');field('句子时长（秒）','duration','input');
+    const actions=document.createElement('div');actions.className='save-actions';
+    for(const [text,action,disabled]of [['上移',()=>{[settings.lines[index-1],settings.lines[index]]=[settings.lines[index],settings.lines[index-1]];},index===0],['删除',()=>settings.lines.splice(index,1),settings.lines.length===1]]){const b=document.createElement('button');b.textContent=text;b.disabled=disabled;b.onclick=()=>{stop();action();renderCues();updateUI();};actions.append(b);}
+    card.append(actions);list.append(card);
+  });
+  $('#line-count').textContent=`${settings.lines.length} / 20`;
+  $('#add-line').disabled=settings.lines.length>=20;
+}
+$('#add-line').onclick=()=>{stop();settings.lines.push({text:'新的台词。',expression:'neutral',motion:'none',at:0,duration:3});renderCues();};
+$('#demo').onclick=()=>{stop();settings.lines=demoLines.map(l=>({...l}));settings.duration=13;renderCues();applySettings();updateUI();};
 function readSettings() {
-  settings=normalize({...settings,name:$('#name').value,text:$('#script').value,expression:$('#expression').value,gain:$('#gain').value,duration:$('#duration').value});
+  settings=normalize({...settings,name:$('#name').value,expression:$('#expression').value,gain:$('#gain').value,duration:$('#duration').value});
   applySettings();
 }
 function duration() { return audio && Number.isFinite(audio.duration) && audio.duration>0 ? audio.duration : settings.duration; }
 function updateUI() {
   const length=duration();
   const t=Math.min(elapsed,length), progress=t/length;
-  const chars=Array.from(settings.text);
-  $('#line').textContent=playing || paused ? chars.slice(0,Math.max(1,Math.ceil(progress*chars.length))).join('') : settings.text;
+  const cue=lineAt(t,settings,length);
+  const chars=Array.from(cue.line.text);
+  $('#line').textContent=playing || paused ? chars.slice(0,Math.max(1,Math.ceil(cue.elapsed/cue.duration*chars.length))).join('') : settings.lines.map(l=>l.text).join('\n');
+  document.querySelectorAll('.cue').forEach((card,i)=>card.classList.toggle('active', (playing || paused) && i===cue.index));
   const fmt=n=>`00:${String(Math.floor(n)).padStart(2,'0')}`;
   $('#time').textContent=`${fmt(t)} / ${fmt(length)}`;
   $('#progress').style.width=`${progress*100}%`;
@@ -97,7 +127,7 @@ function frame(now) {
 $('#play').onclick=play;
 $('#restart').onclick=()=>{stop();void play();};
 $('#idle').onclick=()=>{stop();trigger=null;};
-for(const id of ['name','script','expression','gain','duration']) $('#'+id).addEventListener('input',()=>{stop();readSettings();});
+for(const id of ['name','expression','gain','duration']) $('#'+id).addEventListener('input',()=>{stop();readSettings();});
 document.querySelectorAll('button[data-view]').forEach(button=>button.onclick=()=>{settings.view=button.dataset.view;applySettings();});
 document.querySelectorAll('[data-motion]').forEach(button=>button.onclick=()=>{paused=false;trigger={id:button.dataset.motion,elapsed:0};triggerTime=idleTime;});
 $('#inspect').onchange=()=>{
@@ -109,7 +139,7 @@ $('#layer').onchange=()=>{$('#layer-image').src=base+$('#layer').value;};
 $('#layer').dispatchEvent(new Event('change'));
 $('#save').onclick=()=>{readSettings();try {localStorage.setItem(STORAGE_KEY,JSON.stringify(settings));$('#save-status').textContent='二维编排已保存。配音文件需下次重新选择。';}catch{$('#save-status').textContent='浏览器无法保存，请使用导出编排。';}};
 $('#export').onclick=()=>{
-  readSettings();const blob=new Blob([JSON.stringify({format:'lucky-break-dialogue-2d',version:1,avatar:'lucky-npc',...settings},null,2)],{type:'application/json'});
+  readSettings();const blob=new Blob([JSON.stringify({format:'lucky-break-dialogue-2d',version:2,avatar:'lucky-npc',...settings},null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='dialogue-2d.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 };
 async function clearAudio() {
