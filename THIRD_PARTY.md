@@ -154,3 +154,12 @@ Extends the existing short-hair material region behind both ears and across the 
 ### C temple color boundary refinement · v108
 
 Refines the project material clipping boundary between the projecting front fringe and shallow temple hair. Original source geometry and atlas are unchanged; generated cut points continue to interpolate existing attributes. No third-party assets added.
+
+## Mesh Avatar runtime (MIT) · 二维对话实验
+
+- Upstream: https://github.com/shinshin86/mesh-avatar-studio
+- Runtime: mesh-avatar 0.4.0, revision `774870e7cf3669ed3d216c196470ba7ba34d6376`
+- Bundle: `dist/vendor/mesh-avatar/index.js`
+- Licenses: `dist/vendor/mesh-avatar/LICENSE`, `dist/vendor/mesh-avatar/FFLATE-LICENSE`
+- The bundle includes fflate 0.8.x (MIT). No Miko sample artwork is included.
+- `dist/assets/dialogue/lucky-npc/source.png` is the character illustration supplied by the user for this experiment. Its facial patches were derived with image generation and local masked extraction. Artwork rights remain with their respective owners; the runtime MIT license does not license this character artwork.

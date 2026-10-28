@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>二维对话实验 · 角色工坊</title>
+  <link rel="stylesheet" href="./dist/dialogue.css">
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="./index.html"><b>◈</b><span>角色工坊<small>CHARACTER STUDIO</small></span></a><nav aria-label="工作区"><a href="./index.html">三维工作区</a><a href="./dialogue.html" aria-current="page">二维工作区</a></nav><span class="experiment">DIALOGUE LAB <i>01</i></span></header>
+  <main class="workspace">
+    <aside class="library panel">
+      <span class="eyebrow">2D / CHARACTERS</span><h1>让角色开口。</h1><p class="muted">为故事准备的动态立绘</p>
+      <div class="character-card"><div class="portrait"><img src="./dist/assets/dialogue/lucky-npc/source.png" alt="持杆的短发角色原画"></div><div><strong>持杆少女</strong><small>原画实验 · 01</small></div><span class="dot"></span></div>
+      <div class="section-label">查看方式</div><div class="view-buttons" role="group" aria-label="立绘取景"><button data-view="half" class="selected">半身</button><button data-view="full">全身</button><button data-view="face">面部</button></div>
+      <label class="toggle"><input id="inspect" type="checkbox">拆层检查</label>
+      <div id="layer-list" hidden><p class="muted">选择查看实际渲染图层</p><select id="layer" aria-label="渲染图层"><option value="source.png">原始立绘</option><option value="built/base.png">主体 · 已移除眼睛</option><option value="built/hairmask.png">头发影响遮罩</option><option value="built/eye0_ball.png">左侧眼球</option><option value="built/eye1_ball.png">右侧眼球</option><option value="built/eye0_lash.png">左侧睫毛</option><option value="built/eye1_lash.png">右侧睫毛</option><option value="built/sprites/eyes_closed_0.png">左侧闭眼补图</option><option value="built/sprites/eyes_closed_1.png">右侧闭眼补图</option><option value="built/sprites/mouth_a.png">说话嘴型补图</option></select><p class="note">主体采用连续网格变形；头发遮罩限制摆动范围。手、球杆与身体保持同层。</p></div>
+      <div class="library-footer"><span class="eyebrow">LUCKY BREAK</span><p>二维立绘与三维角色<br>独立编辑、独立保存</p><a href="./docs/2D_DIALOGUE_EXPERIMENT.md" target="_blank" rel="noopener">制作记录 ↗</a></div>
+    </aside>
+    <section class="preview" aria-label="二维角色动画预览" data-view="half">
+      <div class="preview-top"><span><b class="status-dot"></b> <span id="status" role="status">正在准备角色…</span></span><span>SCENE / 001</span></div>
+      <div class="scene-lines" aria-hidden="true"></div><div class="scene-number" aria-hidden="true">01</div>
+      <div id="canvas-wrap"><canvas id="avatar" aria-label="持杆少女动态立绘"></canvas></div>
+      <div id="layer-preview" hidden><img id="layer-image" alt="所选拆解图层"></div>
+      <div id="error" role="alert" hidden></div>
+      <div class="dialogue-box"><div class="speaker"><span id="speaker">持杆少女</span><small id="emotion-label">自然</small></div><p id="line">准备好了？来一局吧。</p><div class="dialogue-meta"><span id="playback-label">无配音 · 文字节奏嘴型预览</span><span id="time">00:00 / 00:15</span></div><div class="progress"><i id="progress"></i></div></div>
+      <div class="transport"><button id="play" class="primary" disabled>▶ 播放对话</button><button id="restart" disabled>↺ 从头播放</button><button id="idle" disabled>回到待机</button></div>
+    </section>
+    <aside class="director panel"><span class="eyebrow">PERFORMANCE</span><h2>对话编排</h2><p class="muted">小动作，让台词更有温度。</p>
+      <label class="field">角色称呼<input id="name" maxlength="30" value="持杆少女"></label>
+      <label class="field">测试台词<textarea id="script" rows="4" maxlength="300">准备好了？别紧张，先看清白球的位置。呼吸放慢一点……对，就是这样。来一局吧！</textarea></label>
+      <label class="field">表情<select id="expression"><option value="neutral">自然</option><option value="smile">微笑</option><option value="surprise">惊讶</option></select></label>
+      <div class="section-label">动作预览</div><div class="motion-buttons"><button data-motion="blink" disabled>眨眼</button><button data-motion="nod" disabled>点头</button><button data-motion="tilt" disabled>歪头</button></div>
+      <label class="field range-label">动作幅度 <output id="gain-value">45%</output><input id="gain" type="range" min="0" max="100" value="45"></label>
+      <label class="field range-label">表演时长 <output id="duration-value">15 秒</output><input id="duration" type="range" min="5" max="30" value="15"></label>
+      <div class="audio-field"><label for="voice" class="file-label">＋ 载入本地配音</label><input id="voice" type="file" accept="audio/*"><small id="audio-label">可选 · 有配音时按声音强弱开合嘴</small><button id="clear-voice" hidden>移除配音</button></div>
+      <div class="save-actions"><button id="save">保存编排</button><button id="export">导出编排 JSON</button></div><p id="save-status" class="note" role="status">仅保存在当前浏览器的二维工作区。</p>
+      <div class="scope-note">实验版 · 两态眼睛 / 单一开口绘制<br>支持轻度头部与呼吸变形，嘴型不代表精确音素。</div>
+    </aside>
+  </main>
+  <script type="module" src="./dist/dialogue.js"></script>
+</body></html>
