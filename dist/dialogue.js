@@ -116,7 +116,8 @@ function frame(now) {
       if(trigger) {trigger.elapsed=idleTime-triggerTime;if(trigger.elapsed>2.5)trigger=null;}
       const state=performanceAt(playing?elapsed:idleTime,{...settings,duration:duration()},playing,playing?voiceLevel():null,trigger);
       avatar.setExpression(state.expression); avatar.setParameters(state.parameters);
-      avatar.advance(dt);
+      // advance() rounds seconds * fps; passing the frame rate avoids zero ticks on 120/144/240 Hz displays.
+      avatar.advance(dt, dt > 0 ? 1 / dt : 60);
       $('#emotion-label').textContent=labels[state.expression];
     }
     updateUI();
