@@ -18,7 +18,7 @@ export function lineAt(time,settings,total=settings.duration) {
   const scaled=Math.max(0,time)/total*sum;let start=0;
   for(let index=0;index<lines.length;index++){const line=lines[index];if(scaled<start+line.duration || index===lines.length-1)return {line,index,elapsed:Math.min(line.duration,scaled-start),duration:line.duration,scale:total/sum};start+=line.duration;}
 }
-export const defaults = {name:'持杆少女', text:'准备好了？别紧张，先看清白球的位置。呼吸放慢一点……对，就是这样。来一局吧！', expression:'neutral', gain:45, duration:13, view:'half', lines:demoLines};
+export const defaults = {name:'持杆少女', text:'准备好了？别紧张，先看清白球的位置。呼吸放慢一点……对，就是这样。来一局吧！', expression:'neutral', gain:70, duration:13, view:'half', lines:demoLines};
 export function normalize(value = {}) {
   const number = (key, min, max) => Number.isFinite(Number(value[key])) ? Math.min(max, Math.max(min, Number(value[key]))) : defaults[key];
   return {
@@ -39,15 +39,15 @@ export function performanceAt(time, settings, speaking, voiceLevel = null, trigg
   let nod=0,tilt=0,shake=0;
   if(speaking){
     const t=(cue.elapsed-cue.line.at)*cue.scale;
-    if(cue.line.motion==='nod')nod=pulse(t,0,1.6,-12);
-    if(cue.line.motion==='tilt')tilt=pulse(t,0,2.4,12);
+    if(cue.line.motion==='nod')nod=pulse(t,0,1.6,-24);
+    if(cue.line.motion==='tilt')tilt=pulse(t,0,2.4,24);
     if(cue.line.motion==='blink')blink=Math.max(blink,pulse(t,0,.32,1));
     if(cue.line.motion==='shake' && t>=0 && t<=1.8)shake=Math.sin(t/1.8*Math.PI*4)*Math.sin(t/1.8*Math.PI)*10;
   }
   if (trigger) {
     blink = Math.max(blink, trigger.id==='blink' ? pulse(trigger.elapsed,0,.32,1) : 0);
-    nod += trigger.id==='nod' ? pulse(trigger.elapsed,0,1.6,-12) : 0;
-    tilt += trigger.id==='tilt' ? pulse(trigger.elapsed,0,2.4,12) : 0;
+    nod += trigger.id==='nod' ? pulse(trigger.elapsed,0,1.6,-24) : 0;
+    tilt += trigger.id==='tilt' ? pulse(trigger.elapsed,0,2.4,24) : 0;
   }
   const chars = Array.from(cue.line.text);
   const char = chars[Math.min(chars.length-1, Math.floor(cue.elapsed/cue.duration*chars.length))];
