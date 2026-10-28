@@ -1,5 +1,5 @@
 import {loadMeshAvatar} from './vendor/mesh-avatar/index.js?v=props1';
-import {STORAGE_KEY, defaults, normalize, performanceAt, lineAt, demoLines} from './dialogue-timeline.js?v=3';
+import {STORAGE_KEY, defaults, normalize, performanceAt, lineAt, demoLines, motions, varietyLines} from './dialogue-timeline.js?v=6';
 
 const $ = s => document.querySelector(s);
 const base = './dist/assets/dialogue/lucky-npc/';
@@ -38,7 +38,7 @@ function renderCues() {
     }
     field('台词','text','textarea');
     field('表情','expression','select',Object.entries(labels));
-    field('动作','motion','select',[['none','无'],['tilt','歪头'],['nod','点头'],['shake','摇头'],['blink','眨眼']]);
+    field('动作','motion','select',Object.entries(motions).map(([id,m])=>[id,m.label]));
     field('动作触发（句内秒）','at','input');field('句子时长（秒）','duration','input');
     const actions=document.createElement('div');actions.className='save-actions';
     for(const [text,action,disabled]of [['上移',()=>{[settings.lines[index-1],settings.lines[index]]=[settings.lines[index],settings.lines[index-1]];},index===0],['删除',()=>settings.lines.splice(index,1),settings.lines.length===1]]){const b=document.createElement('button');b.textContent=text;b.disabled=disabled;b.onclick=()=>{stop();action();renderCues();updateUI();};actions.append(b);}
@@ -66,11 +66,12 @@ function updateUI() {
   $('#progress').style.width=`${progress*100}%`;
   $('#play').textContent=playing?'Ⅱ 暂停':paused?'▶ 继续播放':'▶ 播放对话';
   $('#status').textContent=playing?'对话表演中':paused?'表演已暂停':'角色已就绪';
+  $('#motion-label').textContent=trigger?`预览 · ${motions[trigger.id].label}`:playing||paused?`第 ${cue.index+1} 句 · ${motions[cue.line.motion]?.label || '无'}`:'动作待机';
   $('#playback-label').textContent=audio?'本地配音 · 音量驱动嘴型':'无配音 · 文字节奏嘴型预览';
 }
 function pause() { generation++; audioStarting=false; if(playing){playing=false;paused=true;} audio?.pause(); updateUI(); }
 function stop(reset=true) {
-  generation++; audioStarting=false; playing=false; paused=false; audio?.pause();
+  generation++; audioStarting=false; playing=false; paused=false; trigger=null; audio?.pause();
   if(audio) audio.currentTime=0;
   if(reset) elapsed=0;
   avatar?.setParameters({mouthOpen:0}); updateUI();
@@ -114,7 +115,7 @@ function frame(now) {
       if(elapsed>=duration()) {elapsed=duration();stop(false);}
     }
     if(!paused) {
-      if(trigger) {trigger.elapsed=idleTime-triggerTime;if(trigger.elapsed>2.5)trigger=null;}
+      if(trigger) {trigger.elapsed=idleTime-triggerTime;if(trigger.elapsed>(motions[trigger.id]?.duration || 0))trigger=null;}
       const state=performanceAt(playing?elapsed:idleTime,{...settings,duration:duration()},playing,playing?voiceLevel():null,trigger);
       avatar.setExpression(state.expression); avatar.setParameters(state.parameters);
       // advance() rounds seconds * fps; passing the frame rate avoids zero ticks on 120/144/240 Hz displays.
@@ -133,7 +134,13 @@ $('#restart').onclick=()=>{stop();void play();};
 $('#idle').onclick=()=>{stop();trigger=null;};
 for(const id of ['name','expression','gain','duration']) $('#'+id).addEventListener('input',()=>{stop();readSettings();});
 document.querySelectorAll('button[data-view]').forEach(button=>button.onclick=()=>{settings.view=button.dataset.view;applySettings();});
-document.querySelectorAll('[data-motion]').forEach(button=>button.onclick=()=>{paused=false;trigger={id:button.dataset.motion,elapsed:0};triggerTime=idleTime;});
+const motionButtons=$('#motion-buttons');
+for(const [id,m]of Object.entries(motions)){
+  if(id==='none')continue;
+  const b=document.createElement('button');b.textContent=m.label;b.dataset.motion=id;b.disabled=!avatar;
+  b.onclick=()=>{stop();$('#inspect').checked=false;$('#layer-list').hidden=true;$('#layer-preview').hidden=true;$('#canvas-wrap').hidden=false;settings.view='face';applySettings();trigger={id,elapsed:0};triggerTime=idleTime;$('#motion-label').textContent=`预览 · ${m.label}`;};motionButtons.append(b);
+}
+$('#variety-demo').onclick=()=>{stop();settings.lines=varietyLines.map(l=>({...l}));settings.duration=20;settings.gain=reducedMotion?0:85;settings.view='face';renderCues();applySettings();void play();};
 $('#inspect').onchange=()=>{
   pause(); const inspect=$('#inspect').checked;
   $('#layer-list').hidden=!inspect; $('#layer-preview').hidden=!inspect; $('#canvas-wrap').hidden=inspect;
@@ -170,7 +177,7 @@ window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();
 try {
   avatar=await loadMeshAvatar($('#avatar'),base,{manual:true,padTop:0,padSide:.03,version:'props1'});
   avatar.setOverlays(['cue','grip']);avatar.setAutoIdle(false);avatar.setAutoMotion(false);avatar.setSwayGain(reducedMotion?0:.25);
-  for(const b of document.querySelectorAll('#play,#restart,#idle,#motion-demo,[data-motion]'))b.disabled=false;
+  for(const b of document.querySelectorAll('#play,#restart,#idle,#motion-demo,#variety-demo,[data-motion]'))b.disabled=false;
   document.documentElement.dataset.avatarReady='true';
   updateUI();raf=requestAnimationFrame(frame);
 } catch(error) {
